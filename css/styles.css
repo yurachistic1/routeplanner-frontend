@@ -1,0 +1,25 @@
+/* Global styles */
+:root {
+    font-size: 10px;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-size: 1.6rem;
+}
+
+html, body {
+    height: 100%;
+    width: 100%;
+}
+
+/* Map styles */
+
+#map {
+    height: 100%;
+    width: 100%;
+
+    /* Move map to the background */
+    z-index: 1;
+}
