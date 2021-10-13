@@ -10,6 +10,14 @@
             rel="stylesheet" 
             href="./css/styles.css"
         />
+        <!-- Google fonts -->
+        <link 
+            rel="preconnect" 
+            href="https://fonts.gstatic.com">
+
+        <link 
+            href="https://fonts.googleapis.com/css2?family=Passion+One&family=Raleway:ital,wght@1,300&display=swap" 
+            rel="stylesheet">
 
         <!-- Leaflet Maps Script -->
         <link 
@@ -30,5 +38,13 @@
     <body>
        <!-- Div for the leaflet map -->
         <div id="map"></div>
+
+        <!-- Section with all the controls for the app -->
+        <div class="control-panel">
+            <label for="run-length">Run Length (km):</label>
+            <input type="number" id="run-length">
+            <button class="control-button" id="generate-runs"> Generate </button>
+            <button class="control-button" style="display: none;" id="next-run"> Next </button>
+        </div>
     </body>
 </html>
