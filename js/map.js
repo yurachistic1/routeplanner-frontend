@@ -7,7 +7,6 @@ const attribution = '&copy; <a href="https://openstreetmap.org/copyright">OpenSt
 const tiles = L.tileLayer(tileUrl, { attribution })
 tiles.addTo(map);
 
-L.control.scale().addTo(map);
 
 // Add marker on click 
 
