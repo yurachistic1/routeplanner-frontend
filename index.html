@@ -39,12 +39,27 @@
        <!-- Div for the leaflet map -->
         <div id="map"></div>
 
+
+
         <!-- Section with all the controls for the app -->
-        <div class="control-panel">
+
+        <div id="top" class="control-panel-top" style="display: none;">
+            <p class="info" id="runNo">1/25</p>
+            <p class="info" id="runLen">5km</p>
+            <span style="margin: 0.2rem;">
+                <button class="control-button" id="prev-run"> Prev </button>
+                <button class="control-button" id="next-run"> Next </button>
+            </span>
+            
+            <button class="control-button" style="display: block;" id="download-run">Download GPX</button>
+            <a id="download-link" style="display: none;"></a>
+
+        </div>
+
+        <div class="control-panel-bottom">
             <label for="run-length">Run Length (km):</label>
             <input type="number" id="run-length">
             <button class="control-button" id="generate-runs"> Generate </button>
-            <button class="control-button" style="display: none;" id="next-run"> Next </button>
         </div>
     </body>
 </html>

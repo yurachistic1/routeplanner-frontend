@@ -27,11 +27,25 @@ html, body {
 }
 
 /* Control styles */
-.control-panel {
+.control-panel-bottom {
     position: absolute;
     bottom: 5%;
     left: 5%;
     transform: translateY(-20%);
+    z-index: 20;
+    background-color: rgba(225, 234, 247, 0.7);
+    padding: 0.7rem;
+    border-radius: 0.7rem;
+
+}
+
+.control-panel-top{
+    display: grid;
+    justify-items: center;
+    position: absolute;
+    top: 2%;
+    right: 2%;
+    width: 15rem;
     z-index: 20;
     background-color: rgba(225, 234, 247, 0.7);
     padding: 0.7rem;
@@ -75,3 +89,7 @@ input[type=number] {
     box-shadow: 1px 1px rgba(102, 102, 102, 0.747);
     transform: translateY(1px);
   }
+
+.info {
+    margin: 0.1rem;
+}
