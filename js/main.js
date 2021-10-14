@@ -26,6 +26,8 @@ function generateButton(){
     let lat = (startMarker.getLatLng()).lat
     let lon = (startMarker.getLatLng()).lng
 
+    document.getElementById("generate-runs").disabled = true
+
     requestRoutes(lat, lon, distance).then(function success(res){
         routingResult = res
         index = 0
@@ -33,9 +35,10 @@ function generateButton(){
         route.setLatLngs(routingResult[0].path)
         document.getElementById("runNo").innerText = `1/${routingResult.length}`
         document.getElementById("runLen").innerText = `Distance: ${(routingResult[0].distance/1000).toFixed(2)} km.`
+        document.getElementById("generate-runs").disabled = false
     }).catch(function fail(err){
         alert(err)
-        return
+        document.getElementById("generate-runs").disabled = false
     })
     
 }
