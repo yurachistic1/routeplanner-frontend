@@ -1,65 +1,74 @@
 <!DOCTYPE html>
-<html>
-    <head>
-        <meta charset="UTF-8"/>
-        <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=yes">
-        <title>Route Planner</title>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#07090d" />
+  <meta name="description" content="Loops: running routes of any distance, from wherever you start." />
+  <title>Loops</title>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+  <link href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css" rel="stylesheet" />
+  <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
+  <link href="./css/styles.css" rel="stylesheet" />
+</head>
+<body>
+  <div id="map"></div>
+  <div class="vignette"></div>
 
-        <!-- CSS styles -->
-        <link 
-            rel="stylesheet" 
-            href="./css/styles.css"
-        />
-        <!-- Google fonts -->
-        <link 
-            rel="preconnect" 
-            href="https://fonts.gstatic.com">
+  <header class="hud-top glass">
+    <div class="logo">LOOPS<b>.</b></div>
+    <div class="hint"><span class="h1">Tap map → drop start</span><span class="h2">● Start set · tap to move</span></div>
+    <div class="info">
+      <div class="tag">Route <span class="mono" id="route-title">01</span> / <span class="mono" id="route-count">00</span></div>
+      <div class="now mono"><span id="route-distance">0.00</span><small> KM</small></div>
+    </div>
+  </header>
 
-        <link 
-            href="https://fonts.googleapis.com/css2?family=Passion+One&family=Raleway:ital,wght@1,300&display=swap" 
-            rel="stylesheet">
+  <div id="toast" role="status" aria-live="polite"></div>
 
-        <!-- Leaflet Maps Script -->
-        <link 
-            rel="stylesheet" 
-            href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
-            integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A=="
-            crossorigin=""
-        />
-        <script 
-            src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"
-            integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA=="
-            crossorigin="">
-        </script>
-        
-        <script defer type="module" src="./js/main.js"></script>
-
-    </head>
-    <body>
-       <!-- Div for the leaflet map -->
-        <div id="map"></div>
-
-
-
-        <!-- Section with all the controls for the app -->
-
-        <div id="top" class="control-panel-top" style="display: none;">
-            <p class="info" id="runNo">1/25</p>
-            <p class="info" id="runLen">5km</p>
-            <span style="margin: 0.2rem;">
-                <button class="control-button" id="prev-run"> Prev </button>
-                <button class="control-button" id="next-run"> Next </button>
-            </span>
-            
-            <button class="control-button" style="display: block;" id="download-run">Download GPX</button>
-            <a id="download-link" style="display: none;"></a>
-
+  <section class="deck glass">
+    <div class="setup">
+      <button class="back" id="back"><span>← Back to routes</span><kbd>Esc</kbd></button>
+      <div class="dial">
+        <button class="round" id="dec" aria-label="Shorter">−</button>
+        <div class="readout">
+          <input id="distance" type="number" inputmode="decimal" min="1" max="35" value="10" aria-label="Distance in km" />
+          <div class="tag">Kilometres</div>
         </div>
+        <button class="round" id="inc" aria-label="Longer">+</button>
+      </div>
+      <div class="chips">
+        <button class="chip" data-km="5">5K</button>
+        <button class="chip" data-km="10">10K</button>
+        <button class="chip" data-km="15">15K</button>
+        <button class="chip" data-km="21.1">HALF</button>
+        <button class="chip" data-km="30">30K</button>
+      </div>
+      <button class="go" id="generate"><span class="t1">Generate</span><svg class="t1" width="22" height="14" viewBox="0 0 22 14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 7h19M14 1l6 6-6 6"/></svg><span class="t2">Scanning</span></button>
+    </div>
 
-        <div class="control-panel-bottom">
-            <label for="run-length">Run Length (km):</label>
-            <input type="number" id="run-length">
-            <button class="control-button" id="generate-runs"> Generate </button>
-        </div>
-    </body>
+    <div class="results">
+      <div class="nav">
+        <button class="round" id="prev" aria-label="Previous route">◀</button>
+        <button class="wide" id="download">↓ Export GPX</button>
+        <button class="round" id="next" aria-label="Next route">▶</button>
+      </div>
+      <div class="row2">
+        <button class="ghost-btn" id="list-toggle">All routes</button>
+        <button class="ghost-btn" id="edit">New run</button>
+      </div>
+    </div>
+  </section>
+
+  <aside class="list">
+    <div class="list-head">
+      <h2>Routes</h2>
+      <button class="ghost-btn" id="list-close" style="padding: 0 14px">Close</button>
+    </div>
+    <ul id="route-list"></ul>
+  </aside>
+
+  <script type="module" src="./js/main.js"></script>
+</body>
 </html>
