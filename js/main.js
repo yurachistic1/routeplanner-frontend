@@ -3,8 +3,14 @@ import { map, route, startMarker } from "./map.js";
 let routingResult;
 let index = 0;
 
+// Use the local backend (go run ./cmd/server) when the page is served locally.
+const isLocal = ["localhost", "127.0.0.1"].includes(location.hostname)
+const API_URL = isLocal
+    ? "http://localhost:8080/"
+    : "https://europe-central2-routeplanner-328709.cloudfunctions.net/RoutePlannerAPI"
+
 async function requestRoutes(lat, lon, distance){
-    const response = await fetch(`https://europe-central2-routeplanner-328709.cloudfunctions.net/RoutePlannerAPI?lat=${lat}&lon=${lon}&distance=${distance}`);
+    const response = await fetch(`${API_URL}?lat=${lat}&lon=${lon}&distance=${distance}`);
     const data = await response.json();
     return data
 }
@@ -14,8 +20,8 @@ document.getElementById("generate-runs").onclick = generateButton;
 function generateButton(){
     const distance = document.getElementById("run-length").value
 
-    if(distance === "" || distance > 10 || distance < 1){
-        alert("Please input a valid distance between 1 and 10 km.")
+    if(distance === "" || distance > 35 || distance < 1){
+        alert("Please input a valid distance between 1 and 35 km.")
         return
     } 
     if(startMarker === undefined){
