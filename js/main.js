@@ -1,91 +1,35 @@
-import { map, route, startMarker } from "./map.js";
+import { createApp } from "./app.js";
+import { buildStyle } from "./mapstyle.js";
 
-let routingResult;
-let index = 0;
+// "Dusk": a lighter dark map, so roads and parks are easy to read.
+const style = buildStyle({
+  land: "#151a22", park: "#173b2f", wood: "#153529", water: "#10304f", building: "#1c222c",
+  motorway: "#4a5878", major: "#3b4761", minor: "#283040", service: "#222937", path: "#2e4743", rail: "#2c3342",
+  label: "#8a96aa", labelHalo: "#151a22", waterLabel: "#5d86b0", parkLabel: "#5c947f",
+}, { labels: "normal" });
 
-// Use the local backend (go run ./cmd/server) when the page is served locally.
-const isLocal = ["localhost", "127.0.0.1"].includes(location.hostname)
-const API_URL = isLocal
-    ? "http://localhost:8080/"
-    : "https://europe-central2-routeplanner-328709.cloudfunctions.net/RoutePlannerAPI"
+// Route: lime line on a soft lime-tinted band. Both are solid, not
+// see-through, so overlapping bits can't stack into bright blobs.
+const W = (lo, hi) => ["interpolate", ["linear"], ["zoom"], 11, lo, 16, hi];
+const layout = { "line-cap": "round", "line-join": "round" };
 
-async function requestRoutes(lat, lon, distance){
-    const response = await fetch(`${API_URL}?lat=${lat}&lon=${lon}&distance=${distance}`);
-    const data = await response.json();
-    return data
-}
+const desktop = matchMedia("(min-width: 900px)");
+createApp({
+  style,
+  animate: true,
+  formatIndex: (i) => String(i + 1).padStart(2, "0"),
+  padding: () => {
+    const top = document.querySelector(".hud-top").getBoundingClientRect();
+    const deck = document.querySelector(".deck").getBoundingClientRect();
+    if (desktop.matches) return { top: 60, bottom: 60, left: deck.right + 40, right: 380 };
+    return { top: top.bottom + 30, left: 30, right: 30, bottom: innerHeight - deck.top + 30 };
+  },
+  addRouteLayers(map) {
+    map.addLayer({ id: "route-halo", type: "line", source: "route", layout,
+      paint: { "line-color": "#4f6328", "line-width": W(6, 13), "line-blur": W(1.5, 4) } });
+    map.addLayer({ id: "route", type: "line", source: "route", layout,
+      paint: { "line-color": "#c8ff2e", "line-width": W(2.2, 4.5) } });
+  },
+});
 
-document.getElementById("generate-runs").onclick = generateButton;
-
-function generateButton(){
-    const distance = document.getElementById("run-length").value
-
-    if(distance === "" || distance > 35 || distance < 1){
-        alert("Please input a valid distance between 1 and 35 km.")
-        return
-    } 
-    if(startMarker === undefined){
-        alert("Please place a marker on the start location.")
-        return
-    }
-
-    let lat = (startMarker.getLatLng()).lat
-    let lon = (startMarker.getLatLng()).lng
-
-    document.getElementById("generate-runs").disabled = true
-
-    requestRoutes(lat, lon, distance).then(function success(res){
-        routingResult = res
-        index = 0
-        document.getElementById('top').style.display = 'grid'
-        route.setLatLngs(routingResult[0].path)
-        document.getElementById("runNo").innerText = `1/${routingResult.length}`
-        document.getElementById("runLen").innerText = `Distance: ${(routingResult[0].distance/1000).toFixed(2)} km.`
-        document.getElementById("generate-runs").disabled = false
-    }).catch(function fail(err){
-        alert(err)
-        document.getElementById("generate-runs").disabled = false
-    })
-    
-}
-
-document.getElementById("next-run").onclick = nextButton;
-document.getElementById("prev-run").onclick = prevButton;
-
-
-function nextButton(){
-    index += 1
-    index = index % routingResult.length
-    route.setLatLngs(routingResult[index].path)
-    document.getElementById("runNo").innerText = `${index + 1}/${routingResult.length}`
-    document.getElementById("runLen").innerText = `Distance: ${(routingResult[index].distance/1000).toFixed(2)} km.`
-}
-
-function prevButton(){
-    index -= 1
-    if(index < 0) {
-        index = routingResult.length - 1
-    }
-    route.setLatLngs(routingResult[index].path)
-    document.getElementById("runNo").innerText = `${index + 1}/${routingResult.length}`
-    document.getElementById("runLen").innerText = `Distance: ${(routingResult[index].distance/1000).toFixed(2)} km.`
-}
-
-document.getElementById("download-run").onclick = downloadGPX;
-
-function downloadGPX(){
-    
-    let xml = '<gpx xmlns="http://www.topografix.com/GPX/1/1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd" version="1.1" creator="routeplanner"><trk><trkseg>'
-
-    for(const pair of routingResult[index].path){
-        xml += `<trkpt lat="${pair[0]}" lon="${pair[1]}"></trkpt>`
-    }
-
-    xml += '</trkseg></trk></gpx>'
-    const url = 'data:text/json;charset=utf-8,' + xml
-    const link = document.getElementById("download-link")
-    link.download = `${(routingResult[index].distance/1000).toFixed(2)}km.gpx`
-    link.href = url
-
-    link.click()
-}
+document.getElementById("list-close").addEventListener("click", () => document.body.classList.remove("list-open"));
