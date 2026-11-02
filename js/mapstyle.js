@@ -22,6 +22,9 @@ const notTunnel = ["!=", ["get", "brunnel"], "tunnel"];
  *   buildings: bool, casing: bool, pathDash: [a, b] | null,
  *   labels: "few" | "normal", placeUpper: bool
  */
+// Credits for the map data, shown by the ⓘ control (see app.js).
+export const ATTRIBUTION = '<a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a> © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>';
+
 export function buildStyle(p, o = {}) {
   const opt = { buildings: true, casing: false, pathDash: null, labels: "few", placeUpper: true, ...o };
   const layers = [];
@@ -148,7 +151,7 @@ export function buildStyle(p, o = {}) {
   return {
     version: 8,
     glyphs: GLYPHS,
-    sources: { omt: { type: "vector", url: SOURCE, attribution: '<a href="https://openfreemap.org">OpenFreeMap</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' } },
+    sources: { omt: { type: "vector", url: SOURCE, attribution: ATTRIBUTION } },
     layers,
   };
 }

@@ -1,6 +1,6 @@
 # routeplanner-frontend
-This repository contains the frontend of [Loops](https://yurachistic1.github.io/routeplanner-frontend/). 
-Loops suggests circular runs from a start point and a target distance. The map is drawn with MapLibre GL on OpenFreeMap vector tiles. 
+This repository contains the frontend of the [route planner](https://yurachistic1.github.io/routeplanner-frontend/). 
+It suggests circular runs from a start point and a target distance. The map is drawn with MapLibre GL on OpenFreeMap vector tiles. 
 
 To see the code that powers the app see this [repository](https://github.com/yurachistic1/routeplanner-backend).
 
