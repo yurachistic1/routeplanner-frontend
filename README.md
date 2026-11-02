@@ -9,7 +9,7 @@ To see the code that powers the app see this [repository](https://github.com/yur
 2. Pick a distance between 1 and 35 km and press "Generate".
 3. Flip through the loops with the arrows, or open "All routes" to see them side by side, then export the one you like as GPX.
 
-Map data only covers London for now.
+Map data covers the UK for now.
 
 ## Running locally
 No build step. Serve the folder and run the backend alongside it:

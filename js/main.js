@@ -6,6 +6,7 @@ const style = buildStyle({
   land: "#151a22", park: "#173b2f", wood: "#153529", water: "#10304f", building: "#1c222c",
   motorway: "#4a5878", major: "#3b4761", minor: "#283040", service: "#222937", path: "#2e4743", rail: "#2c3342",
   label: "#8a96aa", labelHalo: "#151a22", waterLabel: "#5d86b0", parkLabel: "#5c947f",
+  cityLabel: "#e3e8f0", townLabel: "#b4bfcf",
 }, { labels: "normal" });
 
 // Route: lime line on a soft lime-tinted band. Both are solid, not
