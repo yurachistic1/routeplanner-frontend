@@ -1,5 +1,6 @@
-/* Loops: dark "Dusk" theme, phone first. */
+/* Dark "Dusk" theme, phone first. */
 :root {
+  --hud-h: 56px;
   --bg: #07090d;
   --glass: rgba(14, 18, 26, 0.72);
   --edge: rgba(255, 255, 255, 0.08);
@@ -31,7 +32,7 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 .hud-top {
   position: absolute; z-index: 3; top: max(12px, env(safe-area-inset-top)); left: 12px; right: 12px;
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  padding: 10px 14px; border-radius: 14px;
+  height: var(--hud-h); padding: 0 14px; border-radius: 14px;
 }
 .tag { font-size: 11px; letter-spacing: .2em; text-transform: uppercase; color: var(--dim); }
 .logo { font-weight: 700; letter-spacing: .04em; font-size: 15px; }
@@ -43,7 +44,7 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 .has-start .hint .h1 { display: none; }
 .hint .h2 { display: none; color: var(--neon); }
 .has-start .hint .h2 { display: inline; }
-.hud-top .now { font-size: 22px; font-weight: 700; color: var(--neon); text-shadow: var(--neon-glow); line-height: 1.1; }
+.hud-top .now { font-size: 22px; font-weight: 700; color: var(--neon); text-shadow: var(--neon-glow); line-height: 1.05; }
 .hud-top .now small { font-size: 12px; color: var(--dim); text-shadow: none; }
 
 /* Bottom deck */
@@ -175,10 +176,29 @@ body:not(.show-results):not(.loading) .start-marker::before { animation: pulse 2
 }
 #toast.show { opacity: 1; transform: none; }
 
-.maplibregl-ctrl-attrib { background: rgba(0,0,0,.5) !important; color: var(--dim); font-size: 10px; }
-.maplibregl-ctrl-attrib a { color: var(--dim) !important; }
-.maplibregl-ctrl-attrib-button { filter: invert(1); }
-.maplibregl-ctrl-bottom-right { bottom: auto; top: calc(70px + env(safe-area-inset-top)); }
+/* Map credits: the ⓘ sits in the top-right corner, centred on the top bar's
+   row. On desktop the text slides out to its left. */
+.credits {
+  position: absolute; z-index: 4; top: max(12px, env(safe-area-inset-top)); right: 12px;
+  height: var(--hud-h); display: flex; align-items: center; gap: 8px;
+  /* fast taps count as double/triple clicks: don't select the text */
+  user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent;
+}
+.credits-btn { width: 24px; height: 24px; padding: 0; display: grid; place-items: center; color: var(--text); opacity: .85; }
+.credits-btn:hover { opacity: 1; }
+.credits-i { fill: var(--bg); }
+.credits-text {
+  font-size: 11px; color: var(--dim); white-space: nowrap; overflow: hidden;
+  background: rgba(16, 20, 28, .9); border: 1px solid var(--edge); border-radius: 8px;
+  padding: 5px 10px; max-width: 320px; opacity: 1;
+  transition: max-width .5s cubic-bezier(.2, .8, .2, 1), padding .5s cubic-bezier(.2, .8, .2, 1),
+              opacity .35s ease, border-color .35s ease;
+}
+.credits-text a { color: inherit; text-decoration: none; }
+.credits-text a:hover { color: var(--text); }
+.credits:not(.open) .credits-text {
+  max-width: 0; padding-left: 0; padding-right: 0; opacity: 0; border-color: transparent; pointer-events: none;
+}
 
 /* Phones: lighter to draw (no live blur behind panels, no edge overlay),
    and a more compact setup panel so more of the map shows. */
@@ -186,6 +206,19 @@ body:not(.show-results):not(.loading) .start-marker::before { animation: pulse 2
   .glass { backdrop-filter: none; -webkit-backdrop-filter: none; background: rgba(16, 20, 28, .94); }
   .list { backdrop-filter: none; -webkit-backdrop-filter: none; background: rgba(7, 9, 13, .97); }
   .vignette { display: none; }
+  .hud-top { right: 48px; }
+  /* Map credits: the top bar fills the row, so the text drops down below
+     the ⓘ, and fades and lifts away when it closes. */
+  .credits-text {
+    position: absolute; top: calc(100% + 4px); right: 0; max-width: none;
+    padding: 8px 12px; border-radius: 10px; background: rgba(16, 20, 28, .96);
+    transform-origin: top right;
+    transition: opacity .35s ease, transform .4s cubic-bezier(.2, .8, .2, 1);
+  }
+  .credits:not(.open) .credits-text {
+    max-width: none; padding: 8px 12px; border-color: var(--edge);
+    opacity: 0; transform: translateY(-8px) scale(.96);
+  }
 
   .deck { padding: 12px; border-radius: 20px; }
   .setup { gap: 10px; }
@@ -200,8 +233,15 @@ body:not(.show-results):not(.loading) .start-marker::before { animation: pulse 2
   .ghost-btn { height: 38px; }
 }
 
+/* Narrow phones: keep the name and the hint on one line in the top bar. */
+@media (max-width: 380px) {
+  .hint { font-size: 10px; letter-spacing: .08em; }
+  .logo { font-size: 14px; }
+}
+
 @media (min-width: 900px) {
   .hud-top { right: auto; width: 400px; }
+  .show-results .credits { right: 364px; }
   #toast { right: auto; width: 400px; }
   .deck { right: auto; width: 400px; }
   .list {

@@ -1,4 +1,4 @@
-// Loops app: map, start marker, requesting routes, smoothing, the route
+// The app: map, start marker, requesting routes, smoothing, the route
 // list, prev/next and GPX download.
 //
 // The page supplies the map style and route layers (js/main.js), and
@@ -61,26 +61,42 @@ function simplify(pts, tol) {
   return pts.filter((_, i) => keep[i]);
 }
 
-// Chaikin corner cutting: rounds off sharp corners.
-function chaikin(pts, iterations) {
-  for (let k = 0; k < iterations; k++) {
-    const out = [pts[0]];
-    for (let i = 0; i < pts.length - 1; i++) {
-      const [x0, y0] = pts[i], [x1, y1] = pts[i + 1];
-      out.push([0.75 * x0 + 0.25 * x1, 0.75 * y0 + 0.25 * y1]);
-      out.push([0.25 * x0 + 0.75 * x1, 0.25 * y0 + 0.75 * y1]);
+// Rounds each corner with an arc of (at most) radius metres, Strava style:
+// the line stays on the roads and only the sharp corners are softened.
+// A corner's arc can't use more than half of either neighbouring segment,
+// so short wiggles get small arcs instead of being swallowed.
+export function roundCorners(pts, radius) {
+  if (pts.length < 3 || radius <= 0) return pts;
+  const kx = mLon(pts[0][1]);
+  const P = pts.map(([lon, lat]) => [lon * kx, lat * M_LAT]);
+  const out = [pts[0]];
+  for (let i = 1; i < P.length - 1; i++) {
+    const [ax, ay] = P[i - 1], [bx, by] = P[i], [cx, cy] = P[i + 1];
+    const ux = ax - bx, uy = ay - by, vx = cx - bx, vy = cy - by;
+    const lu = Math.hypot(ux, uy), lv = Math.hypot(vx, vy);
+    if (lu < 1e-6 || lv < 1e-6) continue;
+    // Angle between the two segments at this corner: π means straight on.
+    const cos = Math.max(-1, Math.min(1, (ux * vx + uy * vy) / (lu * lv)));
+    const angle = Math.acos(cos);
+    if (angle > Math.PI * 0.97) { out.push(pts[i]); continue; } // nearly straight
+    // Distance from the corner to where the arc starts and ends.
+    const t = Math.min(radius / Math.tan(angle / 2), lu / 2, lv / 2);
+    const p1 = [bx + (ux / lu) * t, by + (uy / lu) * t];
+    const p2 = [bx + (vx / lv) * t, by + (vy / lv) * t];
+    // Quadratic curve p1 → p2 pulled towards the corner: a near-circular arc.
+    const steps = Math.max(2, Math.ceil((Math.PI - angle) / (Math.PI / 12)));
+    for (let k = 0; k <= steps; k++) {
+      const q = k / steps, a = (1 - q) * (1 - q), b = 2 * (1 - q) * q, c = q * q;
+      const x = a * p1[0] + b * bx + c * p2[0], y = a * p1[1] + b * by + c * p2[1];
+      out.push([x / kx, y / M_LAT]);
     }
-    out.push(pts[pts.length - 1]);
-    pts = out;
   }
-  return pts;
+  out.push(pts[pts.length - 1]);
+  return out;
 }
 
 const metresPerPixel = (zoom, lat) => (40075016.7 * Math.cos((lat * Math.PI) / 180)) / (512 * 2 ** zoom);
 
-export function smooth(pts, tol = 6, iterations = 2) {
-  return chaikin(simplify(pts, tol), iterations);
-}
 
 function bounds(pts) {
   const b = new maplibregl.LngLatBounds(pts[0], pts[0]);
@@ -93,7 +109,9 @@ export function thumbnail(pts, size = 44) {
   const k0 = mLon(pts[0][1]);
   const lons = pts.map((p) => p[0]), lats = pts.map((p) => p[1]);
   const extent = Math.max((Math.max(...lons) - Math.min(...lons)) * k0, (Math.max(...lats) - Math.min(...lats)) * M_LAT);
-  const s = chaikin(simplify(pts, extent / 40), 3);
+  // Same idea as the map line: keep the real shape, drop only detail too
+  // small to see at thumbnail size, and soften the corners a little.
+  const s = roundCorners(simplify(pts, extent / 120), extent / 40);
   const kx = mLon(s[0][1]);
   const xs = s.map((p) => p[0] * kx), ys = s.map((p) => -p[1] * M_LAT);
   const minX = Math.min(...xs), maxX = Math.max(...xs);
@@ -129,12 +147,35 @@ export function createApp(opts) {
     zoom: 13.4,
     dragRotate: false,
     pitchWithRotate: false,
-    attributionControl: { compact: true },
+    attributionControl: false, // replaced by our own ⓘ control below
     // Phone screens are often 3x density; drawing the map at 2x is hard to
     // tell apart and much lighter, so panning stays smooth.
     pixelRatio: Math.min(devicePixelRatio, 2),
   });
   map.touchZoomRotate.disableRotation();
+
+  // ----- map credits (ⓘ) -----
+  // Our own control rather than MapLibre's, which collapses the moment you
+  // drag the map and can't animate. OpenStreetMap's attribution guidelines
+  // want the credits visible without interaction; collapsing after 5 seconds
+  // is allowed. Tapping the ⓘ opens and closes them again.
+  if (o.credits) {
+    const box = document.createElement("div");
+    box.className = "credits open";
+    box.innerHTML = `<div class="credits-text">${o.credits}</div>
+      <button class="credits-btn" aria-label="Map credits" aria-expanded="true">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+          <circle cx="12" cy="12" r="11" fill="currentColor"/>
+          <circle cx="12" cy="7" r="1.6" class="credits-i"/>
+          <rect x="10.7" y="10" width="2.6" height="8.5" rx="1.3" class="credits-i"/>
+        </svg>
+      </button>`;
+    document.body.append(box);
+    const btn = box.querySelector(".credits-btn");
+    const setOpen = (on) => { box.classList.toggle("open", on); btn.setAttribute("aria-expanded", on); };
+    const auto = setTimeout(() => setOpen(false), 5000);
+    btn.addEventListener("click", () => { clearTimeout(auto); setOpen(!box.classList.contains("open")); });
+  }
 
   const state = { start: null, routes: [], index: 0, target: 0 };
   let marker = null;
@@ -258,6 +299,7 @@ export function createApp(opts) {
   function newRun() {
     cancelAnimationFrame(anim);
     drawing = false;
+    shownKey = null;
     setLine("route", null);
     body.classList.remove("show-results", "list-open");
     marker?.setDraggable(true);
@@ -307,25 +349,24 @@ export function createApp(opts) {
       : EMPTY);
   }
 
-  // Smoothing depends on zoom: a few pixels' worth when zoomed out (a clean
-  // overview), nothing from street level in (follows the real roads).
-  // Zoomed out past the view that fits the whole route, smoothing stays as it
-  // is there (more would just turn every loop into a circle).
-  // Results are cached per route for each half zoom level.
+  // Smoothing is fixed in screen pixels, so it looks the same at every zoom:
+  // drop detail smaller than ~1px, then round corners with a ~6px radius.
+  // On the ground that's a few metres up close (exact roads) and more when
+  // zoomed out, but it never cuts across blocks. Past the zoom that fits the
+  // whole route it stops growing. Cached per route for each half zoom level.
   const half = (z) => Math.round(z * 2) / 2;
   const zoomKey = () => half(map.getZoom());
   function fitKey(r) {
     r.fitKey ??= half(map.cameraForBounds(bounds(r.raw), { padding: o.padding(), maxZoom: 16 })?.zoom ?? 13);
     return r.fitKey;
   }
+  const CORNER_PX = 6;
   function coordsAt(r, key) {
     key = Math.max(key, fitKey(r));
     r.cache ??= new Map();
     if (!r.cache.has(key)) {
-      const tolPx = Math.max(0, Math.min(4, ((15.5 - key) * 4) / 3)); // 4px at z≤12.5 → 0 at z15.5
-      const tol = tolPx * metresPerPixel(key, r.raw[0][1]);
-      const iterations = key < 13.5 ? 3 : 2;
-      r.cache.set(key, tol < 1 ? r.raw : smooth(r.raw, tol, iterations));
+      const mpp = metresPerPixel(key, r.raw[0][1]);
+      r.cache.set(key, roundCorners(simplify(r.raw, mpp), CORNER_PX * mpp));
     }
     return r.cache.get(key);
   }
@@ -337,7 +378,8 @@ export function createApp(opts) {
   map.on("zoomend", () => {
     const r = state.routes[state.index];
     const key = zoomKey();
-    if (!r || drawing || key === shownKey) return;
+    // Only while routes are on screen: after "New run" the map is blank.
+    if (!r || drawing || !viewingRoutes() || key === shownKey) return;
     shownKey = key;
     setLine("route", coordsAt(r, key));
   });

@@ -1,5 +1,5 @@
 import { createApp } from "./app.js";
-import { buildStyle } from "./mapstyle.js";
+import { buildStyle, ATTRIBUTION } from "./mapstyle.js";
 
 // "Dusk": a lighter dark map, so roads and parks are easy to read.
 const style = buildStyle({
@@ -15,6 +15,7 @@ const layout = { "line-cap": "round", "line-join": "round" };
 
 const desktop = matchMedia("(min-width: 900px)");
 createApp({
+  credits: ATTRIBUTION,
   style,
   animate: true,
   formatIndex: (i) => String(i + 1).padStart(2, "0"),
