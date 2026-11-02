@@ -134,6 +134,35 @@ export function buildStyle(p, o = {}) {
     });
   }
 
+  // Cities, towns and villages, so the map can be read zoomed out; each
+  // appears as it becomes useful and grows with the zoom.
+  const placeName = ["coalesce", ["get", "name:en"], ["get", "name"]];
+  layers.push({
+    id: "village", type: "symbol", source: "omt", "source-layer": "place", minzoom: 10.5,
+    filter: isClass(["village"]),
+    layout: { ...textBase, "text-field": placeName, "text-size": ["interpolate", ["linear"], ["zoom"], 10.5, 10, 14, 12] },
+    paint: { "text-color": p.townLabel ?? p.label, ...halo },
+  });
+  layers.push({
+    id: "town", type: "symbol", source: "omt", "source-layer": "place", minzoom: 7.5,
+    filter: isClass(["town"]),
+    layout: {
+      ...textBase, "text-font": ["Noto Sans Bold"], "text-field": placeName,
+      "text-size": ["interpolate", ["linear"], ["zoom"], 7.5, 10, 12, 13],
+    },
+    paint: { "text-color": p.townLabel ?? p.label, ...halo },
+  });
+  layers.push({
+    id: "city", type: "symbol", source: "omt", "source-layer": "place", minzoom: 4.5,
+    filter: isClass(["city"]),
+    layout: {
+      ...textBase, "text-font": ["Noto Sans Bold"], "text-field": placeName,
+      "text-size": ["interpolate", ["linear"], ["zoom"], 4.5, 11, 10, 17],
+      "symbol-sort-key": ["get", "rank"],
+    },
+    paint: { "text-color": p.cityLabel ?? p.label, ...halo, "text-halo-width": 1.8 },
+  });
+
   layers.push({
     id: "place", type: "symbol", source: "omt", "source-layer": "place",
     filter: isClass(["suburb", "quarter", "neighbourhood"]),

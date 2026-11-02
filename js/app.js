@@ -257,7 +257,7 @@ export function createApp(opts) {
     } catch {
       return null; // backend unreachable
     }
-    if (res.status === 422) throw new UserError("No map data here yet. Only London for now.");
+    if (res.status === 422) throw new UserError("No map data here yet. Only the UK for now.");
     if (!res.ok) throw new UserError(`Something went wrong (${res.status}). Try again?`);
     return res.json();
   }
