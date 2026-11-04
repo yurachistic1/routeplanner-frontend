@@ -15,9 +15,14 @@ const host = location.hostname;
 const isLocal = ["localhost", "127.0.0.1"].includes(host)
   || /^(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/.test(host) // private network IPs
   || host.endsWith(".local");
-const API_URL = isLocal
-  ? `http://${host}:8080/`
-  : "https://europe-central2-routeplanner-328709.cloudfunctions.net/RoutePlannerAPI";
+const API_BASE = isLocal
+  ? `http://${host}:8080`
+  : "https://routes-1068090158958.europe-west2.run.app";
+const API_URL = `${API_BASE}/routes`;
+
+// Wake the server while the user chooses their route. If this fails, the
+// route request will show the error.
+fetch(`${API_BASE}/warm`).catch(() => {});
 
 const REGENTS_PARK = [-0.157, 51.5313]; // [lon, lat]
 const EMPTY = { type: "FeatureCollection", features: [] };
