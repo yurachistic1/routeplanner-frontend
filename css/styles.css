@@ -204,7 +204,12 @@ body:not(.show-results):not(.loading) .start-marker::before { animation: pulse 2
    and a more compact setup panel so more of the map shows. */
 @media (max-width: 899px) {
   .glass { backdrop-filter: none; -webkit-backdrop-filter: none; background: rgba(16, 20, 28, .94); }
-  .list { backdrop-filter: none; -webkit-backdrop-filter: none; background: rgba(7, 9, 13, .97); }
+  /* The list fills the whole screen, covering the top bar and the map credits. */
+  .list {
+    backdrop-filter: none; -webkit-backdrop-filter: none; background: rgba(7, 9, 13, .97);
+    z-index: 5; padding-top: calc(12px + env(safe-area-inset-top));
+  }
+  .list-open .credits, .list-open .hud-top { visibility: hidden; }
   .vignette { display: none; }
   .hud-top { right: 48px; }
   /* Map credits: the top bar fills the row, so the text drops down below

@@ -216,10 +216,14 @@ export function createApp(opts) {
     }
     body.classList.add("has-start");
   }
-  // While routes are on screen the start stays put, so it always matches
-  // them; "New run" frees it again.
+  // The start stays put while routes are on screen, so it always matches
+  // them. Clicking the map leaves them to plan a new run from there; Back
+  // returns to them and their start.
   const viewingRoutes = () => body.classList.contains("show-results");
-  map.on("click", (e) => { if (!viewingRoutes()) setStart(e.lngLat); });
+  map.on("click", (e) => {
+    if (viewingRoutes()) newRun();
+    setStart(e.lngLat);
+  });
 
   $("locate")?.addEventListener("click", () => {
     if (!navigator.geolocation) return toast("Location isn't available in this browser");
