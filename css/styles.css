@@ -35,7 +35,7 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
   height: var(--hud-h); padding: 0 14px; border-radius: 14px;
 }
 .tag { font-size: 11px; letter-spacing: .2em; text-transform: uppercase; color: var(--dim); }
-.logo { display: flex; align-items: center; gap: 8px; font-weight: 700; letter-spacing: .04em; font-size: 15px; }
+.logo { display: flex; align-items: center; gap: 5px; font-weight: 700; letter-spacing: .04em; font-size: 15px; }
 .hud-top .info { text-align: right; display: none; }
 .show-results .hud-top .info { display: block; }
 .show-results .hud-top .hint { display: none; }

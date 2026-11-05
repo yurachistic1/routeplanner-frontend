@@ -143,13 +143,12 @@ export function thumbnail(pts, size = 44) {
  *   formatIndex(i): label for list numbers
  */
 export function createApp(opts) {
-  const o = { padding: () => 60, formatIndex: (i) => String(i + 1), ...opts };
+  const o = { padding: () => 60, formatIndex: (i) => String(i + 1), view: { center: REGENTS_PARK, zoom: 13.4 }, ...opts };
 
   const map = new maplibregl.Map({
     container: "map",
     style: o.style,
-    center: REGENTS_PARK,
-    zoom: 13.4,
+    ...(o.openFrom ?? o.view),
     dragRotate: false,
     pitchWithRotate: false,
     attributionControl: false, // replaced by our own ⓘ control below
@@ -158,6 +157,14 @@ export function createApp(opts) {
     pixelRatio: Math.min(devicePixelRatio, 2),
   });
   map.touchZoomRotate.disableRotation();
+
+  // Hold the opening view for a moment, then glide to the normal one, unless
+  // the user has already started moving the map.
+  if (o.openFrom) {
+    map.once("load", () => setTimeout(() => {
+      if (!map.isMoving()) map.easeTo({ ...o.view, duration: 1200 });
+    }, 350));
+  }
 
   // ----- map credits (ⓘ) -----
   // Our own control rather than MapLibre's, which collapses the moment you

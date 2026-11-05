@@ -15,7 +15,17 @@ const W = (lo, hi) => ["interpolate", ["linear"], ["zoom"], 11, lo, 16, hi];
 const layout = { "line-cap": "round", "line-join": "round" };
 
 const desktop = matchMedia("(min-width: 900px)");
+
+// On phones, Regent's Park sits in the gap between the header and the controls.
+const PHONE_VIEW = { center: [-0.15469, 51.52846], zoom: 13.4 };
+// The installed app shows its icon on a splash screen while opening. This view
+// puts the park exactly over the route in the icon, so one turns into the other.
+// Measured on a Pixel 9a; the splash icon is a fixed size in CSS pixels.
+const ICON_VIEW = { center: [-0.15454, 51.52975], zoom: 12.41 };
+const installed = matchMedia("(display-mode: standalone)").matches;
+const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
 createApp({
+  ...(desktop.matches ? {} : { view: PHONE_VIEW, openFrom: installed && !calm ? ICON_VIEW : null }),
   credits: ATTRIBUTION,
   style,
   animate: true,
