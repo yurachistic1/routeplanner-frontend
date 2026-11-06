@@ -1,0 +1,40 @@
+name: Publish to staging
+
+# A push to the staging branch copies the site to the routeplanner-frontend-staging
+# repo, which GitHub Pages serves at staging.runthe.uk. The staging-only changes
+# below happen in that copy, so they never reach the live site.
+on:
+  push:
+    branches: [staging]
+
+concurrency: publish-staging
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: source
+      - uses: actions/checkout@v7
+        with:
+          repository: yurachistic1/routeplanner-frontend-staging
+          ssh-key: ${{ secrets.STAGING_DEPLOY_KEY }}
+          path: site
+      - name: Copy the site
+        run: rsync -a --delete --exclude .git --exclude .github source/ site/
+      - name: Make the copy the staging site
+        working-directory: site
+        run: |
+          echo staging.runthe.uk > CNAME
+          # keep staging out of search results
+          find . -name '*.html' -not -path './.git/*' -exec \
+            sed -i 's|<head>|<head>\n  <meta name="robots" content="noindex">|' {} +
+      - name: Publish
+        working-directory: site
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898583+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet || git commit -m "Publish ${GITHUB_SHA}"
+          git push
