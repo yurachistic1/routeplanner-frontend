@@ -18,7 +18,9 @@ const isLocal = ["localhost", "127.0.0.1"].includes(host)
   || host.endsWith(".local");
 const API_BASE = isLocal
   ? `http://${host}:8080`
-  : "https://routes-1068090158958.europe-west2.run.app";
+  : host === "staging.runthe.uk"
+    ? "https://routes-staging-1068090158958.europe-west2.run.app"
+    : "https://routes-1068090158958.europe-west2.run.app";
 const API_URL = `${API_BASE}/routes`;
 
 // Wake the server while the user chooses their route. If this fails, the
