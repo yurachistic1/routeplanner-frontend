@@ -5,9 +5,10 @@
 // these element ids (all optional except #map):
 //   #distance (number input), .chip[data-km], #dec, #inc, #generate, #locate,
 //   #route-list, #list-toggle, #prev, #next, #download, #edit, #back,
-//   #route-title, #route-distance, #route-count, #toast
+//   #route-title, #route-distance, #route-count, #list-title, #back-label,
+//   #exit-favourites, #toast
 // and these body classes, which the CSS reacts to:
-//   has-start, loading, has-results, show-results, list-open
+//   has-start, loading, has-results, show-results, list-open, in-favourites
 
 // Served from this machine or another device on the home network (e.g. a
 // phone opening http://192.168.x.x:5173): use the backend on the same host.
@@ -182,7 +183,7 @@ export function createApp(opts) {
           <rect x="10.7" y="10" width="2.6" height="8.5" rx="1.3" class="credits-i"/>
         </svg>
       </button>`;
-    document.body.append(box);
+    (document.querySelector(".deck") ?? document.body).append(box);
     const btn = box.querySelector(".credits-btn");
     const setOpen = (on) => { box.classList.toggle("open", on); btn.setAttribute("aria-expanded", on); };
     const auto = setTimeout(() => setOpen(false), 5000);
@@ -225,9 +226,11 @@ export function createApp(opts) {
   }
   // The start stays put while routes are on screen, so it always matches
   // them. Clicking the map leaves them to plan a new run from there; Back
-  // returns to them and their start.
+  // returns to them and their start. Favourites ignore it, so a stray tap
+  // while looking at a saved route doesn't drop you out.
   const viewingRoutes = () => body.classList.contains("show-results");
   map.on("click", (e) => {
+    if (state.favourites && viewingRoutes()) return;
     if (viewingRoutes()) newRun();
     setStart(e.lngLat);
   });
@@ -269,7 +272,9 @@ export function createApp(opts) {
   async function fetchRoutes(lat, lon, km) {
     let res;
     try {
-      res = await fetch(`${API_URL}?lat=${lat}&lon=${lon}&distance=${km}`);
+      // In the body, not the URL: URLs end up in server logs, and a start point
+      // can be someone's home. A form body also avoids a CORS preflight.
+      res = await fetch(API_URL, { method: "POST", body: new URLSearchParams({ lat, lon, distance: km }) });
     } catch {
       return null; // backend unreachable
     }
@@ -289,18 +294,10 @@ export function createApp(opts) {
       const routes = await fetchRoutes(state.start.lat, state.start.lng, km);
       if (routes === null) throw new UserError("Can't reach the server. Check your connection and try again.");
       if (!routes.length) throw new UserError("No routes found from here. Try another start point.");
-      state.target = km;
-      state.routeStart = state.start;
-      state.index = 0;
-      state.routes = routes.map((r, i) => {
-        const raw = r.path.map(([lat, lon]) => [lon, lat]);
-        return { i, distance: r.distance, raw };
-      });
-      renderList();
-      body.classList.add("has-results", "show-results");
-      marker?.setDraggable(false);
-      await ready;
-      show(0);
+      await showRoutes(
+        routes.map((r) => ({ distance: r.distance, raw: r.path.map(([lat, lon]) => [lon, lat]) })),
+        { target: km, start: state.start },
+      );
     } catch (err) {
       toast(err instanceof UserError ? err.message : "Couldn't get routes. Check your connection.");
       console.error(err);
@@ -310,6 +307,72 @@ export function createApp(opts) {
     }
   }
   $("generate")?.addEventListener("click", generate);
+
+  // Puts a set of routes on screen: fresh results, or saved favourites, which
+  // have no target distance. Opening favourites remembers what was there, so
+  // exitFavourites can go back to it.
+  async function showRoutes(routes, { target = null, start, index = 0, favourites = false }) {
+    if (favourites && !state.favourites) {
+      state.before = {
+        routes: state.routes, index: state.index, target: state.target, routeStart: state.routeStart,
+        start: state.start, camera: { center: map.getCenter(), zoom: map.getZoom() },
+      };
+    }
+    if (!favourites) state.before = null;
+    state.favourites = favourites;
+    body.classList.toggle("in-favourites", favourites);
+    cancelAnimationFrame(anim);
+    setStart(start);
+    state.target = target;
+    state.routeStart = state.start;
+    state.routes = routes.map((r, i) => ({ ...r, i }));
+    state.index = index;
+    renderList();
+    body.classList.add("has-results", "show-results");
+    if (favourites && matchMedia("(max-width: 899px)").matches) body.classList.add("list-open");
+    marker?.setDraggable(false);
+    await ready;
+    show(index);
+  }
+
+  // Back to the generated routes from before, or else to how the page was.
+  async function exitFavourites() {
+    if (!state.favourites) return;
+    const b = state.before;
+    body.classList.remove("list-open");
+    if (b.routes.length) {
+      return showRoutes(b.routes, { target: b.target, start: b.routeStart, index: b.index });
+    }
+    state.before = null;
+    state.favourites = false;
+    body.classList.remove("in-favourites");
+    newRun();
+    state.routes = [];
+    state.routeStart = null;
+    state.index = 0;
+    renderList();
+    body.classList.remove("has-results");
+    if (b.start) {
+      setStart(b.start);
+    } else {
+      marker?.remove();
+      marker = null;
+      state.start = null;
+      body.classList.remove("has-start");
+    }
+    map.easeTo({ ...b.camera, duration: 700 });
+  }
+  $("exit-favourites")?.addEventListener("click", exitFavourites);
+
+  // Swaps the list without redrawing the route, unless the one on screen went.
+  function updateRoutes(routes, index, redraw) {
+    state.routes = routes.map((r, i) => ({ ...r, i }));
+    state.index = index;
+    renderList();
+    if (redraw) show(index);
+    else markCurrent();
+  }
+
   // ----- modes: planning a new run vs viewing routes -----
   // New run: clear the route and list, leaving just the map and the start pin.
   function newRun() {
@@ -333,20 +396,29 @@ export function createApp(opts) {
   $("back")?.addEventListener("click", backToRoutes);
 
   // ----- list -----
+  const icon = (path) => `<svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${path}"/></svg>`;
+  const HEART = (i) => `<button class="ri-action ri-heart" data-i="${i}" aria-label="Favourite this route" aria-pressed="false">${icon("M12 20.5S3 15 3 8.8A4.8 4.8 0 0 1 12 6.5a4.8 4.8 0 0 1 9 2.3C21 15 12 20.5 12 20.5z")}</button>`;
+  const BIN = (i) => `<button class="ri-action ri-bin" data-i="${i}" aria-label="Remove from favourites">${icon("M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v5M14 11v5")}</button>`;
   const km = (m) => (m / 1000).toFixed(2);
   function renderList() {
     const ul = $("route-list");
     if (!ul) return;
+    let group = null;
     ul.innerHTML = state.routes.map((r) => {
-      const delta = r.distance / 1000 - state.target;
+      const heading = r.group && r.group !== group ? `<li class="route-group" data-key="${r.group.key}"><span class="rg-place"></span><span class="rg-label">${r.group.label}</span></li>` : "";
+      group = r.group;
+      const delta = state.target === null ? null : r.distance / 1000 - state.target;
       const sign = delta >= 0 ? "+" : "−";
-      return `<li><button class="route-item" data-i="${r.i}">
+      return `${heading}<li class="route-cell"><button class="route-item" data-i="${r.i}">
         ${thumbnail(r.raw)}
         <span class="ri-num">${o.formatIndex(r.i)}</span>
         <span class="ri-dist">${km(r.distance)}<small> km</small></span>
-        <span class="ri-delta">${sign}${Math.abs(delta).toFixed(2)}</span>
-      </button></li>`;
+        ${delta === null ? "" : `<span class="ri-delta">${sign}${Math.abs(delta).toFixed(2)}</span>`}
+      </button>${o.onRouteAction ? (state.favourites ? BIN(r.i) : HEART(r.i)) : ""}</li>`;
     }).join("");
+    for (const b of ul.querySelectorAll(".ri-action")) {
+      b.addEventListener("click", () => o.onRouteAction(state.routes[+b.dataset.i]));
+    }
     for (const b of ul.querySelectorAll(".route-item")) {
       b.addEventListener("click", () => {
         show(+b.dataset.i);
@@ -354,6 +426,10 @@ export function createApp(opts) {
       });
     }
     if ($("route-count")) $("route-count").textContent = state.routes.length;
+    const name = state.favourites ? "favourites" : "routes";
+    if ($("list-title")) $("list-title").textContent = state.favourites ? `${state.routes.length} saved` : "Routes";
+    if ($("list-toggle")) $("list-toggle").textContent = `All ${name}`;
+    if ($("back-label")) $("back-label").textContent = `← Back to ${name}`;
   }
 
   $("list-toggle")?.addEventListener("click", () => body.classList.toggle("list-open"));
@@ -414,6 +490,7 @@ export function createApp(opts) {
     if (!state.routes.length) return;
     state.index = (i + state.routes.length) % state.routes.length;
     const r = state.routes[state.index];
+    if (r.start) setStart(r.start); // saved routes each have their own start
 
     const target = map.cameraForBounds(bounds(r.raw), { padding: o.padding(), maxZoom: 16 });
     const key = target ? Math.round(target.zoom * 2) / 2 : zoomKey();
@@ -424,6 +501,12 @@ export function createApp(opts) {
 
     if (target) map.easeTo({ ...target, duration: 700 });
 
+    markCurrent();
+    o.onShow?.(state.index, r);
+  }
+
+  function markCurrent() {
+    const r = state.routes[state.index];
     if ($("route-title")) $("route-title").textContent = o.formatIndex(state.index);
     if ($("route-distance")) $("route-distance").textContent = km(r.distance);
     for (const b of document.querySelectorAll(".route-item")) {
@@ -432,7 +515,6 @@ export function createApp(opts) {
       b.setAttribute("aria-current", on);
       if (on) scrollListTo(b);
     }
-    o.onShow?.(state.index, r);
   }
 
   // Draws the route in from the start, using the smoothing for the zoom
@@ -456,10 +538,11 @@ export function createApp(opts) {
   $("prev")?.addEventListener("click", () => show(state.index - 1));
   $("next")?.addEventListener("click", () => show(state.index + 1));
   addEventListener("keydown", (e) => {
-    if (!state.routes.length) return;
+    if (!state.routes.length || document.querySelector("dialog[open]")) return;
     if (e.key === "Escape") {
       if (body.classList.contains("list-open")) body.classList.remove("list-open");
       else if (!viewingRoutes()) backToRoutes();
+      else exitFavourites();
       return;
     }
     if (!viewingRoutes() || e.target.tagName === "INPUT") return;
@@ -481,5 +564,5 @@ export function createApp(opts) {
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   });
 
-  return { map, state, show, toast, setStart };
+  return { map, state, show, showRoutes, updateRoutes, exitFavourites, toast, setStart };
 }
