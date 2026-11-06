@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#07090d" />
+  <meta name="description" content="How Runthe handles your data." />
+  <title>Privacy · Runthe</title>
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet" />
+  <style>
+    :root { color-scheme: dark; }
+    body {
+      margin: 0 auto; max-width: 680px; background: #07090d; color: #e9eef5;
+      padding: calc(24px + env(safe-area-inset-top)) 20px calc(48px + env(safe-area-inset-bottom));
+      font: 16px/1.6 "Space Grotesk", system-ui, sans-serif; -webkit-font-smoothing: antialiased;
+    }
+    a { color: #c8ff2e; }
+    h1 { font-size: 30px; line-height: 1.2; margin: 24px 0 4px; }
+    h2 { font-size: 19px; margin: 32px 0 6px; }
+    p, ul { margin: 8px 0; }
+    ul { padding-left: 20px; }
+    li { margin: 4px 0; }
+    .back { display: inline-block; text-decoration: none; }
+    .updated { color: #8a96aa; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <a class="back" href="../">← Back to Runthe</a>
+  <h1>Privacy</h1>
+  <p class="updated">Last updated 6 November 2026</p>
+
+  <p>Runthe is a free personal project that generates running routes. There are no adverts, no analytics and no tracking cookies, and your data is never sold.</p>
+
+  <h2>Who is responsible</h2>
+  <p>Runthe is run by Yury Chistov, an individual based in the UK, who is the data controller. For anything about your data, email <a href="mailto:hello@runthe.uk">hello@runthe.uk</a>.</p>
+
+  <h2>Planning routes, with no account</h2>
+  <p>To plan a route, your start point and distance are sent to Runthe's server on Google Cloud. They're used to work out your routes, and neither they nor the routes are saved or logged. The server's request logs record your IP address, your browser type and the time. These logs are kept for 30 days to keep the service running and to spot abuse, and are then deleted.</p>
+
+  <h2>If you create an account</h2>
+  <p>An account is only needed to save favourites. Runthe stores:</p>
+  <ul>
+    <li><strong>Sign-in details:</strong> your email address, sign-in dates and a unique ID. If you use Google, also the name and profile picture link Google shares.</li>
+    <li><strong>Favourites:</strong> each saved route's line, distance and the time you saved it. The line includes its start point.</li>
+  </ul>
+  <p>Only you can read your favourites. Runthe keeps this data until you delete it. The maintainer can technically access it to run the service, but doesn't look at it otherwise.</p>
+
+  <h2>Why this is allowed</h2>
+  <p>Under UK data protection law, account data is used to provide the service you asked for. Logs are kept because Runthe has a legitimate interest in keeping the service secure and working.</p>
+
+  <h2>Who else is involved</h2>
+  <p>Like any website, these services receive your IP address when your browser contacts them:</p>
+  <ul>
+    <li><strong>Google:</strong> runs the route server (London), accounts and favourites (Firebase, with favourites stored in London), sends sign-in emails and serves the fonts.</li>
+    <li><strong>GitHub:</strong> hosts this website.</li>
+    <li><strong>OpenFreeMap:</strong> supplies the map, so it can see which areas you view.</li>
+    <li><strong>UNPKG:</strong> supplies the code that draws the map.</li>
+    <li><strong>OpenStreetMap Foundation (Nominatim):</strong> turns start points into area names for your favourites. Start points are rounded to about 100m first, and each area is looked up once per device.</li>
+    <li><strong>Porkbun:</strong> forwards email sent to the address above.</li>
+  </ul>
+  <p>Some of these companies may handle data outside the UK, including in the United States, under their own legal safeguards.</p>
+
+  <h2>Stored on your device</h2>
+  <p>Runthe doesn't set tracking cookies. Your browser stores your signed-in session, a note that you have an account, your email address while a sign-in link is pending, and area names for your favourites. These are needed for the app to work, and the area names are cleared when you sign out.</p>
+
+  <h2>Your rights</h2>
+  <p>You can ask for a copy of your data, or ask for it to be corrected, deleted or restricted, and you can object to how it's used. Email <a href="mailto:hello@runthe.uk">hello@runthe.uk</a> to do any of these.</p>
+  <p>To delete your account and favourites yourself, open the account menu and choose Delete account. They're removed straight away. Server logs expire within 30 days.</p>
+  <p>If you're unhappy with how your data is handled, you can complain to the <a href="https://ico.org.uk/make-a-complaint/">Information Commissioner's Office</a>.</p>
+
+  <h2>Children</h2>
+  <p>Accounts are not intended for anyone under 13.</p>
+
+  <h2>Changes</h2>
+  <p>If this page changes, the date at the top will change too.</p>
+</body>
+</html>

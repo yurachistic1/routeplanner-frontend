@@ -1,3 +1,4 @@
+import { createAccount } from "./account.js";
 import { createApp } from "./app.js";
 import { buildStyle, ATTRIBUTION } from "./mapstyle.js";
 
@@ -24,11 +25,14 @@ const PHONE_VIEW = { center: [-0.15469, 51.52846], zoom: 13.4 };
 const ICON_VIEW = { center: [-0.15454, 51.52975], zoom: 12.41 };
 const installed = matchMedia("(display-mode: standalone)").matches;
 const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
-createApp({
+const account = createAccount();
+const app = createApp({
   ...(desktop.matches ? {} : { view: PHONE_VIEW, openFrom: installed && !calm ? ICON_VIEW : null }),
   credits: ATTRIBUTION,
   style,
   animate: true,
+  onShow: (_, route) => account.routeShown(route),
+  onRouteAction: (route) => account.toggleFavourite(route),
   formatIndex: (i) => String(i + 1).padStart(2, "0"),
   padding: () => {
     const top = document.querySelector(".hud-top").getBoundingClientRect();
@@ -43,5 +47,7 @@ createApp({
       paint: { "line-color": "#c8ff2e", "line-width": W(2.2, 4.5) } });
   },
 });
+
+account.attach(app);
 
 document.getElementById("list-close").addEventListener("click", () => document.body.classList.remove("list-open"));

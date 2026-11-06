@@ -119,11 +119,104 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
   display: flex; align-items: center; justify-content: center; gap: 8px;
 }
 .wide:active { background: rgba(var(--neon-rgb),.12); }
-.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.row2 { display: grid; grid-template-columns: 52px 1fr 1fr; gap: 10px; }
 .ghost-btn {
   height: 44px; border-radius: 12px; border: 1px solid var(--edge); color: var(--dim);
   font-size: 12px; letter-spacing: .14em; text-transform: uppercase;
 }
+
+/* Viewing favourites: the top bar becomes a back arrow and a title, and the
+   list arrives like a new page. Planning a new run from there is back to normal. */
+.fav-back {
+  display: none; align-items: center; gap: 6px; height: 44px; padding: 0;
+  font-family: Poppins, "Space Grotesk", sans-serif; font-weight: 800; font-size: 16px;
+  letter-spacing: .02em; text-transform: uppercase;
+}
+.fav-back svg { color: var(--pink); }
+.in-favourites.show-results .logo { display: none; }
+.in-favourites.show-results .fav-back { display: flex; animation: swap-in .28s cubic-bezier(.2, .8, .2, 1); }
+.in-favourites.show-results .hud-top { border-color: rgba(255, 61, 139, .45); }
+.in-favourites .list { animation: page-in .3s cubic-bezier(.2, .8, .2, 1); }
+@keyframes swap-in { from { opacity: 0; transform: translateX(14px); } }
+@keyframes page-in { from { opacity: 0; transform: translateX(32px); } }
+@media (prefers-reduced-motion: reduce) {
+  .in-favourites.show-results .fav-back, .in-favourites .list { animation: none; }
+}
+
+/* Favourite heart */
+.fav { display: grid; place-items: center; padding: 0; }
+.fav svg { fill: none; }
+.fav.on { color: var(--pink); border-color: var(--pink); }
+.fav.on svg { fill: currentColor; }
+
+/* Account */
+.account-btn {
+  flex: none; width: 34px; height: 34px; padding: 0; border-radius: 50%; border: 1px solid var(--edge);
+  display: grid; place-items: center; color: var(--dim);
+}
+.signed-in .account-btn { color: var(--neon); border-color: rgba(var(--neon-rgb), .45); }
+.hud-top .hint, .hud-top .info { margin-left: auto; }
+/* Account menu: a native dialog that slides in from the right. Browsers
+   without these transitions just show and hide it. */
+dialog.account {
+  inset: 0 0 0 auto; margin: 0; padding: 0; width: min(340px, 86vw); height: 100dvh;
+  max-width: none; max-height: none; border: 0; border-left: 1px solid var(--edge);
+  background: #10141c; color: var(--text); transform: translateX(100%);
+  transition: transform .28s cubic-bezier(.2, .8, .2, 1), display .28s allow-discrete, overlay .28s allow-discrete;
+}
+dialog.account[open] { transform: none; }
+@starting-style { dialog.account[open] { transform: translateX(100%); } }
+dialog.account::backdrop {
+  background: rgba(7, 9, 13, 0); transition: background .28s, display .28s allow-discrete, overlay .28s allow-discrete;
+}
+dialog.account[open]::backdrop { background: rgba(7, 9, 13, .6); }
+@starting-style { dialog.account[open]::backdrop { background: rgba(7, 9, 13, 0); } }
+@media (prefers-reduced-motion: reduce) {
+  dialog.account, dialog.account::backdrop { transition: none; }
+}
+.drawer {
+  height: 100%; overflow-y: auto; touch-action: pan-y; display: flex; flex-direction: column;
+  padding: calc(20px + env(safe-area-inset-top)) 18px calc(18px + env(safe-area-inset-bottom));
+}
+.drawer > [data-view] { display: none; gap: 12px; }
+dialog.account[data-view="signin"] .drawer > [data-view="signin"],
+dialog.account[data-view="sent"] .drawer > [data-view="sent"],
+dialog.account[data-view="confirm"] .drawer > [data-view="confirm"],
+dialog.account[data-view="account"] .drawer > [data-view="account"],
+dialog.account[data-view="delete"] .drawer > [data-view="delete"] { display: grid; }
+.drawer h2 { margin: 0; font-size: 20px; padding-right: 40px; }
+.drawer p { margin: 0; font-size: 14px; line-height: 1.45; color: var(--dim); overflow-wrap: anywhere; }
+.drawer strong { color: var(--text); font-weight: 500; }
+.drawer form { display: grid; gap: 10px; }
+.drawer input {
+  height: 46px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--edge);
+  background: rgba(255, 255, 255, .04); color: var(--text); font: inherit; font-size: 16px; outline: none;
+}
+.drawer input:focus { border-color: var(--neon); }
+.drawer .or { text-align: center; font-size: 12px; color: var(--dim); }
+.drawer-user { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.drawer-user p { min-width: 0; }
+.drawer-user .ghost-btn { flex: none; height: 36px; padding: 0 12px; font-size: 11px; }
+.drawer-menu { margin-top: 10px; border-top: 1px solid var(--edge); }
+.menu-item {
+  width: 100%; height: 56px; padding: 0 4px; display: flex; align-items: center; gap: 12px;
+  border-bottom: 1px solid var(--edge); font-size: 16px; text-align: left;
+}
+.menu-item svg { color: var(--pink); }
+.menu-item:active { background: rgba(255, 255, 255, .04); }
+.menu-arrow { margin-left: auto; font-size: 22px; color: var(--dim); }
+.drawer-foot { margin-top: auto; padding-top: 18px; display: flex; justify-content: space-between; align-items: center; }
+.drawer-link { padding: 0; font-size: 13px; color: var(--dim); text-decoration: none; }
+.drawer-link:hover { color: var(--text); }
+dialog.account:not([data-view="account"]) #delete-account { display: none; }
+.danger-btn { height: 50px; border-radius: 14px; background: #ff5c5c; color: var(--bg); font-weight: 700; }
+.danger-btn:disabled { opacity: .6; }
+.account-close {
+  position: absolute; z-index: 1; top: calc(12px + env(safe-area-inset-top)); right: 10px;
+  width: 36px; height: 36px; font-size: 22px; color: var(--dim);
+}
+#account-error { color: #ffd3e4; }
+#account-error:not(:empty) { margin-top: 12px; }
 
 /* Full-screen list on the phone */
 .list {
@@ -135,6 +228,13 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 .list-open .list { opacity: 1; pointer-events: auto; }
 .list-head { display: flex; justify-content: space-between; align-items: center; }
 .list-head h2 { margin: 0; font-size: 13px; letter-spacing: .2em; text-transform: uppercase; color: var(--dim); font-weight: 500; }
+.route-group {
+  grid-column: 1 / -1; padding: 10px 2px 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px;
+}
+.rg-place { font-size: 15px; font-weight: 500; color: var(--text); }
+.rg-place:empty { display: none; }
+.rg-label { font: 500 12px "JetBrains Mono", monospace; color: var(--dim); }
+.route-group:first-child { padding-top: 0; }
 #route-list { list-style: none; margin: 0; padding: 0; overflow-y: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .route-item {
   width: 100%; border: 1px solid var(--edge); border-radius: 14px; padding: 12px; text-align: left;
@@ -144,6 +244,16 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 .route-item.selected { border-color: var(--neon); box-shadow: inset 0 0 0 1px var(--neon), 0 0 22px rgba(var(--neon-rgb),.15); }
 .route-item.selected .thumb { color: var(--neon); filter: drop-shadow(0 0 4px rgba(var(--neon-rgb),.7)); }
 .thumb-start { fill: var(--pink); stroke: none; }
+.route-cell { position: relative; }
+.ri-action {
+  position: absolute; top: 6px; right: 6px; width: 32px; height: 32px; padding: 0; border-radius: 50%;
+  display: grid; place-items: center; color: var(--dim); background: rgba(16, 20, 28, .75);
+}
+.ri-action svg { fill: none; }
+.ri-action:active { background: rgba(255, 255, 255, .1); }
+.ri-bin { color: #ff5c5c; }
+.ri-heart.on { color: var(--pink); }
+.ri-heart.on svg { fill: currentColor; }
 .ri-num { font: 500 11px "JetBrains Mono"; color: var(--dim); grid-column: 1; }
 .ri-num::before { content: "#"; }
 .ri-delta { font: 500 11px "JetBrains Mono"; color: var(--dim); grid-column: 2; grid-row: 2; text-align: right; }
@@ -175,11 +285,28 @@ body:not(.show-results):not(.loading) .start-marker::before { animation: pulse 2
 }
 #toast.show { opacity: 1; transform: none; }
 
-/* Map credits: the ⓘ sits in the top-right corner, centred on the top bar's
-   row. On desktop the text slides out to its left. */
+/* Undo offer after removing a favourite */
+#undo {
+  position: absolute; z-index: 7; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom));
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 6px 6px 6px 16px; border-radius: 14px; font-size: 14px;
+  background: #1c222c; border: 1px solid var(--edge); box-shadow: 0 10px 30px rgba(0, 0, 0, .5);
+  opacity: 0; visibility: hidden; transform: translateY(10px);
+  transition: opacity .2s, transform .2s, visibility .2s;
+}
+#undo.show { opacity: 1; visibility: visible; transform: none; animation: undo-in .22s cubic-bezier(.2, .8, .2, 1); }
+@keyframes undo-in { from { opacity: 0; transform: translateY(10px); } }
+#undo-btn {
+  height: 40px; padding: 0 14px; border-radius: 10px; color: var(--neon); font-weight: 700;
+  font-size: 13px; letter-spacing: .12em; text-transform: uppercase;
+}
+#undo-btn:active { background: rgba(var(--neon-rgb), .12); }
+
+/* Map credits: the ⓘ sits just above the bottom panel on the left, and moves
+   with the panel as it changes height. The text slides out to its right. */
 .credits {
-  position: absolute; z-index: 4; top: max(12px, env(safe-area-inset-top)); right: 12px;
-  height: var(--hud-h); display: flex; align-items: center; gap: 8px;
+  position: absolute; left: 0; bottom: calc(100% + 8px);
+  height: 26px; display: flex; flex-direction: row-reverse; justify-content: flex-end; align-items: center; gap: 8px;
   /* fast taps count as double/triple clicks: don't select the text */
   user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent;
 }
@@ -189,7 +316,7 @@ body:not(.show-results):not(.loading) .start-marker::before { animation: pulse 2
 .credits-text {
   font-size: 11px; color: var(--dim); white-space: nowrap; overflow: hidden;
   background: rgba(16, 20, 28, .9); border: 1px solid var(--edge); border-radius: 8px;
-  padding: 5px 10px; max-width: 320px; opacity: 1;
+  padding: 5px 10px; max-width: min(320px, calc(100vw - 60px)); opacity: 1;
   transition: max-width .5s cubic-bezier(.2, .8, .2, 1), padding .5s cubic-bezier(.2, .8, .2, 1),
               opacity .35s ease, border-color .35s ease;
 }
@@ -209,20 +336,14 @@ body:not(.show-results):not(.loading) .start-marker::before { animation: pulse 2
     z-index: 5; padding-top: calc(12px + env(safe-area-inset-top));
   }
   .list-open .credits, .list-open .hud-top { visibility: hidden; }
+  /* Favourites keeps its top bar over the list, so the back arrow stays put. */
+  .in-favourites.list-open .hud-top { visibility: visible; z-index: 6; }
+  .in-favourites.list-open .hud-top .info { visibility: hidden; }
+  .in-favourites .list { padding-top: calc(max(12px, env(safe-area-inset-top)) + var(--hud-h) + 10px); }
+  .in-favourites .list.list { animation-name: page-in-phone; }
+  .in-favourites #edit { display: none; }
+  .in-favourites .row2 { grid-template-columns: 52px 1fr; }
   .vignette { display: none; }
-  .hud-top { right: 48px; }
-  /* Map credits: the top bar fills the row, so the text drops down below
-     the ⓘ, and fades and lifts away when it closes. */
-  .credits-text {
-    position: absolute; top: calc(100% + 4px); right: 0; max-width: none;
-    padding: 8px 12px; border-radius: 10px; background: rgba(16, 20, 28, .96);
-    transform-origin: top right;
-    transition: opacity .35s ease, transform .4s cubic-bezier(.2, .8, .2, 1);
-  }
-  .credits:not(.open) .credits-text {
-    max-width: none; padding: 8px 12px; border-color: var(--edge);
-    opacity: 0; transform: translateY(-8px) scale(.96);
-  }
 
   .deck { padding: 12px; border-radius: 20px; }
   .setup { gap: 10px; }
@@ -237,16 +358,25 @@ body:not(.show-results):not(.loading) .start-marker::before { animation: pulse 2
   .ghost-btn { height: 38px; }
 }
 
+@keyframes page-in-phone { from { transform: translateX(100%); } }
+
 /* Narrow phones: keep the name and the hint on one line in the top bar. */
 @media (max-width: 380px) {
+  .fav-back { font-size: 14px; }
+  .in-favourites .hud-top .info .tag { display: none; }
   .hint { font-size: 10px; letter-spacing: .08em; }
   .logo { font-size: 14px; }
 }
 
+/* Phones: the account button shares the top bar, so shorten the hint. */
+@media (max-width: 440px) {
+  .h2-more { display: none; }
+}
+
 @media (min-width: 900px) {
   .hud-top { right: auto; width: 400px; }
-  .show-results .credits { right: 364px; }
   #toast { right: auto; width: 400px; }
+  #undo { left: 50%; right: auto; width: 340px; margin-left: -170px; bottom: 24px; }
   .deck { right: auto; width: 400px; }
   .list {
     inset: auto; right: 12px; top: 12px; bottom: 12px; width: 340px; border-radius: 22px; padding: 16px;
@@ -255,5 +385,5 @@ body:not(.show-results):not(.loading) .start-marker::before { animation: pulse 2
   }
   .show-results .list { transform: none; }
   #list-toggle, #list-close { display: none; }
-  .row2 { grid-template-columns: 1fr; }
+  .row2 { grid-template-columns: 52px 1fr; }
 }
