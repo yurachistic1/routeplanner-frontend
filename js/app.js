@@ -8,7 +8,8 @@
 //   #route-title, #route-distance, #route-count, #list-title, #back-label,
 //   #exit-favourites, #toast
 // and these body classes, which the CSS reacts to:
-//   has-start, loading, has-results, show-results, list-open, in-favourites
+//   has-start, loading, has-results, show-results, list-open, in-favourites,
+//   has-info (the route has info to show), has-warnings, info-open
 
 // Served from this machine or another device on the home network (e.g. a
 // phone opening http://192.168.x.x:5173): use the backend on the same host.
@@ -299,7 +300,7 @@ export function createApp(opts) {
       await showRoutes(
         routes.map((r) => ({
           distance: r.distance, raw: r.path.map(([lat, lon]) => [lon, lat]),
-          noPavement: r.noPavement || 0, countryPaths: r.countryPaths || 0, back: !!r.back,
+          info: { noPavement: r.noPavement || 0, countryPaths: r.countryPaths || 0, back: !!r.back },
         })),
         { target: km, start: state.start },
       );
@@ -405,15 +406,6 @@ export function createApp(opts) {
   const HEART = (i) => `<button class="ri-action ri-heart" data-i="${i}" aria-label="Favourite this route" aria-pressed="false">${icon("M12 20.5S3 15 3 8.8A4.8 4.8 0 0 1 12 6.5a4.8 4.8 0 0 1 9 2.3C21 15 12 20.5 12 20.5z")}</button>`;
   const BIN = (i) => `<button class="ri-action ri-bin" data-i="${i}" aria-label="Remove from favourites">${icon("M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v5M14 11v5")}</button>`;
   const km = (m) => (m / 1000).toFixed(2);
-  // honest warnings: busy roads without a pavement, unverified countryside
-  // paths, and routes that come back the way they went
-  function notes(r) {
-    const out = [];
-    if (r.back) out.push("out & back");
-    if (r.noPavement >= 200) out.push(`${(r.noPavement / 1000).toFixed(1)} km no pavement`);
-    if (r.countryPaths >= 0.2) out.push(`${Math.round(r.countryPaths * 100)}% field paths`);
-    return out;
-  }
   function renderList() {
     const ul = $("route-list");
     if (!ul) return;
@@ -428,7 +420,6 @@ export function createApp(opts) {
         <span class="ri-num">${o.formatIndex(r.i)}</span>
         <span class="ri-dist">${km(r.distance)}<small> km</small></span>
         ${delta === null ? "" : `<span class="ri-delta">${sign}${Math.abs(delta).toFixed(2)}</span>`}
-        ${notes(r).length ? `<span class="ri-note">${notes(r).join(" · ")}</span>` : ""}
       </button>${o.onRouteAction ? (state.favourites ? BIN(r.i) : HEART(r.i)) : ""}</li>`;
     }).join("");
     for (const b of ul.querySelectorAll(".ri-action")) {
@@ -448,6 +439,45 @@ export function createApp(opts) {
   }
 
   $("list-toggle")?.addEventListener("click", () => body.classList.toggle("list-open"));
+
+  // ----- route info -----
+  // A drawer above the route controls, opened from the tab on the panel's
+  // top edge: what to know about the route before running it. Warnings are
+  // honest about what the map data can't promise. Saved favourites don't
+  // keep this, so they show no tab.
+  const kmText = (m) => `${(m / 1000).toFixed(1)} km`;
+  function warnings(info) {
+    const out = [];
+    if (info.noPavement >= 100) {
+      out.push({ title: `${kmText(info.noPavement)} on roads with no pavement`, text: "Busier roads without a footway: watch for traffic." });
+    }
+    if (info.countryPaths >= 100) {
+      out.push({ title: `${kmText(info.countryPaths)} on countryside paths`, text: "We can't be sure these are passable. Some may be muddy, overgrown or across fields." });
+    }
+    if (info.back) out.push({ title: "Out and back", text: "Comes home the way it went." });
+    return out;
+  }
+  function renderInfo(r) {
+    const list = $("info-list");
+    body.classList.toggle("has-info", !!r.info);
+    if (!r.info || !list) return;
+    const w = warnings(r.info);
+    body.classList.toggle("has-warnings", w.length > 0);
+    list.innerHTML = w.length
+      ? w.map((x) => `<li class="warn"><span class="info-mark" aria-hidden="true">!</span><div><b>${x.title}</b><span>${x.text}</span></div></li>`).join("")
+      : `<li class="ok"><span class="info-mark" aria-hidden="true">✓</span><div><b>Nothing to flag</b><span>No roads without a pavement and no countryside paths we can't vouch for.</span></div></li>`;
+  }
+  // Opening it makes the panel taller, so frame the route again above it.
+  function refit() {
+    const r = state.routes[state.index];
+    const target = r && map.cameraForBounds(bounds(r.raw), { padding: o.padding(), maxZoom: 16 });
+    if (target) map.easeTo({ ...target, duration: 400 });
+  }
+  $("info-tab")?.addEventListener("click", () => {
+    const open = body.classList.toggle("info-open");
+    $("info-tab").setAttribute("aria-expanded", open);
+    refit();
+  });
 
   // ----- showing a route -----
   function setLine(id, coords) {
@@ -506,6 +536,7 @@ export function createApp(opts) {
     state.index = (i + state.routes.length) % state.routes.length;
     const r = state.routes[state.index];
     if (r.start) setStart(r.start); // saved routes each have their own start
+    renderInfo(r); // first: it changes the panel's height, which framing allows for
 
     const target = map.cameraForBounds(bounds(r.raw), { padding: o.padding(), maxZoom: 16 });
     const key = target ? Math.round(target.zoom * 2) / 2 : zoomKey();
@@ -524,7 +555,7 @@ export function createApp(opts) {
     const r = state.routes[state.index];
     if ($("route-title")) $("route-title").textContent = o.formatIndex(state.index);
     if ($("route-distance")) $("route-distance").textContent = km(r.distance);
-    if ($("route-note")) $("route-note").textContent = notes(r).join(" · ");
+    renderInfo(r);
     for (const b of document.querySelectorAll(".route-item")) {
       const on = +b.dataset.i === state.index;
       b.classList.toggle("selected", on);
