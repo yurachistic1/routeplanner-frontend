@@ -297,7 +297,10 @@ export function createApp(opts) {
       if (routes === null) throw new UserError("Can't reach the server. Check your connection and try again.");
       if (!routes.length) throw new UserError("No routes found from here. Try another start point.");
       await showRoutes(
-        routes.map((r) => ({ distance: r.distance, raw: r.path.map(([lat, lon]) => [lon, lat]) })),
+        routes.map((r) => ({
+          distance: r.distance, raw: r.path.map(([lat, lon]) => [lon, lat]),
+          noPavement: r.noPavement || 0, countryPaths: r.countryPaths || 0, back: !!r.back,
+        })),
         { target: km, start: state.start },
       );
     } catch (err) {
@@ -402,6 +405,15 @@ export function createApp(opts) {
   const HEART = (i) => `<button class="ri-action ri-heart" data-i="${i}" aria-label="Favourite this route" aria-pressed="false">${icon("M12 20.5S3 15 3 8.8A4.8 4.8 0 0 1 12 6.5a4.8 4.8 0 0 1 9 2.3C21 15 12 20.5 12 20.5z")}</button>`;
   const BIN = (i) => `<button class="ri-action ri-bin" data-i="${i}" aria-label="Remove from favourites">${icon("M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v5M14 11v5")}</button>`;
   const km = (m) => (m / 1000).toFixed(2);
+  // honest warnings: busy roads without a pavement, unverified countryside
+  // paths, and routes that come back the way they went
+  function notes(r) {
+    const out = [];
+    if (r.back) out.push("out & back");
+    if (r.noPavement >= 200) out.push(`${(r.noPavement / 1000).toFixed(1)} km no pavement`);
+    if (r.countryPaths >= 0.2) out.push(`${Math.round(r.countryPaths * 100)}% field paths`);
+    return out;
+  }
   function renderList() {
     const ul = $("route-list");
     if (!ul) return;
@@ -416,6 +428,7 @@ export function createApp(opts) {
         <span class="ri-num">${o.formatIndex(r.i)}</span>
         <span class="ri-dist">${km(r.distance)}<small> km</small></span>
         ${delta === null ? "" : `<span class="ri-delta">${sign}${Math.abs(delta).toFixed(2)}</span>`}
+        ${notes(r).length ? `<span class="ri-note">${notes(r).join(" · ")}</span>` : ""}
       </button>${o.onRouteAction ? (state.favourites ? BIN(r.i) : HEART(r.i)) : ""}</li>`;
     }).join("");
     for (const b of ul.querySelectorAll(".ri-action")) {
@@ -511,6 +524,7 @@ export function createApp(opts) {
     const r = state.routes[state.index];
     if ($("route-title")) $("route-title").textContent = o.formatIndex(state.index);
     if ($("route-distance")) $("route-distance").textContent = km(r.distance);
+    if ($("route-note")) $("route-note").textContent = notes(r).join(" · ");
     for (const b of document.querySelectorAll(".route-item")) {
       const on = +b.dataset.i === state.index;
       b.classList.toggle("selected", on);
