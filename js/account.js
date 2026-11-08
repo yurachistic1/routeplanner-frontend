@@ -121,7 +121,7 @@ async function namePlaces(routes) {
 export function createAccount() {
   const dialog = $("account-dialog");
   const heart = $("fav");
-  const saved = new Map(); // favourite id -> { line, distance }
+  const saved = new Map(); // favourite id -> { line, distance, info?, savedAt }
   let app = null;
   let fb = null;
   let user = null;
@@ -290,6 +290,25 @@ export function createAccount() {
   }
 
   // ----- favourites -----
+  // A favourite keeps its route info (see renderInfo in app.js) as "info".
+  // Firestore can't store lists of lists, so the [from, to] stretches are
+  // stored flat: [from, to, from, to, ...]. Favourites saved before
+  // 2026-11-08 have no info.
+  const flat = (spans) => (spans ?? []).flat();
+  function pairs(list) {
+    const out = [];
+    for (let i = 0; i + 1 < (list?.length ?? 0); i += 2) out.push([list[i], list[i + 1]]);
+    return out;
+  }
+  const packInfo = (i) => ({
+    noPavement: i.noPavement, countryPaths: i.countryPaths, back: !!i.back,
+    noPavementSpans: flat(i.noPavementSpans), countryPathSpans: flat(i.countryPathSpans),
+  });
+  const unpackInfo = (s) => s && {
+    noPavement: s.noPavement ?? 0, countryPaths: s.countryPaths ?? 0, back: !!s.back,
+    noPavementSpans: pairs(s.noPavementSpans), countryPathSpans: pairs(s.countryPathSpans),
+  };
+
   function idOf(r) {
     r.line ??= encodeLine(r.raw);
     r.id ??= lineId(r.line);
@@ -312,7 +331,7 @@ export function createAccount() {
     const newestFirst = [...saved.entries()].sort(([, a], [, b]) => (b.savedAt?.seconds ?? 0) - (a.savedAt?.seconds ?? 0));
     return groupRoutes(newestFirst.map(([id, f]) => {
       const raw = decodeLine(f.line);
-      return { id, line: f.line, distance: f.distance, raw, start: raw[0] };
+      return { id, line: f.line, distance: f.distance, raw, start: raw[0], info: unpackInfo(f.info) };
     }));
   }
 
@@ -341,15 +360,15 @@ export function createAccount() {
       syncHeart();
       refreshFavourites();
     };
-    const { line, distance } = r;
+    const fav = { line: r.line, distance: r.distance, ...(r.info && { info: packInfo(r.info) }) };
     const wasInFavourites = app.state.favourites;
-    change(before ? null : { line, distance, savedAt: savedAt ?? { seconds: Date.now() / 1000 } });
+    change(before ? null : { ...fav, savedAt: savedAt ?? { seconds: Date.now() / 1000 } });
     const write = (async () => {
       const { store, db } = await load();
       const ref = store.doc(db, favouritesPath(), id);
       if (before) return store.deleteDoc(ref);
       const time = savedAt ? store.Timestamp.fromMillis(savedAt.seconds * 1000) : store.serverTimestamp();
-      return store.setDoc(ref, { line, distance, savedAt: time });
+      return store.setDoc(ref, { ...fav, savedAt: time });
     })();
     if (before && wasInFavourites) offerUndo(r, before.savedAt, write);
     try {

@@ -40,11 +40,24 @@ const app = createApp({
     if (desktop.matches) return { top: 60, bottom: 60, left: deck.right + 40, right: 380 };
     return { top: top.bottom + 30, left: 30, right: 30, bottom: innerHeight - deck.top + 30 };
   },
+  // Stretches route info warns about are marked: roads with no pavement in
+  // red with a red glow, countryside paths dashed (see shapeRoute in app.js).
   addRouteLayers(map) {
-    map.addLayer({ id: "route-halo", type: "line", source: "route", layout,
+    const part = (p) => ["==", ["get", "part"], p];
+    map.addLayer({ id: "route-halo", type: "line", source: "route", layout, filter: part("all"),
       paint: { "line-color": "#4f6328", "line-width": W(6, 13), "line-blur": W(1.5, 4) } });
-    map.addLayer({ id: "route", type: "line", source: "route", layout,
+    map.addLayer({ id: "route-road-halo", type: "line", source: "route", layout, filter: part("road"),
+      paint: { "line-color": "#6b2626", "line-width": W(6, 13), "line-blur": W(1.5, 4) } });
+    map.addLayer({ id: "route", type: "line", source: "route", layout, filter: part("plain"),
       paint: { "line-color": "#c8ff2e", "line-width": W(2.2, 4.5) } });
+    // Dark under the dashes, so the gaps read as gaps rather than glow.
+    map.addLayer({ id: "route-country-gaps", type: "line", source: "route", layout, filter: part("country"),
+      paint: { "line-color": "#151a22", "line-width": W(2.2, 4.5) } });
+    map.addLayer({ id: "route-country", type: "line", source: "route", filter: part("country"),
+      layout: { "line-cap": "butt", "line-join": "round" },
+      paint: { "line-color": "#c8ff2e", "line-width": W(2.2, 4.5), "line-dasharray": [2.6, 1.8] } });
+    map.addLayer({ id: "route-road", type: "line", source: "route", layout, filter: part("road"),
+      paint: { "line-color": "#ff4a3d", "line-width": W(2.2, 4.5) } });
   },
 });
 
