@@ -11,6 +11,7 @@
   --neon-glow: 0 0 18px rgba(var(--neon-rgb), 0.55);
   --pink: #ff3d8b;
   --amber: #ffb547;
+  --red: #ff4a3d;
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; overflow: clip; background: var(--bg); }
@@ -288,6 +289,13 @@ dialog.account:not([data-view="account"]) #delete-account { display: none; }
 }
 .warn .info-mark { color: var(--bg); background: var(--amber); }
 .ok .info-mark { color: var(--neon); border: 1px solid rgba(var(--neon-rgb), .5); }
+/* Map key: how the map marks what's listed above (see main.js). */
+.info-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--edge); font-size: 12px; color: var(--dim); }
+.info-legend:empty { display: none; }
+.key { display: inline-flex; align-items: center; gap: 7px; }
+.key i { width: 20px; height: 3px; border-radius: 2px; }
+.key-road i { background: var(--red); box-shadow: 0 0 5px rgba(255, 74, 61, .6); }
+.key-country i { border-radius: 0; background: repeating-linear-gradient(90deg, var(--neon) 0 5px, transparent 5px 9px); }
 @media (prefers-reduced-motion: reduce) { .route-info { animation: none !important; } }
 
 /* Start marker: pink with a radar pulse while searching */
