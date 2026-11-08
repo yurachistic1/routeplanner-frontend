@@ -131,18 +131,22 @@ const CORNER_PX = 6;
 
 // ---------- marked stretches ----------
 
-// Route info warns about roads with no pavement and countryside paths from
-// this many metres, and the map marks the same stretches: red for roads,
-// dashed for paths.
-const WARN_M = 100;
-const MARK_NAMES = { road: "No pavement", country: "Countryside path" };
+// Route info warns about roads with no sidewalk from ROAD_WARN_M metres in
+// all, and countryside paths from COUNTRY_WARN_M: even 100 m of path can be
+// through brambles, while a short bit of road is just a road (the user,
+// 2026-11-08). The map marks the same stretches: red for roads, dashed for
+// paths. ("Sidewalk", not "pavement", in what the app says: the user read
+// "no pavement" as "unpaved". The data keeps the name noPavement.)
+const ROAD_WARN_M = 200;
+const COUNTRY_WARN_M = 100;
+const MARK_NAMES = { road: "No sidewalk", country: "Countryside path" };
 
 // [kind, [[from, to], ...]] for each kind to mark, roads first, so a stretch
 // that is somehow both shows as a road. from and to index the route's points.
 function marks(info) {
   const out = [];
-  if (info?.noPavement >= WARN_M && info.noPavementSpans?.length) out.push(["road", info.noPavementSpans]);
-  if (info?.countryPaths >= WARN_M && info.countryPathSpans?.length) out.push(["country", info.countryPathSpans]);
+  if (info?.noPavement >= ROAD_WARN_M && info.noPavementSpans?.length) out.push(["road", info.noPavementSpans]);
+  if (info?.countryPaths >= COUNTRY_WARN_M && info.countryPathSpans?.length) out.push(["country", info.countryPathSpans]);
   return out;
 }
 
@@ -488,7 +492,7 @@ export function createApp(opts) {
       const sign = delta >= 0 ? "+" : "−";
       return `${heading}<li class="route-cell"><button class="route-item" data-i="${r.i}">
         ${thumbnail(r.raw)}
-        <span class="ri-num">${o.formatIndex(r.i)}</span>
+        <span class="ri-num">${o.formatIndex(r.i)}${r.info && warnings(r.info).length ? `<i class="ri-dot" role="img" aria-label="has warnings"></i>` : ""}</span>
         <span class="ri-dist">${km(r.distance)}<small> km</small></span>
         ${delta === null ? "" : `<span class="ri-delta">${sign}${Math.abs(delta).toFixed(2)}</span>`}
       </button>${o.onRouteAction ? (state.favourites ? BIN(r.i) : HEART(r.i)) : ""}</li>`;
@@ -519,14 +523,21 @@ export function createApp(opts) {
   const kmText = (m) => `${(m / 1000).toFixed(1)} km`;
   function warnings(info) {
     const out = [];
-    if (info.noPavement >= WARN_M) {
-      out.push({ title: `${kmText(info.noPavement)} on roads with no pavement`, text: "Busier roads without a footway: watch for traffic." });
+    if (info.noPavement >= ROAD_WARN_M) {
+      out.push({ title: `${kmText(info.noPavement)} on roads with no sidewalk`, text: "Busier roads without a sidewalk: watch for traffic." });
     }
-    if (info.countryPaths >= WARN_M) {
+    if (info.countryPaths >= COUNTRY_WARN_M) {
       out.push({ title: `${kmText(info.countryPaths)} on countryside paths`, text: "We can't be sure these are passable. Some may be muddy, overgrown or across fields." });
     }
     if (info.back) out.push({ title: "Out and back", text: "Comes home the way it went." });
     return out;
+  }
+  // What "Nothing to flag" means for this route, true to the small amounts
+  // under the warning thresholds.
+  function nothingToFlag(info) {
+    const road = info.noPavement > 0 ? "Under 0.2 km on roads without a sidewalk" : "No roads without a sidewalk";
+    const country = info.countryPaths > 0 ? "under 0.1 km on countryside paths" : "no countryside paths we can't vouch for";
+    return `${road}, and ${country}.`;
   }
   function renderInfo(r) {
     const list = $("info-list");
@@ -536,7 +547,7 @@ export function createApp(opts) {
     body.classList.toggle("has-warnings", w.length > 0);
     list.innerHTML = w.length
       ? w.map((x) => `<li class="warn"><span class="info-mark" aria-hidden="true">!</span><div><b>${x.title}</b><span>${x.text}</span></div></li>`).join("")
-      : `<li class="ok"><span class="info-mark" aria-hidden="true">✓</span><div><b>Nothing to flag</b><span>No roads without a pavement and no countryside paths we can't vouch for.</span></div></li>`;
+      : `<li class="ok"><span class="info-mark" aria-hidden="true">✓</span><div><b>Nothing to flag</b><span>${nothingToFlag(r.info)}</span></div></li>`;
     // A key to how the map marks them.
     const legend = $("info-legend");
     if (legend) {

@@ -40,7 +40,7 @@ const app = createApp({
     if (desktop.matches) return { top: 60, bottom: 60, left: deck.right + 40, right: 380 };
     return { top: top.bottom + 30, left: 30, right: 30, bottom: innerHeight - deck.top + 30 };
   },
-  // Stretches route info warns about are marked: roads with no pavement in
+  // Stretches route info warns about are marked: roads with no sidewalk in
   // red with a red glow, countryside paths dashed (see shapeRoute in app.js).
   addRouteLayers(map) {
     const part = (p) => ["==", ["get", "part"], p];
