@@ -10,15 +10,18 @@ service cloud.firestore {
       }
       // Route info (warnings and where they are), optional: favourites saved
       // before 2026-11-08 don't have it. Spans are flat lists of point
-      // indices, two per stretch.
+      // indices, two per stretch. noPavement, back and noPavementSpans are
+      // still accepted, from the version of the app that warned about roads
+      // without a sidewalk (8-9 Nov), but no longer needed.
       function isValidInfo(i) {
-        let keys = ['noPavement', 'countryPaths', 'back', 'noPavementSpans', 'countryPathSpans'];
-        return i is map && i.keys().hasOnly(keys) && i.keys().hasAll(keys)
-          && i.noPavement is number && i.noPavement >= 0 && i.noPavement <= 60000
+        return i is map
+          && i.keys().hasOnly(['countryPaths', 'countryPathSpans', 'noPavement', 'back', 'noPavementSpans'])
+          && i.keys().hasAll(['countryPaths', 'countryPathSpans'])
           && i.countryPaths is number && i.countryPaths >= 0 && i.countryPaths <= 60000
-          && i.back is bool
-          && i.noPavementSpans is list && i.noPavementSpans.size() <= 4000
-          && i.countryPathSpans is list && i.countryPathSpans.size() <= 4000;
+          && i.countryPathSpans is list && i.countryPathSpans.size() <= 4000
+          && (!('noPavement' in i) || (i.noPavement is number && i.noPavement >= 0 && i.noPavement <= 60000))
+          && (!('back' in i) || i.back is bool)
+          && (!('noPavementSpans' in i) || (i.noPavementSpans is list && i.noPavementSpans.size() <= 4000));
       }
       function isValid() {
         let d = request.resource.data;

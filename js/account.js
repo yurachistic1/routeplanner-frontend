@@ -293,21 +293,17 @@ export function createAccount() {
   // A favourite keeps its route info (see renderInfo in app.js) as "info".
   // Firestore can't store lists of lists, so the [from, to] stretches are
   // stored flat: [from, to, from, to, ...]. Favourites saved before
-  // 2026-11-08 have no info.
+  // 2026-11-08 have no info. Ones saved on 8-9 Nov also hold noPavement,
+  // noPavementSpans and back, which are ignored now that the app doesn't
+  // warn about roads without a sidewalk or out and backs.
   const flat = (spans) => (spans ?? []).flat();
   function pairs(list) {
     const out = [];
     for (let i = 0; i + 1 < (list?.length ?? 0); i += 2) out.push([list[i], list[i + 1]]);
     return out;
   }
-  const packInfo = (i) => ({
-    noPavement: i.noPavement, countryPaths: i.countryPaths, back: !!i.back,
-    noPavementSpans: flat(i.noPavementSpans), countryPathSpans: flat(i.countryPathSpans),
-  });
-  const unpackInfo = (s) => s && {
-    noPavement: s.noPavement ?? 0, countryPaths: s.countryPaths ?? 0, back: !!s.back,
-    noPavementSpans: pairs(s.noPavementSpans), countryPathSpans: pairs(s.countryPathSpans),
-  };
+  const packInfo = (i) => ({ countryPaths: i.countryPaths, countryPathSpans: flat(i.countryPathSpans) });
+  const unpackInfo = (s) => s && { countryPaths: s.countryPaths ?? 0, countryPathSpans: pairs(s.countryPathSpans) };
 
   function idOf(r) {
     r.line ??= encodeLine(r.raw);

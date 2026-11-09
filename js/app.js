@@ -8,7 +8,7 @@
 //   #route-title, #route-distance, #route-count, #list-title, #back-label,
 //   #exit-favourites, #toast, #info-tab, #info-list, #info-legend
 // The route layers draw from the "route" source, whose lines have a "part"
-// property: "all" (the whole route), "plain", "road" and "country".
+// property: "all" (the whole route), "plain" and "country".
 // And these body classes, which the CSS reacts to:
 //   has-start, loading, has-results, show-results, list-open, in-favourites,
 //   has-info (the route has info to show), has-warnings, info-open
@@ -131,27 +131,24 @@ const CORNER_PX = 6;
 
 // ---------- marked stretches ----------
 
-// Route info warns about roads with no sidewalk from ROAD_WARN_M metres in
-// all, and countryside paths from COUNTRY_WARN_M: even 100 m of path can be
-// through brambles, while a short bit of road is just a road (the user,
-// 2026-11-08). The map marks the same stretches: red for roads, dashed for
-// paths. ("Sidewalk", not "pavement", in what the app says: the user read
-// "no pavement" as "unpaved". The data keeps the name noPavement.)
-const ROAD_WARN_M = 200;
+// Route info warns about countryside paths from COUNTRY_WARN_M metres in
+// all: even 100 m of path can be through brambles (the user, 2026-11-08).
+// The map marks the same stretches, dashed. Roads without a sidewalk were
+// warned about and marked in red too, until the user found the sidewalk data
+// too patchy to trust (2026-11-09).
 const COUNTRY_WARN_M = 100;
-const MARK_NAMES = { road: "No sidewalk", country: "Countryside path" };
+const MARK_NAMES = { country: "Countryside path" };
 
-// [kind, [[from, to], ...]] for each kind to mark, roads first, so a stretch
-// that is somehow both shows as a road. from and to index the route's points.
+// [kind, [[from, to], ...]] for each kind to mark. from and to index the
+// route's points.
 function marks(info) {
   const out = [];
-  if (info?.noPavement >= ROAD_WARN_M && info.noPavementSpans?.length) out.push(["road", info.noPavementSpans]);
   if (info?.countryPaths >= COUNTRY_WARN_M && info.countryPathSpans?.length) out.push(["country", info.countryPathSpans]);
   return out;
 }
 
 // The route smoothed for the map (mpp metres per pixel), as one line plus the
-// parts to draw: "plain", "road" and "country". Where a stretch starts or
+// parts to draw: "plain" and "country". Where a stretch starts or
 // ends is kept through simplifying, so the parts follow the line exactly and
 // meet end to end.
 function shapeRoute(r, mpp) {
@@ -372,10 +369,7 @@ export function createApp(opts) {
       await showRoutes(
         routes.map((r) => ({
           distance: r.distance, raw: r.path.map(([lat, lon]) => [lon, lat]),
-          info: {
-            noPavement: r.noPavement || 0, countryPaths: r.countryPaths || 0, back: !!r.back,
-            noPavementSpans: r.noPavementSpans ?? [], countryPathSpans: r.countryPathSpans ?? [],
-          },
+          info: { countryPaths: r.countryPaths || 0, countryPathSpans: r.countryPathSpans ?? [] },
         })),
         { target: km, start: state.start },
       );
@@ -523,21 +517,15 @@ export function createApp(opts) {
   const kmText = (m) => `${(m / 1000).toFixed(1)} km`;
   function warnings(info) {
     const out = [];
-    if (info.noPavement >= ROAD_WARN_M) {
-      out.push({ title: `${kmText(info.noPavement)} on roads with no sidewalk`, text: "Busier roads without a sidewalk: watch for traffic." });
-    }
     if (info.countryPaths >= COUNTRY_WARN_M) {
       out.push({ title: `${kmText(info.countryPaths)} on countryside paths`, text: "We can't be sure these are passable. Some may be muddy, overgrown or across fields." });
     }
-    if (info.back) out.push({ title: "Out and back", text: "Comes home the way it went." });
     return out;
   }
-  // What "Nothing to flag" means for this route, true to the small amounts
-  // under the warning thresholds.
+  // What "Nothing to flag" means for this route, true to the small amount
+  // under the warning threshold.
   function nothingToFlag(info) {
-    const road = info.noPavement > 0 ? "Under 0.2 km on roads without a sidewalk" : "No roads without a sidewalk";
-    const country = info.countryPaths > 0 ? "under 0.1 km on countryside paths" : "no countryside paths we can't vouch for";
-    return `${road}, and ${country}.`;
+    return info.countryPaths > 0 ? "Under 0.1 km on countryside paths." : "No countryside paths we can't vouch for.";
   }
   function renderInfo(r) {
     const list = $("info-list");
