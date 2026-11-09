@@ -296,7 +296,6 @@ dialog.account:not([data-view="account"]) #delete-account { display: none; }
 .info-legend:empty { display: none; }
 .key { display: inline-flex; align-items: center; gap: 7px; }
 .key i { width: 20px; height: 3px; border-radius: 2px; }
-.key-road i { background: var(--red); box-shadow: 0 0 5px rgba(255, 74, 61, .6); }
 .key-country i { border-radius: 0; background: repeating-linear-gradient(90deg, var(--neon) 0 5px, transparent 5px 9px); }
 @media (prefers-reduced-motion: reduce) { .route-info { animation: none !important; } }
 
