@@ -16,7 +16,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@800&text=RUNTHEFAVOIS&display=swap" rel="stylesheet" />
   <link href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css" rel="stylesheet" />
   <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
-  <link href="./css/styles.css?v=11" rel="stylesheet" />
+  <link href="./css/styles.css?v=16" rel="stylesheet" />
 </head>
 <body>
   <div id="map"></div>
@@ -63,6 +63,14 @@
     </div>
 
     <div class="results">
+      <button class="info-tab" id="info-tab" aria-expanded="false" aria-controls="route-info">
+        <span class="info-dot" aria-hidden="true"></span>Route info
+        <svg viewBox="0 0 12 8" width="10" height="7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 6.5 6 1.5l5 5"/></svg>
+      </button>
+      <section class="route-info" id="route-info" aria-label="Route info">
+        <ul class="info-list" id="info-list"></ul>
+        <div class="info-legend" id="info-legend" aria-label="Map key"></div>
+      </section>
       <div class="nav">
         <button class="round" id="prev" aria-label="Previous route">◀</button>
         <button class="wide" id="download">↓ Export GPX</button>

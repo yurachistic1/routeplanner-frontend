@@ -10,6 +10,8 @@
   --neon-rgb: 200, 255, 46;
   --neon-glow: 0 0 18px rgba(var(--neon-rgb), 0.55);
   --pink: #ff3d8b;
+  --amber: #ffb547;
+  --red: #ff4a3d;
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; overflow: clip; background: var(--bg); }
@@ -256,9 +258,46 @@ dialog.account:not([data-view="account"]) #delete-account { display: none; }
 .ri-heart.on svg { fill: currentColor; }
 .ri-num { font: 500 11px "JetBrains Mono"; color: var(--dim); grid-column: 1; }
 .ri-num::before { content: "#"; }
+/* Same as the route info tab's dot: this route has warnings. */
+.ri-dot { display: inline-block; width: 6px; height: 6px; margin-left: 6px; vertical-align: 1px; border-radius: 50%; background: var(--amber); box-shadow: 0 0 6px rgba(255, 181, 71, .7); }
 .ri-delta { font: 500 11px "JetBrains Mono"; color: var(--dim); grid-column: 2; grid-row: 2; text-align: right; }
 .ri-dist { grid-column: 1 / 3; font: 700 20px "JetBrains Mono"; }
 .ri-dist small { font-size: 11px; color: var(--dim); }
+/* Route info: a tab on the panel's top edge opens a drawer above the route
+   controls. The amber dot says there's something to know. */
+.info-tab {
+  display: none; position: absolute; top: -14px; left: 50%; transform: translateX(-50%);
+  height: 26px; padding: 0 12px; border-radius: 13px; align-items: center; gap: 7px;
+  background: rgba(16, 20, 28, .96); border: 1px solid var(--edge); color: var(--dim);
+  font-size: 10px; letter-spacing: .16em; text-transform: uppercase; white-space: nowrap;
+}
+.info-tab:active { background: rgba(255, 255, 255, .08); }
+.show-results.has-info .info-tab { display: flex; }
+.info-tab svg { transform: rotate(0deg); transition: transform .2s; }
+.info-open .info-tab svg { transform: rotate(180deg); }
+.info-open .info-tab { color: var(--text); }
+.info-dot { display: none; width: 6px; height: 6px; border-radius: 50%; background: var(--amber); box-shadow: 0 0 6px rgba(255, 181, 71, .7); }
+.has-warnings .info-dot { display: block; }
+.route-info { display: none; }
+.info-open.has-info .route-info { display: block; animation: info-in .2s ease-out; }
+@keyframes info-in { from { opacity: 0; transform: translateY(6px); } }
+.info-list { list-style: none; margin: 0; padding: 4px 0 0; display: grid; gap: 10px; }
+.info-list li { display: grid; grid-template-columns: 20px 1fr; gap: 10px; align-items: start; }
+.info-list b { display: block; font-size: 14px; font-weight: 500; color: var(--text); }
+.info-list li span:not(.info-mark) { display: block; font-size: 12px; line-height: 1.35; color: var(--dim); margin-top: 1px; }
+.info-mark {
+  width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center;
+  font: 700 12px "JetBrains Mono", monospace; margin-top: 1px;
+}
+.warn .info-mark { color: var(--bg); background: var(--amber); }
+.ok .info-mark { color: var(--neon); border: 1px solid rgba(var(--neon-rgb), .5); }
+/* Map key: how the map marks what's listed above (see main.js). */
+.info-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--edge); font-size: 12px; color: var(--dim); }
+.info-legend:empty { display: none; }
+.key { display: inline-flex; align-items: center; gap: 7px; }
+.key i { width: 20px; height: 3px; border-radius: 2px; }
+.key-country i { border-radius: 0; background: repeating-linear-gradient(90deg, var(--neon) 0 5px, transparent 5px 9px); }
+@media (prefers-reduced-motion: reduce) { .route-info { animation: none !important; } }
 
 /* Start marker: pink with a radar pulse while searching */
 .start-marker {

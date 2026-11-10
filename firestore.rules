@@ -8,13 +8,29 @@ service cloud.firestore {
       function isOwner() {
         return request.auth != null && request.auth.uid == uid;
       }
+      // Route info (warnings and where they are), optional: favourites saved
+      // before 2026-11-08 don't have it. Spans are flat lists of point
+      // indices, two per stretch. noPavement, back and noPavementSpans are
+      // still accepted, from the version of the app that warned about roads
+      // without a sidewalk (8-9 Nov), but no longer needed.
+      function isValidInfo(i) {
+        return i is map
+          && i.keys().hasOnly(['countryPaths', 'countryPathSpans', 'noPavement', 'back', 'noPavementSpans'])
+          && i.keys().hasAll(['countryPaths', 'countryPathSpans'])
+          && i.countryPaths is number && i.countryPaths >= 0 && i.countryPaths <= 60000
+          && i.countryPathSpans is list && i.countryPathSpans.size() <= 4000
+          && (!('noPavement' in i) || (i.noPavement is number && i.noPavement >= 0 && i.noPavement <= 60000))
+          && (!('back' in i) || i.back is bool)
+          && (!('noPavementSpans' in i) || (i.noPavementSpans is list && i.noPavementSpans.size() <= 4000));
+      }
       function isValid() {
         let d = request.resource.data;
-        return d.keys().hasOnly(['line', 'distance', 'savedAt'])
+        return d.keys().hasOnly(['line', 'distance', 'savedAt', 'info'])
           && d.keys().hasAll(['line', 'distance', 'savedAt'])
           && d.line is string && d.line.size() > 0 && d.line.size() <= 200000
           && d.distance is number && d.distance > 0 && d.distance <= 60000
-          && d.savedAt is timestamp && d.savedAt <= request.time;
+          && d.savedAt is timestamp && d.savedAt <= request.time
+          && (!('info' in d) || isValidInfo(d.info));
       }
       allow read, delete: if isOwner();
       allow create: if isOwner() && isValid();

@@ -6,9 +6,12 @@
 //   #distance (number input), .chip[data-km], #dec, #inc, #generate, #locate,
 //   #route-list, #list-toggle, #prev, #next, #download, #edit, #back,
 //   #route-title, #route-distance, #route-count, #list-title, #back-label,
-//   #exit-favourites, #toast
-// and these body classes, which the CSS reacts to:
-//   has-start, loading, has-results, show-results, list-open, in-favourites
+//   #exit-favourites, #toast, #info-tab, #info-list, #info-legend
+// The route layers draw from the "route" source, whose lines have a "part"
+// property: "all" (the whole route), "plain" and "country".
+// And these body classes, which the CSS reacts to:
+//   has-start, loading, has-results, show-results, list-open, in-favourites,
+//   has-info (the route has info to show), has-warnings, info-open
 
 // Served from this machine or another device on the home network (e.g. a
 // phone opening http://192.168.x.x:5173): use the backend on the same host.
@@ -42,11 +45,19 @@ const mLon = (lat) => 111320 * Math.cos((lat * Math.PI) / 180);
 
 // Douglas-Peucker on [lon, lat] points with a tolerance in metres.
 function simplify(pts, tol) {
-  if (pts.length < 3) return pts;
+  return keptIndices(pts, tol).map((i) => pts[i]);
+}
+
+// The indices of the points simplify keeps. It always keeps the ends and
+// any fixed points, such as where a marked stretch starts or ends.
+function keptIndices(pts, tol, fixed = []) {
+  const n = pts.length;
+  if (n < 3) return pts.map((_, i) => i);
   const kx = mLon(pts[0][1]);
-  const keep = new Uint8Array(pts.length);
-  keep[0] = keep[pts.length - 1] = 1;
-  const stack = [[0, pts.length - 1]];
+  const keep = new Uint8Array(n);
+  const anchors = [...new Set([0, ...fixed.filter((i) => i > 0 && i < n - 1), n - 1])].sort((a, b) => a - b);
+  for (const i of anchors) keep[i] = 1;
+  const stack = anchors.slice(1).map((b, j) => [anchors[j], b]);
   while (stack.length) {
     const [a, b] = stack.pop();
     const ax = pts[a][0] * kx, ay = pts[a][1] * M_LAT;
@@ -66,18 +77,27 @@ function simplify(pts, tol) {
       stack.push([a, idx], [idx, b]);
     }
   }
-  return pts.filter((_, i) => keep[i]);
+  const out = [];
+  for (let i = 0; i < n; i++) if (keep[i]) out.push(i);
+  return out;
 }
 
 // Rounds each corner with an arc of (at most) radius metres, Strava style:
 // the line stays on the roads and only the sharp corners are softened.
 // A corner's arc can't use more than half of either neighbouring segment,
 // so short wiggles get small arcs instead of being swallowed.
-export function roundCorners(pts, radius) {
-  if (pts.length < 3 || radius <= 0) return pts;
+// If seg is given, it gets, for each point returned, the input segment the
+// point lies on (segment i runs from pts[i] to pts[i + 1]). A corner's arc
+// belongs to the segment before it up to its middle, then the one after.
+export function roundCorners(pts, radius, seg = null) {
+  if (pts.length < 3 || radius <= 0) {
+    seg?.push(...pts.map((_, i) => Math.max(0, Math.min(i, pts.length - 2))));
+    return pts;
+  }
   const kx = mLon(pts[0][1]);
   const P = pts.map(([lon, lat]) => [lon * kx, lat * M_LAT]);
   const out = [pts[0]];
+  seg?.push(0);
   for (let i = 1; i < P.length - 1; i++) {
     const [ax, ay] = P[i - 1], [bx, by] = P[i], [cx, cy] = P[i + 1];
     const ux = ax - bx, uy = ay - by, vx = cx - bx, vy = cy - by;
@@ -86,7 +106,7 @@ export function roundCorners(pts, radius) {
     // Angle between the two segments at this corner: π means straight on.
     const cos = Math.max(-1, Math.min(1, (ux * vx + uy * vy) / (lu * lv)));
     const angle = Math.acos(cos);
-    if (angle > Math.PI * 0.97) { out.push(pts[i]); continue; } // nearly straight
+    if (angle > Math.PI * 0.97) { out.push(pts[i]); seg?.push(i); continue; } // nearly straight
     // Distance from the corner to where the arc starts and ends.
     const t = Math.min(radius / Math.tan(angle / 2), lu / 2, lv / 2);
     const p1 = [bx + (ux / lu) * t, by + (uy / lu) * t];
@@ -97,13 +117,63 @@ export function roundCorners(pts, radius) {
       const q = k / steps, a = (1 - q) * (1 - q), b = 2 * (1 - q) * q, c = q * q;
       const x = a * p1[0] + b * bx + c * p2[0], y = a * p1[1] + b * by + c * p2[1];
       out.push([x / kx, y / M_LAT]);
+      seg?.push(2 * k <= steps ? i - 1 : i);
     }
   }
   out.push(pts[pts.length - 1]);
+  seg?.push(pts.length - 2);
   return out;
 }
 
 const metresPerPixel = (zoom, lat) => (40075016.7 * Math.cos((lat * Math.PI) / 180)) / (512 * 2 ** zoom);
+// Corner radius on the map, in screen pixels.
+const CORNER_PX = 6;
+
+// ---------- marked stretches ----------
+
+// Route info warns about countryside paths from COUNTRY_WARN_M metres in
+// all: even 100 m of path can be through brambles (the user, 2026-11-08).
+// The map marks the same stretches, dashed. Roads without a sidewalk were
+// warned about and marked in red too, until the user found the sidewalk data
+// too patchy to trust (2026-11-09).
+const COUNTRY_WARN_M = 100;
+const MARK_NAMES = { country: "Countryside path" };
+
+// [kind, [[from, to], ...]] for each kind to mark. from and to index the
+// route's points.
+function marks(info) {
+  const out = [];
+  if (info?.countryPaths >= COUNTRY_WARN_M && info.countryPathSpans?.length) out.push(["country", info.countryPathSpans]);
+  return out;
+}
+
+// The route smoothed for the map (mpp metres per pixel), as one line plus the
+// parts to draw: "plain" and "country". Where a stretch starts or
+// ends is kept through simplifying, so the parts follow the line exactly and
+// meet end to end.
+function shapeRoute(r, mpp) {
+  const raw = r.raw;
+  const kind = new Array(Math.max(raw.length - 1, 0)).fill("plain"); // per raw segment
+  for (const [k, spans] of marks(r.info)) {
+    for (const [a, b] of spans) {
+      for (let i = Math.max(0, a); i < Math.min(b, kind.length); i++) if (kind[i] === "plain") kind[i] = k;
+    }
+  }
+  const fixed = [];
+  for (let i = 1; i < kind.length; i++) if (kind[i] !== kind[i - 1]) fixed.push(i);
+  const kept = keptIndices(raw, mpp, fixed);
+  const seg = [];
+  const coords = roundCorners(kept.map((i) => raw[i]), CORNER_PX * mpp, seg);
+  // Simplified segment j runs from raw point kept[j] to kept[j + 1], all of one kind.
+  const parts = [];
+  for (let q = 0; q < coords.length - 1; q++) {
+    const k = kind[kept[seg[q]]] ?? "plain";
+    const last = parts[parts.length - 1];
+    if (last?.kind === k) last.to = q + 1;
+    else parts.push({ kind: k, from: q, to: q + 1 });
+  }
+  return { coords, parts };
+}
 
 
 function bounds(pts) {
@@ -197,7 +267,7 @@ export function createApp(opts) {
   let anim = 0;
 
   const ready = new Promise((resolve) => map.on("load", resolve)).then(() => {
-    map.addSource("route", { type: "geojson", data: EMPTY, lineMetrics: true });
+    map.addSource("route", { type: "geojson", data: EMPTY });
     o.addRouteLayers?.(map);
   });
 
@@ -297,7 +367,10 @@ export function createApp(opts) {
       if (routes === null) throw new UserError("Can't reach the server. Check your connection and try again.");
       if (!routes.length) throw new UserError("No routes found from here. Try another start point.");
       await showRoutes(
-        routes.map((r) => ({ distance: r.distance, raw: r.path.map(([lat, lon]) => [lon, lat]) })),
+        routes.map((r) => ({
+          distance: r.distance, raw: r.path.map(([lat, lon]) => [lon, lat]),
+          info: { countryPaths: r.countryPaths || 0, countryPathSpans: r.countryPathSpans ?? [] },
+        })),
         { target: km, start: state.start },
       );
     } catch (err) {
@@ -381,7 +454,7 @@ export function createApp(opts) {
     cancelAnimationFrame(anim);
     drawing = false;
     shownKey = null;
-    setLine("route", null);
+    drawRoute(null);
     body.classList.remove("show-results", "list-open");
     marker?.setDraggable(true);
   }
@@ -413,7 +486,7 @@ export function createApp(opts) {
       const sign = delta >= 0 ? "+" : "−";
       return `${heading}<li class="route-cell"><button class="route-item" data-i="${r.i}">
         ${thumbnail(r.raw)}
-        <span class="ri-num">${o.formatIndex(r.i)}</span>
+        <span class="ri-num">${o.formatIndex(r.i)}${r.info && warnings(r.info).length ? `<i class="ri-dot" role="img" aria-label="has warnings"></i>` : ""}</span>
         <span class="ri-dist">${km(r.distance)}<small> km</small></span>
         ${delta === null ? "" : `<span class="ri-delta">${sign}${Math.abs(delta).toFixed(2)}</span>`}
       </button>${o.onRouteAction ? (state.favourites ? BIN(r.i) : HEART(r.i)) : ""}</li>`;
@@ -436,11 +509,68 @@ export function createApp(opts) {
 
   $("list-toggle")?.addEventListener("click", () => body.classList.toggle("list-open"));
 
+  // ----- route info -----
+  // A drawer above the route controls, opened from the tab on the panel's
+  // top edge: what to know about the route before running it. Warnings are
+  // honest about what the map data can't promise. Favourites keep it too,
+  // except ones saved before 2026-11-08, which show no tab.
+  const kmText = (m) => `${(m / 1000).toFixed(1)} km`;
+  function warnings(info) {
+    const out = [];
+    if (info.countryPaths >= COUNTRY_WARN_M) {
+      out.push({ title: `${kmText(info.countryPaths)} on countryside paths`, text: "We can't be sure these are passable. Some may be muddy, overgrown or across fields." });
+    }
+    return out;
+  }
+  // What "Nothing to flag" means for this route, true to the small amount
+  // under the warning threshold.
+  function nothingToFlag(info) {
+    return info.countryPaths > 0 ? "Under 0.1 km on countryside paths." : "No countryside paths we can't vouch for.";
+  }
+  function renderInfo(r) {
+    const list = $("info-list");
+    body.classList.toggle("has-info", !!r.info);
+    if (!r.info || !list) return;
+    const w = warnings(r.info);
+    body.classList.toggle("has-warnings", w.length > 0);
+    list.innerHTML = w.length
+      ? w.map((x) => `<li class="warn"><span class="info-mark" aria-hidden="true">!</span><div><b>${x.title}</b><span>${x.text}</span></div></li>`).join("")
+      : `<li class="ok"><span class="info-mark" aria-hidden="true">✓</span><div><b>Nothing to flag</b><span>${nothingToFlag(r.info)}</span></div></li>`;
+    // A key to how the map marks them.
+    const legend = $("info-legend");
+    if (legend) {
+      legend.innerHTML = marks(r.info)
+        .map(([kind]) => `<span class="key key-${kind}"><i aria-hidden="true"></i>${MARK_NAMES[kind]}</span>`).join("");
+    }
+  }
+  // Opening it makes the panel taller, so frame the route again above it.
+  function refit() {
+    const r = state.routes[state.index];
+    const target = r && map.cameraForBounds(bounds(r.raw), { padding: o.padding(), maxZoom: 16 });
+    if (target) map.easeTo({ ...target, duration: 400 });
+  }
+  $("info-tab")?.addEventListener("click", () => {
+    const open = body.classList.toggle("info-open");
+    $("info-tab").setAttribute("aria-expanded", open);
+    refit();
+  });
+
   // ----- showing a route -----
-  function setLine(id, coords) {
-    map.getSource(id)?.setData(coords
-      ? { type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: coords } }
-      : EMPTY);
+  // The route source holds the whole line, part "all" (for the halo), and
+  // its parts (see shapeRoute), cut to the first n points while the route
+  // draws itself in.
+  function drawRoute(shape, n = Infinity) {
+    const src = map.getSource("route");
+    if (!src) return;
+    if (!shape) return src.setData(EMPTY);
+    const end = Math.min(n, shape.coords.length) - 1; // last point drawn
+    const line = (part, coordinates) => ({ type: "Feature", properties: { part }, geometry: { type: "LineString", coordinates } });
+    const features = [line("all", shape.coords.slice(0, end + 1))];
+    for (const p of shape.parts) {
+      if (p.from >= end) break;
+      features.push(line(p.kind, shape.coords.slice(p.from, Math.min(p.to, end) + 1)));
+    }
+    src.setData({ type: "FeatureCollection", features });
   }
 
   // Smoothing is fixed in screen pixels, so it looks the same at every zoom:
@@ -454,14 +584,10 @@ export function createApp(opts) {
     r.fitKey ??= half(map.cameraForBounds(bounds(r.raw), { padding: o.padding(), maxZoom: 16 })?.zoom ?? 13);
     return r.fitKey;
   }
-  const CORNER_PX = 6;
-  function coordsAt(r, key) {
+  function shapeAt(r, key) {
     key = Math.max(key, fitKey(r));
     r.cache ??= new Map();
-    if (!r.cache.has(key)) {
-      const mpp = metresPerPixel(key, r.raw[0][1]);
-      r.cache.set(key, roundCorners(simplify(r.raw, mpp), CORNER_PX * mpp));
-    }
+    if (!r.cache.has(key)) r.cache.set(key, shapeRoute(r, metresPerPixel(key, r.raw[0][1])));
     return r.cache.get(key);
   }
 
@@ -475,7 +601,7 @@ export function createApp(opts) {
     // Only while routes are on screen: after "New run" the map is blank.
     if (!r || drawing || !viewingRoutes() || key === shownKey) return;
     shownKey = key;
-    setLine("route", coordsAt(r, key));
+    drawRoute(shapeAt(r, key));
   });
 
   // Scroll only the list itself so the selected route is visible.
@@ -493,13 +619,14 @@ export function createApp(opts) {
     state.index = (i + state.routes.length) % state.routes.length;
     const r = state.routes[state.index];
     if (r.start) setStart(r.start); // saved routes each have their own start
+    renderInfo(r); // first: it changes the panel's height, which framing allows for
 
     const target = map.cameraForBounds(bounds(r.raw), { padding: o.padding(), maxZoom: 16 });
     const key = target ? Math.round(target.zoom * 2) / 2 : zoomKey();
 
     cancelAnimationFrame(anim);
     if (o.animate) drawProgressively(r, key);
-    else { setLine("route", coordsAt(r, key)); shownKey = key; }
+    else { drawRoute(shapeAt(r, key)); shownKey = key; }
 
     if (target) map.easeTo({ ...target, duration: 700 });
 
@@ -511,6 +638,7 @@ export function createApp(opts) {
     const r = state.routes[state.index];
     if ($("route-title")) $("route-title").textContent = o.formatIndex(state.index);
     if ($("route-distance")) $("route-distance").textContent = km(r.distance);
+    renderInfo(r);
     for (const b of document.querySelectorAll(".route-item")) {
       const on = +b.dataset.i === state.index;
       b.classList.toggle("selected", on);
@@ -522,17 +650,17 @@ export function createApp(opts) {
   // Draws the route in from the start, using the smoothing for the zoom
   // the camera is heading to.
   function drawProgressively(r, key) {
-    const coords = coordsAt(r, key);
+    const shape = shapeAt(r, key);
     const t0 = performance.now(), dur = 1400;
     drawing = true;
     const step = (t) => {
       const k = Math.min(1, (t - t0) / dur);
       const e = 1 - Math.pow(1 - k, 3);
-      setLine("route", coords.slice(0, Math.max(2, Math.ceil(e * coords.length))));
+      drawRoute(shape, Math.max(2, Math.ceil(e * shape.coords.length)));
       if (k < 1) { anim = requestAnimationFrame(step); return; }
       drawing = false;
       shownKey = zoomKey();
-      setLine("route", coordsAt(r, shownKey));
+      drawRoute(shapeAt(r, shownKey));
     };
     anim = requestAnimationFrame(step);
   }
