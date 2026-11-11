@@ -16,13 +16,13 @@ const notTunnel = ["!=", ["get", "brunnel"], "tunnel"];
 /**
  * p (palette):
  *   land, water, park, wood, building, casing (optional),
- *   motorway, major, minor, service, path, rail (optional),
- *   label, labelHalo, waterLabel, parkLabel
+ *   motorway, major, minor, service, path, pathNear (optional), rail (optional),
+ *   label, labelHalo, roadLabel (optional), waterLabel, parkLabel
  * o (options):
  *   buildings: bool, casing: bool, pathDash: [a, b] | null,
  *   labels: "few" | "normal", placeUpper: bool
  */
-// Credits for the map data, shown by the ⓘ control (see app.js).
+// Credits for the map data, shown by the ⓘ control (see addCredits in map.js).
 export const ATTRIBUTION = '<a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a> © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>';
 
 export function buildStyle(p, o = {}) {
@@ -82,7 +82,11 @@ export function buildStyle(p, o = {}) {
   });
 
   const roadDefs = [
-    ["path", ["path", "track"], p.path, [[14, 0.4], [18, 2]],
+    // pathNear (optional): a brighter path colour for close zooms, where
+    // paths get wider too, so they're easy to see beside or under a route.
+    ["path", ["path", "track"],
+      p.pathNear ? ["interpolate", ["linear"], ["zoom"], 14, p.path, 17, p.pathNear] : p.path,
+      p.pathNear ? [[14, 0.4], [16, 1.5], [18, 3]] : [[14, 0.4], [18, 2]],
       opt.pathDash ? { "line-dasharray": opt.pathDash } : {}],
     ["service", ["service"], p.service, [[13, 0.3], [18, 4]]],
     ["minor", ["minor"], p.minor, [[12, 0.4], [18, 9]]],
@@ -129,8 +133,9 @@ export function buildStyle(p, o = {}) {
     layers.push({
       id: "road-name", type: "symbol", source: "omt", "source-layer": "transportation_name", minzoom: 14,
       filter: isClass(["primary", "secondary", "tertiary", "trunk"]),
-      layout: { ...textBase, "symbol-placement": "line", "text-field": ["get", "name"], "text-size": 10.5 },
-      paint: { "text-color": p.label, ...halo },
+      layout: { ...textBase, "symbol-placement": "line", "text-field": ["get", "name"],
+        "text-size": ["interpolate", ["linear"], ["zoom"], 14, 11.5, 17, 13.5] },
+      paint: { "text-color": p.roadLabel ?? p.label, ...halo, "text-halo-width": 1.8 },
     });
   }
 

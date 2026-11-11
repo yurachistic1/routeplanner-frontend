@@ -1,6 +1,9 @@
 /* Dark "Dusk" theme, phone first. */
 :root {
   --hud-h: 56px;
+  /* The shelf of modes along the bottom, and the space it leaves above. */
+  --modebar-h: 62px;
+  --above-modebar: calc(var(--modebar-h) + env(safe-area-inset-bottom) + 12px);
   --bg: #07090d;
   --glass: rgba(14, 18, 26, 0.72);
   --edge: rgba(255, 255, 255, 0.08);
@@ -50,7 +53,7 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 
 /* Bottom deck */
 .deck {
-  position: absolute; z-index: 3; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom));
+  position: absolute; z-index: 3; left: 12px; right: 12px; bottom: var(--above-modebar);
   border-radius: 22px; padding: 16px;
 }
 .setup { display: grid; gap: 14px; }
@@ -127,22 +130,15 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
   font-size: 12px; letter-spacing: .14em; text-transform: uppercase;
 }
 
-/* Viewing favourites: the top bar becomes a back arrow and a title, and the
-   list arrives like a new page. Planning a new run from there is back to normal. */
-.fav-back {
-  display: none; align-items: center; gap: 6px; height: 44px; padding: 0;
-  font-family: Poppins, "Space Grotesk", sans-serif; font-weight: 800; font-size: 16px;
-  letter-spacing: .02em; text-transform: uppercase;
-}
-.fav-back svg { color: var(--pink); }
-.in-favourites.show-results .logo { display: none; }
-.in-favourites.show-results .fav-back { display: flex; animation: swap-in .28s cubic-bezier(.2, .8, .2, 1); }
+/* Viewing favourites, a mode left from the shelf: the top bar gets a pink
+   edge, the list arrives like a new page, and there's no New run button. */
 .in-favourites.show-results .hud-top { border-color: rgba(255, 61, 139, .45); }
 .in-favourites .list { animation: page-in .3s cubic-bezier(.2, .8, .2, 1); }
-@keyframes swap-in { from { opacity: 0; transform: translateX(14px); } }
+.in-favourites #edit { display: none; }
+.in-favourites .row2 { grid-template-columns: 52px 1fr; }
 @keyframes page-in { from { opacity: 0; transform: translateX(32px); } }
 @media (prefers-reduced-motion: reduce) {
-  .in-favourites.show-results .fav-back, .in-favourites .list { animation: none; }
+  .in-favourites .list { animation: none; }
 }
 
 /* Favourite heart */
@@ -199,14 +195,6 @@ dialog.account[data-view="delete"] .drawer > [data-view="delete"] { display: gri
 .drawer-user { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .drawer-user p { min-width: 0; }
 .drawer-user .ghost-btn { flex: none; height: 36px; padding: 0 12px; font-size: 11px; }
-.drawer-menu { margin-top: 10px; border-top: 1px solid var(--edge); }
-.menu-item {
-  width: 100%; height: 56px; padding: 0 4px; display: flex; align-items: center; gap: 12px;
-  border-bottom: 1px solid var(--edge); font-size: 16px; text-align: left;
-}
-.menu-item svg { color: var(--pink); }
-.menu-item:active { background: rgba(255, 255, 255, .04); }
-.menu-arrow { margin-left: auto; font-size: 22px; color: var(--dim); }
 .drawer-foot { margin-top: auto; padding-top: 18px; display: flex; justify-content: space-between; align-items: center; }
 .drawer-link { padding: 0; font-size: 13px; color: var(--dim); text-decoration: none; }
 .drawer-link:hover { color: var(--text); }
@@ -326,7 +314,7 @@ body:not(.show-results):not(.loading) .start-marker::before { animation: pulse 2
 
 /* Undo offer after removing a favourite */
 #undo {
-  position: absolute; z-index: 7; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom));
+  position: absolute; z-index: 7; left: 12px; right: 12px; bottom: var(--above-modebar);
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   padding: 6px 6px 6px 16px; border-radius: 14px; font-size: 14px;
   background: #1c222c; border: 1px solid var(--edge); box-shadow: 0 10px 30px rgba(0, 0, 0, .5);
@@ -341,11 +329,11 @@ body:not(.show-results):not(.loading) .start-marker::before { animation: pulse 2
 }
 #undo-btn:active { background: rgba(var(--neon-rgb), .12); }
 
-/* Map credits: the ⓘ sits just above the bottom panel on the left, and moves
-   with the panel as it changes height. The text slides out to its right. */
+/* Map credits: the ⓘ sits just under the top bar on the left, clear of the
+   bottom panel and its route info tab. The text slides out to its right. */
 .credits {
-  position: absolute; left: 0; bottom: calc(100% + 8px);
-  height: 26px; display: flex; flex-direction: row-reverse; justify-content: flex-end; align-items: center; gap: 8px;
+  position: absolute; left: 0; top: calc(100% + 8px);
+  min-height: 26px; display: flex; flex-direction: row-reverse; justify-content: flex-end; align-items: flex-start; gap: 8px;
   /* fast taps count as double/triple clicks: don't select the text */
   user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent;
 }
@@ -355,43 +343,108 @@ body:not(.show-results):not(.loading) .start-marker::before { animation: pulse 2
 .credits-text {
   font-size: 11px; color: var(--dim); white-space: nowrap; overflow: hidden;
   background: rgba(16, 20, 28, .9); border: 1px solid var(--edge); border-radius: 8px;
-  padding: 5px 10px; max-width: min(320px, calc(100vw - 60px)); opacity: 1;
+  padding: 5px 10px; max-width: min(420px, calc(100vw - 80px)); opacity: 1;
   transition: max-width .5s cubic-bezier(.2, .8, .2, 1), padding .5s cubic-bezier(.2, .8, .2, 1),
               opacity .35s ease, border-color .35s ease;
 }
+/* Open, long credits (satellite adds Esri's) wrap onto more lines rather
+   than being cut off. Closing goes back to one line, so the slide works. */
+.credits.open .credits-text { white-space: normal; line-height: 1.4; }
+.credits-btn { margin-top: 1px; }
 .credits-text a { color: inherit; text-decoration: none; }
 .credits-text a:hover { color: var(--text); }
 .credits:not(.open) .credits-text {
   max-width: 0; padding-left: 0; padding-right: 0; opacity: 0; border-color: transparent; pointer-events: none;
 }
 
+/* My location: a round button where the credits used to be, just above the
+   bottom panel on the left, moving with the panel. The dot marks where you are. */
+.locate-btn {
+  position: absolute; left: 0; bottom: calc(100% + 8px);
+  width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center;
+  background: rgba(16, 20, 28, .94); border: 1px solid var(--edge); color: var(--text);
+  -webkit-tap-highlight-color: transparent;
+}
+.locate-btn[hidden] { display: none; }
+/* Satellite toggle: the same round button, stacked above the location one. */
+.sat-btn { bottom: calc(100% + 56px); }
+.sat-btn[aria-pressed="true"] { color: var(--neon); border-color: rgba(var(--neon-rgb), .5); }
+.locate-btn:active { background: rgba(40, 46, 58, .96); }
+.locate-btn.busy svg { animation: locate-busy 1s ease-in-out infinite; }
+@keyframes locate-busy { 50% { opacity: .35; } }
+.me-dot {
+  width: 16px; height: 16px; border-radius: 50%; background: #e9eef5;
+  border: 3px solid #07090d; box-shadow: 0 0 0 6px rgba(233, 238, 245, .18);
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) { .locate-btn.busy svg { animation: none; opacity: .5; } }
+
+/* The shelf of modes: full width along the bottom on phones, like the tab
+   bars in Strava or Garmin Connect. The current mode's icon sits on a lime
+   pill; modes not built yet are dimmer. */
+.modebar {
+  position: absolute; z-index: 4; left: 0; right: 0; bottom: 0;
+  height: calc(var(--modebar-h) + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom);
+  display: grid; grid-auto-flow: column; grid-auto-columns: 1fr;
+  background: #0b0e14; border-top: 1px solid var(--edge);
+}
+/* The favourites heart: only while signed in, and pink, on a pink pill
+   while it's the current mode. */
+body:not(.signed-in) .modebar .signed-in-only { display: none; }
+.modebar [data-mode="favourites"] .mode-icon { color: var(--pink); }
+.modebar [data-mode="favourites"].active .mode-icon { background: rgba(255, 61, 139, .16); }
+.modebar [data-mode="favourites"].active .mode-label { color: var(--pink); }
+.modebar button {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  color: var(--dim); -webkit-tap-highlight-color: transparent;
+}
+.mode-icon { width: 52px; height: 30px; border-radius: 15px; display: grid; place-items: center; transition: background .2s; }
+.mode-icon img { display: block; }
+.mode-label { font-size: 11px; font-weight: 500; letter-spacing: .04em; }
+.modebar .active { color: var(--text); }
+.modebar .active .mode-icon { background: rgba(var(--neon-rgb), .14); }
+.modebar .active .mode-label { color: var(--neon); }
+.modebar .soon { opacity: .7; }
+.modebar button:active .mode-icon { background: rgba(255, 255, 255, .08); }
+
 /* Phones: lighter to draw (no live blur behind panels, no edge overlay),
    and a more compact setup panel so more of the map shows. */
 @media (max-width: 899px) {
   .glass { backdrop-filter: none; -webkit-backdrop-filter: none; background: rgba(16, 20, 28, .94); }
-  /* The list fills the whole screen, covering the top bar and the map credits. */
+  /* The list fills the screen above the shelf of modes, covering the top bar
+     and the map credits; the shelf stays, so you can always switch mode. */
   .list {
     backdrop-filter: none; -webkit-backdrop-filter: none; background: rgba(7, 9, 13, .97);
     z-index: 5; padding-top: calc(12px + env(safe-area-inset-top));
+    bottom: calc(var(--modebar-h) + env(safe-area-inset-bottom)); padding-bottom: 12px;
   }
-  .list-open .credits, .list-open .hud-top { visibility: hidden; }
-  /* Favourites keeps its top bar over the list, so the back arrow stays put. */
-  .in-favourites.list-open .hud-top { visibility: visible; z-index: 6; }
-  .in-favourites.list-open .hud-top .info { visibility: hidden; }
-  .in-favourites .list { padding-top: calc(max(12px, env(safe-area-inset-top)) + var(--hud-h) + 10px); }
+  .list-open .credits, .list-open .hud-top, .list-open .locate-btn { visibility: hidden; }
   .in-favourites .list.list { animation-name: page-in-phone; }
-  .in-favourites #edit { display: none; }
-  .in-favourites .row2 { grid-template-columns: 52px 1fr; }
   .vignette { display: none; }
 
   .deck { padding: 12px; border-radius: 20px; }
-  .setup { gap: 10px; }
-  .back { height: 38px; }
-  .round { width: 44px; height: 44px; font-size: 20px; }
-  .readout input { font-size: 44px; }
-  .readout .tag { margin-top: 0; font-size: 10px; }
-  .chip { padding: 7px 0; }
-  .go { height: 50px; font-size: 16px; }
+  /* Planning a run, kept compact so the map shows (2026-11-11): the
+     distance on one line with "km" beside it, and Back to routes shortened
+     to "← Routes" beside Generate rather than a row of its own. */
+  .setup { gap: 8px; grid-template-columns: auto 1fr; }
+  .setup > * { grid-column: 1 / -1; }
+  .setup .dial { grid-row: 1; }
+  .setup .chips { grid-row: 2; }
+  .setup .back { grid-row: 3; grid-column: 1; height: 46px; padding: 0 14px; }
+  .has-results .setup .go { grid-row: 3; grid-column: 2; }
+  .back-long, .back kbd { display: none; }
+  .round { width: 40px; height: 40px; font-size: 20px; }
+  /* The number stays centred; "km" hangs off its right side. */
+  .readout { position: relative; }
+  .readout .tag { position: absolute; left: calc(100% + 6px); bottom: 5px; white-space: nowrap; }
+  /* Sized to the number where browsers can, so "km" sits right beside it;
+     elsewhere the box keeps room for "21.1". */
+  .readout input { font-size: 38px; }
+  @supports (field-sizing: content) { .readout input { width: auto; field-sizing: content; min-width: 1.5ch; } }
+  .readout .tag { margin-top: 0; font-size: 0; }
+  .readout .tag::after { content: "km"; font-size: 13px; letter-spacing: .1em; }
+  .chip { padding: 6px 0; }
+  .go { height: 46px; font-size: 16px; }
   .show-results .results { gap: 10px; }
   .nav .round, .wide { height: 50px; }
   .ghost-btn { height: 38px; }
@@ -401,8 +454,6 @@ body:not(.show-results):not(.loading) .start-marker::before { animation: pulse 2
 
 /* Narrow phones: keep the name and the hint on one line in the top bar. */
 @media (max-width: 380px) {
-  .fav-back { font-size: 14px; }
-  .in-favourites .hud-top .info .tag { display: none; }
   .hint { font-size: 10px; letter-spacing: .08em; }
   .logo { font-size: 14px; }
 }
@@ -416,7 +467,13 @@ body:not(.show-results):not(.loading) .start-marker::before { animation: pulse 2
   .hud-top { right: auto; width: 400px; }
   #toast { right: auto; width: 400px; }
   #undo { left: 50%; right: auto; width: 340px; margin-left: -170px; bottom: 24px; }
-  .deck { right: auto; width: 400px; }
+  .deck { right: auto; width: 400px; --above-modebar: calc(12px + var(--modebar-h) + 10px); }
+  /* On wide screens the shelf sits under the panel, the same width. */
+  .modebar {
+    left: 12px; right: auto; bottom: 12px; width: 400px; height: var(--modebar-h); padding-bottom: 0;
+    border: 1px solid var(--edge); border-radius: 18px; background: var(--glass);
+    backdrop-filter: blur(14px) saturate(140%); -webkit-backdrop-filter: blur(14px) saturate(140%);
+  }
   .list {
     inset: auto; right: 12px; top: 12px; bottom: 12px; width: 340px; border-radius: 22px; padding: 16px;
     opacity: 1; pointer-events: auto; background: var(--glass); border: 1px solid var(--edge);

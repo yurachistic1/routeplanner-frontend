@@ -4,7 +4,8 @@
 // someone opens sign-in, follows an email link, or has signed in here before.
 //
 // Page elements: #account, #account-dialog (the side menu) and its [data-view]
-// sections, #fav, #undo, #undo-btn.
+// sections, #fav, #undo, #undo-btn. Favourites are a mode on the shelf
+// (see main.js), shown only when signed in; openFavourites switches to it.
 // Body class: signed-in.
 
 import { encodeLine, decodeLine, lineId } from "./polyline.js";
@@ -118,7 +119,7 @@ async function namePlaces(routes) {
   }
 }
 
-export function createAccount() {
+export function createAccount({ openFavourites = () => {} } = {}) {
   const dialog = $("account-dialog");
   const heart = $("fav");
   const saved = new Map(); // favourite id -> { line, distance, info?, savedAt }
@@ -290,7 +291,7 @@ export function createAccount() {
   }
 
   // ----- favourites -----
-  // A favourite keeps its route info (see renderInfo in app.js) as "info".
+  // A favourite keeps its route info (see renderInfo in loop.js) as "info".
   // Firestore can't store lists of lists, so the [from, to] stretches are
   // stored flat: [from, to, from, to, ...]. Favourites saved before
   // 2026-11-08 have no info. Ones saved on 8-9 Nov also hold noPavement,
@@ -383,7 +384,7 @@ export function createAccount() {
     undoAction = async () => {
       await write.catch(() => {});
       await toggleFavourite(r, savedAt);
-      if (wasLast) showFavourites(); // removing the last one left favourites
+      if (wasLast) openFavourites(); // removing the last one left favourites
     };
     undoBar.classList.remove("show");
     void undoBar.offsetWidth; // restart the animation, so a new offer is noticeable
@@ -398,9 +399,14 @@ export function createAccount() {
     undoBar.classList.remove("show");
   }
 
+  // Whether there's anything to show, saying so if not.
+  function hasFavourites() {
+    if (!saved.size) toast("No favourites yet. Tap the heart on a route to save it.");
+    return saved.size > 0;
+  }
   async function showFavourites() {
     dialog.close();
-    if (!saved.size) return toast("No favourites yet. Tap the heart on a route to save it.");
+    if (!saved.size) return;
     const routes = favouriteRoutes();
     await app.showRoutes(routes, { favourites: true, start: routes[0].start });
     namePlaces(routes);
@@ -422,7 +428,6 @@ export function createAccount() {
     e.preventDefault();
     finishLink($("confirm-email").value.trim());
   });
-  $("show-favourites").addEventListener("click", showFavourites);
   $("delete-account").addEventListener("click", () => setView("delete"));
   $("delete-cancel").addEventListener("click", () => setView("account"));
   $("delete-confirm").addEventListener("click", deleteAccount);
@@ -456,5 +461,7 @@ export function createAccount() {
     attach(a) { app = a; start(); },
     routeShown(r) { route = r; syncHeart(); },
     toggleFavourite,
+    hasFavourites,
+    showFavourites,
   };
 }

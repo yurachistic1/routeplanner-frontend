@@ -1,38 +1,25 @@
-// The app: map, start marker, requesting routes, smoothing, the route
-// list, prev/next and GPX download.
+// Loop mode: round runs of a chosen distance from a start point. The start
+// marker, requesting routes, smoothing, the route list, prev/next, route
+// info and GPX download. The map and its shared controls come from
+// js/map.js, and js/modes.js switches modes.
 //
-// The page supplies the map style and route layers (js/main.js), and
-// these element ids (all optional except #map):
-//   #distance (number input), .chip[data-km], #dec, #inc, #generate, #locate,
+// The page supplies the route layers (js/main.js), and these element ids
+// (all optional):
+//   #distance (number input), .chip[data-km], #dec, #inc, #generate,
 //   #route-list, #list-toggle, #prev, #next, #download, #edit, #back,
 //   #route-title, #route-distance, #route-count, #list-title, #back-label,
-//   #exit-favourites, #toast, #info-tab, #info-list, #info-legend
+//   #info-tab, #info-list, #info-legend
 // The route layers draw from the "route" source, whose lines have a "part"
 // property: "all" (the whole route), "plain" and "country".
 // And these body classes, which the CSS reacts to:
 //   has-start, loading, has-results, show-results, list-open, in-favourites,
 //   has-info (the route has info to show), has-warnings, info-open
 
-// Served from this machine or another device on the home network (e.g. a
-// phone opening http://192.168.x.x:5173): use the backend on the same host.
-const host = location.hostname;
-const isLocal = ["localhost", "127.0.0.1"].includes(host)
-  || /^(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/.test(host) // private network IPs
-  || host.endsWith(".local");
-const API_BASE = isLocal
-  ? `http://${host}:8080`
-  : host === "staging.runthe.uk"
-    ? "https://routes-staging-1068090158958.europe-west2.run.app"
-    : "https://routes-1068090158958.europe-west2.run.app";
+import { API_BASE } from "./api.js";
+import { $, toast } from "./ui.js";
+
 const API_URL = `${API_BASE}/routes`;
-
-// Wake the server while the user chooses their route. If this fails, the
-// route request will show the error.
-fetch(`${API_BASE}/warm`).catch(() => {});
-
-const REGENTS_PARK = [-0.157, 51.5313]; // [lon, lat]
 const EMPTY = { type: "FeatureCollection", features: [] };
-const $ = (id) => document.getElementById(id);
 const body = document.body;
 
 class UserError extends Error {}
@@ -131,13 +118,14 @@ const CORNER_PX = 6;
 
 // ---------- marked stretches ----------
 
-// Route info warns about countryside paths from COUNTRY_WARN_M metres in
+// Route info warns about uncertain paths (the backend's countryside paths:
+// untagged surface, outside towns and parks) from COUNTRY_WARN_M metres in
 // all: even 100 m of path can be through brambles (the user, 2026-11-08).
 // The map marks the same stretches, dashed. Roads without a sidewalk were
 // warned about and marked in red too, until the user found the sidewalk data
 // too patchy to trust (2026-11-09).
 const COUNTRY_WARN_M = 100;
-const MARK_NAMES = { country: "Countryside path" };
+const MARK_NAMES = { country: "Uncertain path" };
 
 // [kind, [[from, to], ...]] for each kind to mark. from and to index the
 // route's points.
@@ -204,83 +192,31 @@ export function thumbnail(pts, size = 44) {
   </svg>`;
 }
 
-// ---------- app ----------
+// ---------- loop mode ----------
 
 /**
+ * createLoopMode(map, ready, opts), with map and ready from createMap.
  * opts:
- *   style: MapLibre style object
  *   addRouteLayers(map): add layers on the "route" source
  *   markerHTML: inner HTML for the start marker
  *   padding(): {top, bottom, left, right} to keep routes clear of the UI
  *   animate: draw the route progressively
  *   formatIndex(i): label for list numbers
+ *   onExitFavourites(): favourites have closed
+ * Returns the mode's controls, used by accounts (js/account.js) too, plus
+ * enter() and leave() for js/modes.js.
  */
-export function createApp(opts) {
-  const o = { padding: () => 60, formatIndex: (i) => String(i + 1), view: { center: REGENTS_PARK, zoom: 13.4 }, ...opts };
-
-  const map = new maplibregl.Map({
-    container: "map",
-    style: o.style,
-    ...(o.openFrom ?? o.view),
-    dragRotate: false,
-    pitchWithRotate: false,
-    attributionControl: false, // replaced by our own ⓘ control below
-    // Phone screens are often 3x density; drawing the map at 2x is hard to
-    // tell apart and much lighter, so panning stays smooth.
-    pixelRatio: Math.min(devicePixelRatio, 2),
-  });
-  map.touchZoomRotate.disableRotation();
-
-  // Hold the opening view for a moment, then glide to the normal one, unless
-  // the user has already started moving the map.
-  if (o.openFrom) {
-    map.once("load", () => setTimeout(() => {
-      if (!map.isMoving()) map.easeTo({ ...o.view, duration: 1200 });
-    }, 350));
-  }
-
-  // ----- map credits (ⓘ) -----
-  // Our own control rather than MapLibre's, which collapses the moment you
-  // drag the map and can't animate. OpenStreetMap's attribution guidelines
-  // want the credits visible without interaction; collapsing after 5 seconds
-  // is allowed. Tapping the ⓘ opens and closes them again.
-  if (o.credits) {
-    const box = document.createElement("div");
-    box.className = "credits open";
-    box.innerHTML = `<div class="credits-text">${o.credits}</div>
-      <button class="credits-btn" aria-label="Map credits" aria-expanded="true">
-        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
-          <circle cx="12" cy="12" r="11" fill="currentColor"/>
-          <circle cx="12" cy="7" r="1.6" class="credits-i"/>
-          <rect x="10.7" y="10" width="2.6" height="8.5" rx="1.3" class="credits-i"/>
-        </svg>
-      </button>`;
-    (document.querySelector(".deck") ?? document.body).append(box);
-    const btn = box.querySelector(".credits-btn");
-    const setOpen = (on) => { box.classList.toggle("open", on); btn.setAttribute("aria-expanded", on); };
-    const auto = setTimeout(() => setOpen(false), 5000);
-    btn.addEventListener("click", () => { clearTimeout(auto); setOpen(!box.classList.contains("open")); });
-  }
+export function createLoopMode(map, mapReady, opts) {
+  const o = { padding: () => 60, formatIndex: (i) => String(i + 1), ...opts };
 
   const state = { start: null, routes: [], index: 0, target: 0 };
   let marker = null;
   let anim = 0;
 
-  const ready = new Promise((resolve) => map.on("load", resolve)).then(() => {
+  const ready = mapReady.then(() => {
     map.addSource("route", { type: "geojson", data: EMPTY });
     o.addRouteLayers?.(map);
   });
-
-  // ----- messages -----
-  let toastTimer;
-  function toast(msg, ms = 3800) {
-    const el = $("toast");
-    if (!el) return console.log(msg);
-    el.textContent = msg;
-    el.classList.add("show");
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => el.classList.remove("show"), ms);
-  }
 
   // ----- start point -----
   function setStart(lngLat) {
@@ -305,19 +241,6 @@ export function createApp(opts) {
     if (state.favourites && viewingRoutes()) return;
     if (viewingRoutes()) newRun();
     setStart(e.lngLat);
-  });
-
-  $("locate")?.addEventListener("click", () => {
-    if (!navigator.geolocation) return toast("Location isn't available in this browser");
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const ll = [pos.coords.longitude, pos.coords.latitude];
-        setStart(ll);
-        map.flyTo({ center: ll, zoom: 14.5 });
-      },
-      () => toast("Couldn't get your location — tap the map instead"),
-      { enableHighAccuracy: true, timeout: 8000 },
-    );
   });
 
   // ----- distance -----
@@ -384,13 +307,15 @@ export function createApp(opts) {
   $("generate")?.addEventListener("click", generate);
 
   // Puts a set of routes on screen: fresh results, or saved favourites, which
-  // have no target distance. Opening favourites remembers what was there, so
-  // exitFavourites can go back to it.
+  // have no target distance. Opening favourites remembers exactly where loop
+  // mode was (its routes, which one, and whether you were looking at them or
+  // planning a new run), so exitFavourites can put it all back.
   async function showRoutes(routes, { target = null, start, index = 0, favourites = false }) {
     if (favourites && !state.favourites) {
       state.before = {
         routes: state.routes, index: state.index, target: state.target, routeStart: state.routeStart,
         start: state.start, camera: { center: map.getCenter(), zoom: map.getZoom() },
+        viewing: viewingRoutes(), listOpen: body.classList.contains("list-open"),
       };
     }
     if (!favourites) state.before = null;
@@ -410,13 +335,26 @@ export function createApp(opts) {
     show(index);
   }
 
-  // Back to the generated routes from before, or else to how the page was.
+  // Back to loop mode as it was: the routes you were looking at, or the new
+  // run you were planning (with its start, even if routes from before are
+  // still there to go Back to). Tells the page (opts.onExitFavourites), so
+  // the shelf leaves the Favourites mode however they were closed.
   async function exitFavourites() {
     if (!state.favourites) return;
     const b = state.before;
     body.classList.remove("list-open");
     if (b.routes.length) {
-      return showRoutes(b.routes, { target: b.target, start: b.routeStart, index: b.index });
+      const shown = showRoutes(b.routes, { target: b.target, start: b.routeStart, index: b.index });
+      o.onExitFavourites?.();
+      if (b.viewing) {
+        if (b.listOpen) body.classList.add("list-open");
+        return shown;
+      }
+      await shown;
+      newRun();
+      if (b.start) setStart(b.start);
+      map.easeTo({ ...b.camera, duration: 700 });
+      return;
     }
     state.before = null;
     state.favourites = false;
@@ -436,8 +374,8 @@ export function createApp(opts) {
       body.classList.remove("has-start");
     }
     map.easeTo({ ...b.camera, duration: 700 });
+    o.onExitFavourites?.();
   }
-  $("exit-favourites")?.addEventListener("click", exitFavourites);
 
   // Swaps the list without redrawing the route, unless the one on screen went.
   function updateRoutes(routes, index, redraw) {
@@ -448,7 +386,7 @@ export function createApp(opts) {
     else markCurrent();
   }
 
-  // ----- modes: planning a new run vs viewing routes -----
+  // ----- views: planning a new run vs viewing routes -----
   // New run: clear the route and list, leaving just the map and the start pin.
   function newRun() {
     cancelAnimationFrame(anim);
@@ -467,7 +405,12 @@ export function createApp(opts) {
     marker?.setDraggable(false);
     show(state.index);
   }
-  $("edit")?.addEventListener("click", newRun);
+  // New run from favourites (desktop shows the button there) leaves them
+  // first, so the shelf goes back to Loop.
+  $("edit")?.addEventListener("click", async () => {
+    if (state.favourites) await exitFavourites();
+    newRun();
+  });
   $("back")?.addEventListener("click", backToRoutes);
 
   // ----- list -----
@@ -504,7 +447,8 @@ export function createApp(opts) {
     const name = state.favourites ? "favourites" : "routes";
     if ($("list-title")) $("list-title").textContent = state.favourites ? `${state.routes.length} saved` : "Routes";
     if ($("list-toggle")) $("list-toggle").textContent = `All ${name}`;
-    if ($("back-label")) $("back-label").textContent = `← Back to ${name}`;
+    // Phones drop "Back to" (.back-long), to fit beside Generate.
+    if ($("back-label")) $("back-label").innerHTML = `← <span class="back-long">Back to </span>${name}`;
   }
 
   $("list-toggle")?.addEventListener("click", () => body.classList.toggle("list-open"));
@@ -518,14 +462,14 @@ export function createApp(opts) {
   function warnings(info) {
     const out = [];
     if (info.countryPaths >= COUNTRY_WARN_M) {
-      out.push({ title: `${kmText(info.countryPaths)} on countryside paths`, text: "We can't be sure these are passable. Some may be muddy, overgrown or across fields." });
+      out.push({ title: `${kmText(info.countryPaths)} on uncertain paths`, text: "We don't know their surface or whether they're looked after, so they may not be good for running in all conditions." });
     }
     return out;
   }
-  // What "Nothing to flag" means for this route, true to the small amount
-  // under the warning threshold.
+  // A note under "Nothing to flag", true to the small amount under the
+  // warning threshold; none when there are no uncertain paths at all.
   function nothingToFlag(info) {
-    return info.countryPaths > 0 ? "Under 0.1 km on countryside paths." : "No countryside paths we can't vouch for.";
+    return info.countryPaths > 0 ? "<span>Under 0.1 km on uncertain paths.</span>" : "";
   }
   function renderInfo(r) {
     const list = $("info-list");
@@ -535,7 +479,7 @@ export function createApp(opts) {
     body.classList.toggle("has-warnings", w.length > 0);
     list.innerHTML = w.length
       ? w.map((x) => `<li class="warn"><span class="info-mark" aria-hidden="true">!</span><div><b>${x.title}</b><span>${x.text}</span></div></li>`).join("")
-      : `<li class="ok"><span class="info-mark" aria-hidden="true">✓</span><div><b>Nothing to flag</b><span>${nothingToFlag(r.info)}</span></div></li>`;
+      : `<li class="ok"><span class="info-mark" aria-hidden="true">✓</span><div><b>Nothing to flag</b>${nothingToFlag(r.info)}</div></li>`;
     // A key to how the map marks them.
     const legend = $("info-legend");
     if (legend) {
@@ -694,5 +638,12 @@ export function createApp(opts) {
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   });
 
-  return { map, state, show, showRoutes, updateRoutes, exitFavourites, toast, setStart };
+  // Switching modes. Loop is the only planning mode so far, so there's
+  // nothing to hide yet; when others arrive, leave() should clear the route
+  // and start marker from the map and enter() put them back. Favourites
+  // borrow this mode's route viewer for now (see main.js).
+  const enter = () => {};
+  const leave = () => {};
+
+  return { map, state, show, showRoutes, updateRoutes, exitFavourites, toast, setStart, enter, leave };
 }
