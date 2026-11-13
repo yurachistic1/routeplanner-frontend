@@ -16,7 +16,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@800&text=RUNTHEFAVOIS&display=swap" rel="stylesheet" />
   <link href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css" rel="stylesheet" />
   <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
-  <link href="./css/styles.css?v=28" rel="stylesheet" />
+  <link href="./css/styles.css?v=35" rel="stylesheet" />
 </head>
 <body>
   <div id="map"></div>
@@ -25,7 +25,6 @@
   <header class="hud-top glass">
     <div class="logo"><img src="./assets/mark.svg" alt="" width="28" height="28" /><span>RUNTHE</span></div>
     <div class="hint"><span class="h1">Tap to set start</span><span class="h2">Start set<span class="h2-more"> · tap to move</span></span></div>
-    <div class="art-hint"><span class="a1">Tap where to look</span><span class="a2">Place set</span></div>
     <div class="info">
       <div class="tag">Route <span class="mono" id="route-title">01</span> / <span class="mono" id="route-count">00</span></div>
       <div class="now mono"><span id="route-distance">0.00</span><small> KM</small></div>
@@ -46,7 +45,7 @@
       <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="6.5"/><circle cx="12" cy="12" r="2" fill="currentColor" stroke="none"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
     </button>
     <div class="setup">
-      <button class="back" id="back"><span id="back-label">← Back to routes</span><kbd>Esc</kbd></button>
+      <button class="back" id="back" aria-label="Back to routes"><svg class="back-arrow" width="22" height="14" viewBox="0 0 22 14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 7H2M8 1 2 7l6 6"/></svg><span id="back-label">← Back to routes</span><kbd>Esc</kbd></button>
       <div class="dial">
         <button class="round" id="dec" aria-label="Shorter">−</button>
         <div class="readout">
@@ -88,18 +87,14 @@
       </div>
     </div>
 
-    <!-- GPS art mode (js/art.js): pick a shape and where to look, then
-         choose between the routes found. -->
+    <!-- GPS art mode (js/art.js): pick a shape, then choose between the
+         routes found round the middle of the map. -->
     <div class="art">
       <div class="art-setup">
         <div class="tag">Shape</div>
         <div class="art-shapes" id="art-shapes"></div>
-        <div class="tag">Look within</div>
-        <div class="chips">
-          <button class="chip" data-radius="10">10 km</button>
-          <button class="chip active" data-radius="15">15 km</button>
-          <button class="chip" data-radius="20">20 km</button>
-        </div>
+        <div class="tag">Where</div>
+        <p class="art-note">Looks for your shape within 15 km of the middle of the map. Move the map to look somewhere else.</p>
         <button class="go" id="art-find"><span class="t1">Find</span><svg class="t1" width="22" height="14" viewBox="0 0 22 14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 7h19M14 1l6 6-6 6"/></svg><span class="t2">Searching</span></button>
       </div>
       <div class="art-found">
@@ -207,6 +202,26 @@
     </div>
   </dialog>
 
-  <script type="module" src="./js/main.js"></script>
+  <!-- Versioned like styles.css: bump every ?v= here whenever any JS file
+       changes, so browsers fetch the new code. The map catches the files'
+       imports of each other too. A new JS file needs a line here. -->
+  <script type="importmap">
+  {
+    "imports": {
+      "./js/account.js": "./js/account.js?v=8",
+      "./js/api.js": "./js/api.js?v=8",
+      "./js/art.js": "./js/art.js?v=8",
+      "./js/loop.js": "./js/loop.js?v=8",
+      "./js/main.js": "./js/main.js?v=8",
+      "./js/map.js": "./js/map.js?v=8",
+      "./js/mapstyle.js": "./js/mapstyle.js?v=8",
+      "./js/modes.js": "./js/modes.js?v=8",
+      "./js/polyline.js": "./js/polyline.js?v=8",
+      "./js/shapes.js": "./js/shapes.js?v=8",
+      "./js/ui.js": "./js/ui.js?v=8"
+    }
+  }
+  </script>
+  <script type="module" src="./js/main.js?v=8"></script>
 </body>
 </html>

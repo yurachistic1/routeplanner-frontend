@@ -22,18 +22,22 @@
 
 import { $, toast } from "./ui.js";
 
-// Icons are 24px line drawings in currentColor, except Loop, which is the
-// app's mark.
+// One look for every mode, current and future (the user, 2026-11-13): each
+// icon is drawn in currentColor only, so all are grey on the shelf and white
+// when current, on the same lime pill with a lime label (css/styles.css,
+// .modebar). No mode gets its own colours. Icons are 24px line drawings;
+// Loop is the app's mark, inlined so it can take currentColor too. Its dot
+// stays pink, the one exception, because it's the logo (the user).
 const icon = (paths) =>
   `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
 
 export const MODES = [
-  { id: "loop", label: "Loop", icon: `<img src="./assets/mark.svg" alt="" width="26" height="26" />` },
+  { id: "loop", label: "Loop", icon: `<svg viewBox="0 0 512 512" width="26" height="26" aria-hidden="true"><defs><mask id="mode-loop-mask"><rect width="512" height="512" fill="#fff"/><circle cx="252" cy="406.8" r="81.8" fill="#000"/></mask></defs><path d="M135.8 292.9Q108.9 258.1 103.4 234.8Q97.9 211.5 119 173.9Q140 136.3 181.3 121.1L284.1 83.3Q325.4 68.2 349.8 84.8Q374.2 101.5 385.9 143.9L400.1 195.8Q411.7 238.2 412.5 282.2L413.3 321.2Q414.1 365.2 371.5 376.1L294.6 395.9Q252 406.8 228.4 394.4Q204.8 382 177.9 347.2Z" fill="none" stroke="currentColor" stroke-width="50" stroke-linejoin="round" mask="url(#mode-loop-mask)"/><circle class="logo-dot" cx="252" cy="406.8" r="62"/></svg>` },
   { id: "p2p", label: "A to B", icon: icon(
     '<circle cx="5.5" cy="18.5" r="2.5"/><path d="M8 17.3c3.2-1.4 2.8-5.6 6.4-7" stroke-dasharray="2 2.6"/>' +
     '<path d="M18 3a3.5 3.5 0 0 1 3.5 3.5c0 2.6-3.5 6.3-3.5 6.3s-3.5-3.7-3.5-6.3A3.5 3.5 0 0 1 18 3z"/><circle cx="18" cy="6.5" r="1" fill="currentColor" stroke="none"/>') },
   { id: "favourites", label: "Favourites", signedIn: true, icon: icon(
-    '<path d="M12 20.5S3 15 3 8.8A4.8 4.8 0 0 1 12 6.5a4.8 4.8 0 0 1 9 2.3C21 15 12 20.5 12 20.5z"/>') },
+    '<path d="M12 20.5S3 15 3 8.8A4.8 4.8 0 0 1 12 6.5a4.8 4.8 0 0 1 9 2.3C21 15 12 20.5 12 20.5z" fill="currentColor"/>') },
   { id: "edit", label: "Edit", icon: icon(
     '<path d="M4 20h4L19.3 8.7a2 2 0 0 0 0-2.8l-1.2-1.2a2 2 0 0 0-2.8 0L4 16v4z"/><path d="m13.5 6.5 4 4"/>') },
   // The roadmap's GPS art (Phase 7). Never "Strava art": see ROADMAP.md.

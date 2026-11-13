@@ -112,9 +112,13 @@ export function roundCorners(pts, radius, seg = null) {
   return out;
 }
 
-const metresPerPixel = (zoom, lat) => (40075016.7 * Math.cos((lat * Math.PI) / 180)) / (512 * 2 ** zoom);
+export const metresPerPixel = (zoom, lat) => (40075016.7 * Math.cos((lat * Math.PI) / 180)) / (512 * 2 ** zoom);
 // Corner radius on the map, in screen pixels.
 const CORNER_PX = 6;
+// A line smoothed for the map at mpp metres per pixel: detail under a pixel
+// dropped, corners rounded. The same as shapeRoute below for a route with no
+// marked stretches; GPS art (js/art.js) uses it so its routes look the same.
+export const smoothLine = (pts, mpp) => roundCorners(simplify(pts, mpp), CORNER_PX * mpp);
 
 // ---------- marked stretches ----------
 
@@ -414,7 +418,31 @@ export function createLoopMode(map, mapReady, opts) {
     if (state.favourites) await exitFavourites();
     newRun();
   });
-  $("back")?.addEventListener("click", backToRoutes);
+  // The phone's back button does the same as Back while a new run is being
+  // planned and routes from before are there to go back to. While that's
+  // true, one history entry of ours sits on top: the back button pops it,
+  // which brings the routes back. When it stops being true some other way
+  // (Generate, Back, another mode), the entry is popped quietly, so no back
+  // press is ever wasted on it.
+  const canGoBack = () => body.dataset.mode === "loop" && !state.favourites &&
+    state.routes.length > 0 && body.classList.contains("has-results") && !viewingRoutes();
+  const ourEntry = () => history.state?.runthe === "plan";
+  let popping = false; // waiting for a quiet pop of our entry
+  function syncHistory() {
+    if (popping) return;
+    const want = canGoBack();
+    if (want && !ourEntry()) history.pushState({ runthe: "plan" }, "");
+    else if (!want && ourEntry()) { popping = true; history.back(); }
+  }
+  addEventListener("popstate", () => {
+    if (popping) popping = false;
+    else if (canGoBack()) backToRoutes();
+    syncHistory();
+  });
+  new MutationObserver(syncHistory).observe(body, { attributes: true, attributeFilter: ["class", "data-mode"] });
+  // Back and Esc go through history when our entry is there, so it's used up.
+  const goBack = () => (ourEntry() && !popping ? history.back() : backToRoutes());
+  $("back")?.addEventListener("click", goBack);
 
   // ----- list -----
   const icon = (path) => `<svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${path}"/></svg>`;
@@ -450,11 +478,17 @@ export function createLoopMode(map, mapReady, opts) {
     const name = state.favourites ? "favourites" : "routes";
     if ($("list-title")) $("list-title").textContent = state.favourites ? `${state.routes.length} saved` : "Routes";
     if ($("list-toggle")) $("list-toggle").textContent = `All ${name}`;
-    // Phones drop "Back to" (.back-long), to fit beside Generate.
-    if ($("back-label")) $("back-label").innerHTML = `← <span class="back-long">Back to </span>${name}`;
+    // Phones show only an arrow, so the label is also the button's name.
+    if ($("back-label")) $("back-label").textContent = `← Back to ${name}`;
+    $("back")?.setAttribute("aria-label", `Back to ${name}`);
   }
 
   $("list-toggle")?.addEventListener("click", () => body.classList.toggle("list-open"));
+  // Opens or closes the route list, like the All routes button. Only on
+  // phones: on wide screens the list is always beside the routes.
+  function toggleList() {
+    if (viewingRoutes() && state.routes.length && matchMedia("(max-width: 899px)").matches) body.classList.toggle("list-open");
+  }
 
   // ----- route info -----
   // A drawer above the route controls, opened from the tab on the panel's
@@ -618,7 +652,7 @@ export function createLoopMode(map, mapReady, opts) {
     if (!mine() || !state.routes.length || document.querySelector("dialog[open]")) return;
     if (e.key === "Escape") {
       if (body.classList.contains("list-open")) body.classList.remove("list-open");
-      else if (!viewingRoutes()) backToRoutes();
+      else if (!viewingRoutes()) goBack();
       else exitFavourites();
       return;
     }
@@ -648,5 +682,5 @@ export function createLoopMode(map, mapReady, opts) {
   const enter = () => {};
   const leave = () => {};
 
-  return { map, state, show, showRoutes, updateRoutes, exitFavourites, toast, setStart, enter, leave };
+  return { map, state, show, showRoutes, updateRoutes, exitFavourites, toggleList, toast, setStart, enter, leave };
 }

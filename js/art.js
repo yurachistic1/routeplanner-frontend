@@ -1,16 +1,20 @@
-// GPS art mode: pick a shape, tap the map where to look, and get routes
-// that draw the shape on the streets. The server answers with up to three,
+// GPS art mode: pick a shape and get routes that draw it on the streets,
+// found within 15 km of the middle of the map. Nothing is placed on the
+// map first: where a route starts isn't known until it's found. Found
+// routes show their start with the same pink dot as loops (the user,
+// 2026-11-13). The server answers with up to three,
 // shortest first: a longer route is usually a better drawing.
 //
 // A shape is an icon found by name or the user's own drawing
 // (js/shapes.js). The request is the
-// shape's strokes plus the place and how far to look; see ArtRequest in
+// shape's strokes plus the map's centre and the radius; see ArtRequest in
 // the backend's art.go.
 //
 // Like every mode it keeps to its own map source and layers ("art"), and
 // remembers where it was when you come back from the shelf.
 
 import { API_BASE } from "./api.js";
+import { smoothLine, metresPerPixel } from "./loop.js";
 import { createIconPicker, createDrawPad } from "./shapes.js";
 import { $, toast } from "./ui.js";
 
@@ -18,6 +22,8 @@ const EMPTY = { type: "FeatureCollection", features: [] };
 const body = document.body;
 const NAMES = ["Short", "Medium", "Long"];
 const km = (m) => (m / 1000).toFixed(1);
+const half = (z) => Math.round(z * 2) / 2;
+const boundsOf = (pts) => pts.reduce((b, p) => b.extend(p), new maplibregl.LngLatBounds(pts[0], pts[0]));
 
 // A shape's strokes as a small drawing.
 function thumbnail(shape) {
@@ -40,9 +46,9 @@ function thumbnail(shape) {
  *     where route is { raw: [[lon, lat], ...], distance }
  */
 export function createArtMode(map, mapReady, opts) {
-  const state = { shape: null, radius: 15, centre: null, routes: [], index: 0 };
-  let marker = null;
-  let active = false;
+  const RADIUS_KM = 15;
+  const state = { shape: null, routes: [], index: 0 };
+  let start = null; // the pink dot where the route on screen starts
 
   const ready = mapReady.then(() => {
     map.addSource("art", { type: "geojson", data: EMPTY });
@@ -53,7 +59,7 @@ export function createArtMode(map, mapReady, opts) {
   // The row holds the two ways of choosing a shape (find an icon, draw
   // one) and then the shape chosen.
   const TOOLS = `<button class="art-shape art-tool" data-tool="search">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg><span>Search</span></button>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg><span>Icons</span></button>
     <button class="art-shape art-tool" data-tool="draw">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19.3 8.7a2 2 0 0 0 0-2.8l-1.2-1.2a2 2 0 0 0-2.8 0L4 16v4z"/><path d="m13.5 6.5 4 4"/></svg><span>Draw</span></button>`;
   function renderShapes() {
@@ -73,37 +79,10 @@ export function createArtMode(map, mapReady, opts) {
   });
   renderShapes();
 
-  // ----- how far to look -----
-  for (const c of document.querySelectorAll(".chip[data-radius]")) {
-    c.addEventListener("click", () => {
-      state.radius = +c.dataset.radius;
-      for (const o of document.querySelectorAll(".chip[data-radius]")) o.classList.toggle("active", o === c);
-    });
-  }
-
-  // ----- where to look -----
-  function setCentre(lngLat) {
-    state.centre = maplibregl.LngLat.convert(lngLat);
-    if (!marker) {
-      const el = document.createElement("div");
-      el.className = "start-marker art-marker";
-      marker = new maplibregl.Marker({ element: el, draggable: true }).setLngLat(state.centre).addTo(map);
-      marker.on("dragend", () => { state.centre = marker.getLngLat(); });
-    } else {
-      marker.setLngLat(state.centre);
-    }
-    body.classList.add("art-has-centre");
-  }
-  map.on("click", (e) => {
-    if (!active || body.classList.contains("art-results")) return;
-    setCentre(e.lngLat);
-  });
-
   // ----- search -----
   async function find() {
-    if (!state.shape) return toast("Search for a shape or draw one first");
-    const centre = state.centre ?? map.getCenter();
-    if (!state.centre) setCentre(centre);
+    if (!state.shape) return toast("Pick an icon or draw a shape first");
+    const centre = map.getCenter();
     body.classList.add("loading");
     $("art-find").setAttribute("disabled", "");
     try {
@@ -112,7 +91,7 @@ export function createArtMode(map, mapReady, opts) {
         res = await fetch(`${API_BASE}/art`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ lat: centre.lat, lon: centre.lng, radius_km: state.radius, shape: state.shape.shape }),
+          body: JSON.stringify({ lat: centre.lat, lon: centre.lng, radius_km: RADIUS_KM, shape: state.shape.shape }),
         });
       } catch {
         return toast("Can't reach the server. Check your connection and try again.");
@@ -120,7 +99,7 @@ export function createArtMode(map, mapReady, opts) {
       if (res.status === 422) return toast("No map data here yet. Only the UK for now.");
       if (!res.ok) return toast(`Something went wrong (${res.status}). Try again?`);
       const { routes } = await res.json();
-      if (!routes.length) return toast("Couldn't draw that here. Try another place or a bigger area.");
+      if (!routes.length) return toast("Couldn't draw that here. Move the map and try somewhere else.");
       // raw is the path as [lon, lat], which the map and favourites use
       for (const r of routes) r.raw = r.path.map(([lat, lon]) => [lon, lat]);
       state.routes = routes;
@@ -141,19 +120,75 @@ export function createArtMode(map, mapReady, opts) {
   $("art-find").addEventListener("click", find);
 
   // ----- results -----
-  // While routes show, the pink marker sits where the one on screen
-  // starts: its point nearest the place searched from. It goes back to
-  // that place, and can be dragged again, for a new search.
+  // The route on screen, and its start: the same pink dot as a loop's, but
+  // fixed in place. The line is smoothed and drawn in just like a loop's
+  // (js/loop.js): smoothing fixed in screen pixels, cached per half zoom
+  // level, never coarser than at the zoom that fits the whole route, and
+  // redone when a zoom gesture ends.
   const viewing = () => body.classList.contains("art-results");
+  const current = () => (viewing() ? state.routes[state.index] : null);
+  const camera = (r) => map.cameraForBounds(boundsOf(r.raw), { padding: opts.padding(), maxZoom: 16 });
+  function lineAt(r, key) {
+    r.fitKey ??= half(camera(r)?.zoom ?? 13);
+    key = Math.max(key, r.fitKey);
+    r.cache ??= new Map();
+    if (!r.cache.has(key)) r.cache.set(key, smoothLine(r.raw, metresPerPixel(key, r.raw[0][1])));
+    return r.cache.get(key);
+  }
+  const setLine = (coords) => map.getSource("art").setData(coords
+    ? { type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: coords } } : EMPTY);
+
+  let anim = 0, drawing = false, shownKey = null;
+  function stopDrawing() {
+    cancelAnimationFrame(anim);
+    drawing = false;
+  }
+  // Draws the route in from its start, with the smoothing for the zoom the
+  // camera is heading to. Same timing as loop.js's drawProgressively.
+  function drawIn(r, key) {
+    stopDrawing();
+    const coords = lineAt(r, key);
+    const t0 = performance.now(), dur = 1400;
+    drawing = true;
+    const step = (t) => {
+      const k = Math.min(1, (t - t0) / dur);
+      const e = 1 - Math.pow(1 - k, 3);
+      setLine(coords.slice(0, Math.max(2, Math.ceil(e * coords.length))));
+      if (k < 1) { anim = requestAnimationFrame(step); return; }
+      drawing = false;
+      shownKey = half(map.getZoom());
+      setLine(lineAt(r, shownKey));
+    };
+    anim = requestAnimationFrame(step);
+  }
+  map.on("zoomend", () => {
+    const r = current(), key = half(map.getZoom());
+    if (body.dataset.mode !== "art" || !r || drawing || key === shownKey) return;
+    shownKey = key;
+    setLine(lineAt(r, key));
+  });
+
+  // Puts the route on screen at once (coming back to the mode), or clears it.
   async function draw() {
     await ready;
-    const r = viewing() ? state.routes[state.index] : null;
-    map.getSource("art").setData(r ? { type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: r.raw } } : EMPTY);
-    if (marker) {
-      marker.setLngLat(r ? r.raw[0] : state.centre);
-      marker.setDraggable(!r);
-    }
+    stopDrawing();
+    const r = current();
+    shownKey = r ? half(map.getZoom()) : null;
+    setLine(r ? lineAt(r, shownKey) : null);
+    placeStart(r);
     syncHeart();
+  }
+  function placeStart(r) {
+    if (r) {
+      if (!start) {
+        const el = document.createElement("div");
+        el.className = "start-marker art-start";
+        start = new maplibregl.Marker({ element: el });
+      }
+      start.setLngLat(r.raw[0]).addTo(map);
+    } else {
+      start?.remove();
+    }
   }
   function syncHeart() {
     const r = state.routes[state.index];
@@ -166,13 +201,16 @@ export function createArtMode(map, mapReady, opts) {
     const r = state.routes[state.index];
     if (r) opts.favourites.toggle(r);
   });
-  function show(i) {
+  async function show(i) {
     state.index = i;
     for (const b of document.querySelectorAll(".art-option")) b.classList.toggle("active", +b.dataset.option === i);
-    draw();
-    const bounds = new maplibregl.LngLatBounds();
-    for (const p of state.routes[i].raw) bounds.extend(p);
-    map.fitBounds(bounds, { padding: opts.padding(), duration: 700 });
+    await ready;
+    const r = state.routes[i];
+    const target = camera(r);
+    placeStart(r);
+    syncHeart();
+    drawIn(r, target ? half(target.zoom) : half(map.getZoom()));
+    if (target) map.easeTo({ ...target, duration: 700 });
   }
   $("art-options").addEventListener("click", (e) => {
     const b = e.target.closest("[data-option]");
@@ -206,15 +244,13 @@ export function createArtMode(map, mapReady, opts) {
     }
   });
   function enter() {
-    active = true;
     others(false);
-    marker?.addTo(map);
     draw();
   }
   function leave() {
-    active = false;
     others(true);
-    marker?.remove();
+    stopDrawing();
+    start?.remove();
     ready.then(() => map.getSource("art").setData(EMPTY));
   }
 

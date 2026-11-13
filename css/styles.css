@@ -72,6 +72,7 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
   border: 1px solid var(--edge); border-radius: 6px; padding: 2px 6px;
 }
 @media (hover: none) { .back kbd { display: none; } }
+.back-arrow { display: none; }
 .results { display: none; }
 .show-results .setup { display: none; }
 .show-results .results { display: grid; gap: 12px; }
@@ -388,18 +389,17 @@ body:not(.show-results):not(.loading) .start-marker::before { animation: pulse 2
   display: grid; grid-auto-flow: column; grid-auto-columns: 1fr;
   background: #0b0e14; border-top: 1px solid var(--edge);
 }
-/* The favourites heart: only while signed in, and pink, on a pink pill
-   while it's the current mode. */
+/* The favourites heart only shows while signed in. Every mode looks the
+   same, now and in future (the user, 2026-11-13): grey, then white on the
+   lime pill with a lime label when current. No per-mode colours here. */
 body:not(.signed-in) .modebar .signed-in-only { display: none; }
-.modebar [data-mode="favourites"] .mode-icon { color: var(--pink); }
-.modebar [data-mode="favourites"].active .mode-icon { background: rgba(255, 61, 139, .16); }
-.modebar [data-mode="favourites"].active .mode-label { color: var(--pink); }
 .modebar button {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
   color: var(--dim); -webkit-tap-highlight-color: transparent;
 }
 .mode-icon { width: 52px; height: 30px; border-radius: 15px; display: grid; place-items: center; transition: background .2s; }
-.mode-icon img { display: block; }
+.mode-icon svg { display: block; }
+.mode-icon .logo-dot { fill: var(--pink); } /* the logo's dot, the one exception */
 .mode-label { font-size: 11px; font-weight: 500; letter-spacing: .04em; }
 .modebar .active { color: var(--text); }
 .modebar .active .mode-icon { background: rgba(var(--neon-rgb), .14); }
@@ -425,14 +425,18 @@ body:not(.signed-in) .modebar .signed-in-only { display: none; }
   .deck { padding: 12px; border-radius: 20px; }
   /* Planning a run, kept compact so the map shows (2026-11-11): the
      distance on one line with "km" beside it, and Back to routes shortened
-     to "← Routes" beside Generate rather than a row of its own. */
+     to an arrow beside Generate rather than a row of its own. */
   .setup { gap: 8px; grid-template-columns: auto 1fr; }
   .setup > * { grid-column: 1 / -1; }
   .setup .dial { grid-row: 1; }
   .setup .chips { grid-row: 2; }
-  .setup .back { grid-row: 3; grid-column: 1; height: 46px; padding: 0 14px; }
+  /* Just an arrow, Generate's own one mirrored, as wide as the route
+     arrows (2026-11-13). */
+  .setup .back { grid-row: 3; grid-column: 1; width: 64px; height: 46px; padding: 0; justify-content: center; }
   .has-results .setup .go { grid-row: 3; grid-column: 2; }
-  .back-long, .back kbd { display: none; }
+  /* A touch smaller than Generate's: neon on dark reads bigger than dark on neon. */
+  .back-arrow { display: block; width: 20px; height: 12.7px; }
+  #back-label, .back kbd { display: none; }
   .round { width: 40px; height: 40px; font-size: 20px; }
   /* The number stays centred; "km" hangs off its right side. */
   .readout { position: relative; }
@@ -486,18 +490,18 @@ body:not(.signed-in) .modebar .signed-in-only { display: none; }
 
 /* GPS art mode (js/art.js). It shares the deck with loop mode: in art mode
    loop's panels, start marker, list and top-bar text are hidden, and the
-   art panel shows instead. */
-.art, .art-hint { display: none; }
+   art panel shows instead. Art has no marker and no top-bar text: it looks
+   round the middle of the map (the user, 2026-11-13). */
+.art { display: none; }
 [data-mode="art"] .setup, [data-mode="art"] .results, [data-mode="art"] .list, [data-mode="art"] .info-tab,
 [data-mode="art"] .route-info, [data-mode="art"] .hud-top .hint, [data-mode="art"] .hud-top .info,
-[data-mode="art"] .start-marker:not(.art-marker) { display: none !important; }
+[data-mode="art"] .start-marker:not(.art-start) { display: none !important; }
 [data-mode="art"] .art { display: block; }
-[data-mode="art"] .art-hint {
-  display: block; margin-left: auto; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--neon);
-}
-.art-hint .a2, .art-has-centre .art-hint .a1, .art-results .art-hint { display: none; }
-.art-has-centre .art-hint .a2 { display: inline; }
+/* A found route's start: loop's pink dot, fixed, so no grab or pulse. */
+.art-start { cursor: default !important; }
+.art-start::before, .art-start::after { animation: none !important; }
 .art-setup { display: grid; gap: 10px; }
+.art-note { font-size: 13px; line-height: 1.45; color: var(--dim); }
 .art-found { display: none; gap: 12px; }
 .art-results .art-setup { display: none; }
 .art-results .art-found { display: grid; }
@@ -519,7 +523,6 @@ body:not(.signed-in) .modebar .signed-in-only { display: none; }
 .art-fit { font-size: 11px; color: var(--amber); }
 .art-fit.good { color: var(--dim); }
 .art-row { display: grid; grid-template-columns: 52px 1fr; gap: 10px; }
-.art-marker { cursor: grab; }
 
 /* GPS art's own shapes (js/shapes.js): the Search and Draw tiles at the
    start of the shape row, and the two dialogs they open. */

@@ -95,6 +95,8 @@ registerMode("favourites", {
   canEnter: () => account.hasFavourites(),
   enter: () => account.showFavourites(),
   leave: () => app.exitFavourites(),
+  // Tapping the heart again while in favourites opens or closes their list.
+  reselect: () => app.toggleList(),
 });
 
 // ----- GPS art mode -----

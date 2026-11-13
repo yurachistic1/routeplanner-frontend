@@ -92,7 +92,10 @@ export function createIconPicker(onPick) {
     input.value = "";
     show();
     dialog.showModal();
+    // showModal focuses the search box by itself. On touch screens that
+    // brings up the keyboard over the icons, so let people browse first.
     if (matchMedia("(hover: hover)").matches) input.focus();
+    else input.blur();
   };
 }
 

@@ -73,8 +73,13 @@ function groupRoutes(routes) {
 // one request at a time at most once a second, and keep every answer on the
 // device. Start points are sent rounded to about 100m. Headings simply have no
 // name if a lookup fails.
+// Looked up at street level (zoom 16), then named by the district that
+// address is in. District level (zoom 14) snapped to the nearest district
+// instead: Hyde Park Corner came back as East Marylebone (2026-11-13). The
+// cache key changed then, so names from the old lookup are dropped.
 const NOMINATIM = "https://nominatim.openstreetmap.org/reverse";
-const PLACES = "runthe.places";
+const PLACES = "runthe.places.v2";
+try { localStorage.removeItem("runthe.places"); } catch {} // blocked storage: nothing to tidy
 const LOOKUP_GAP_MS = 1100;
 let lookingUp = false;
 
@@ -86,7 +91,7 @@ function placeName(address = {}) {
 
 async function lookUpPlace(key) {
   const [lat, lon] = key.split(",");
-  const res = await fetch(`${NOMINATIM}?format=jsonv2&lat=${lat}&lon=${lon}&zoom=14&addressdetails=1&accept-language=en`);
+  const res = await fetch(`${NOMINATIM}?format=jsonv2&lat=${lat}&lon=${lon}&zoom=16&addressdetails=1&accept-language=en`);
   if (!res.ok) throw new Error(`Place lookup failed (${res.status})`);
   return placeName((await res.json()).address);
 }
