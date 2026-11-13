@@ -67,11 +67,13 @@ export function createArtMode(map, mapReady, opts) {
     $("art-shapes").innerHTML = TOOLS + (s
       ? `<div class="art-shape active" aria-label="${s.name}">${thumbnail(s.shape)}<span>${s.name}</span></div>` : "");
   }
-  function setShape(name, strokes) {
-    state.shape = { name, shape: { strokes } };
+  // icon: whether it's one of the app's icons, which the server caches
+  // results for (it doesn't for drawings)
+  function setShape(name, strokes, icon = false) {
+    state.shape = { name, shape: { strokes }, icon };
     renderShapes();
   }
-  const openIcons = createIconPicker(setShape);
+  const openIcons = createIconPicker((name, strokes) => setShape(name, strokes, true));
   const openDraw = createDrawPad((strokes) => setShape("My shape", strokes));
   $("art-shapes").addEventListener("click", (e) => {
     const tool = e.target.closest("[data-tool]");
@@ -91,7 +93,10 @@ export function createArtMode(map, mapReady, opts) {
         res = await fetch(`${API_BASE}/art`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ lat: centre.lat, lon: centre.lng, radius_km: RADIUS_KM, shape: state.shape.shape }),
+          body: JSON.stringify({
+            lat: centre.lat, lon: centre.lng, radius_km: RADIUS_KM, shape: state.shape.shape,
+            icon: state.shape.icon ? state.shape.name : undefined,
+          }),
         });
       } catch {
         return toast("Can't reach the server. Check your connection and try again.");
