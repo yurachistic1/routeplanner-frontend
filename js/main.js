@@ -2,6 +2,7 @@
 // the shelf that switches them, and accounts.
 
 import { createAccount } from "./account.js";
+import { createArtMode } from "./art.js";
 import { createLoopMode } from "./loop.js";
 import { createMap, addCredits, addLocate, addSatellite } from "./map.js";
 import { buildStyle, ATTRIBUTION } from "./mapstyle.js";
@@ -96,8 +97,28 @@ registerMode("favourites", {
   leave: () => app.exitFavourites(),
 });
 
+// ----- GPS art mode -----
+// The route in lime like a loop. Its heart saves to the same favourites.
+registerMode("art", createArtMode(map, ready, {
+  favourites: { toggle: (r) => account.toggleFavourite(r), has: (r) => account.isFavourite(r), onChange: (f) => account.onFavouritesChange(f) },
+  padding: () => {
+    const top = document.querySelector(".hud-top").getBoundingClientRect();
+    const deck = document.querySelector(".deck").getBoundingClientRect();
+    if (desktop.matches) return { top: 60, bottom: 60, left: deck.right + 40, right: 60 };
+    return { top: top.bottom + 30, left: 30, right: 30, bottom: innerHeight - deck.top + 30 };
+  },
+  addArtLayers(map) {
+    const below = map.getStyle().layers.find((l) => l.type === "symbol")?.id;
+    const add = (layer) => map.addLayer(layer, below);
+    add({ id: "art-halo", type: "line", source: "art", layout,
+      paint: { "line-color": "#4f6328", "line-width": W(6, 13), "line-blur": W(1.5, 4), "line-opacity": GLOW } });
+    add({ id: "art-route", type: "line", source: "art", layout,
+      paint: { "line-color": "#c8ff2e", "line-width": W(2.2, 4.5), "line-opacity": FADE } });
+  },
+}));
+
 // ----- the shelf of modes along the bottom -----
-// Point to point, edit and GPS art are placeholders for now (see modes.js).
+// Point to point and edit are placeholders for now (see modes.js).
 // The favourites heart sits in the middle.
 createModeBar("loop");
 

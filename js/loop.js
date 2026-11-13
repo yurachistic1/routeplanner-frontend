@@ -237,7 +237,10 @@ export function createLoopMode(map, mapReady, opts) {
   // returns to them and their start. Favourites ignore it, so a stray tap
   // while looking at a saved route doesn't drop you out.
   const viewingRoutes = () => body.classList.contains("show-results");
+  // Other planning modes (GPS art) take the map's taps and keys themselves.
+  const mine = () => ["loop", "favourites"].includes(body.dataset.mode);
   map.on("click", (e) => {
+    if (!mine()) return;
     if (state.favourites && viewingRoutes()) return;
     if (viewingRoutes()) newRun();
     setStart(e.lngLat);
@@ -612,7 +615,7 @@ export function createLoopMode(map, mapReady, opts) {
   $("prev")?.addEventListener("click", () => show(state.index - 1));
   $("next")?.addEventListener("click", () => show(state.index + 1));
   addEventListener("keydown", (e) => {
-    if (!state.routes.length || document.querySelector("dialog[open]")) return;
+    if (!mine() || !state.routes.length || document.querySelector("dialog[open]")) return;
     if (e.key === "Escape") {
       if (body.classList.contains("list-open")) body.classList.remove("list-open");
       else if (!viewingRoutes()) backToRoutes();

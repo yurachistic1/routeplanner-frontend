@@ -306,6 +306,10 @@ export function createAccount({ openFavourites = () => {} } = {}) {
   const packInfo = (i) => ({ countryPaths: i.countryPaths, countryPathSpans: flat(i.countryPathSpans) });
   const unpackInfo = (s) => s && { countryPaths: s.countryPaths ?? 0, countryPathSpans: pairs(s.countryPathSpans) };
 
+  // Called whenever the favourites change, for hearts drawn elsewhere (GPS
+  // art's).
+  const watchers = [];
+
   function idOf(r) {
     r.line ??= encodeLine(r.raw);
     r.id ??= lineId(r.line);
@@ -314,6 +318,7 @@ export function createAccount({ openFavourites = () => {} } = {}) {
 
   // The heart under the map, and the hearts in the route list.
   function syncHeart() {
+    for (const tell of watchers) tell();
     const on = !!route && saved.has(idOf(route));
     heart.classList.toggle("on", on);
     heart.setAttribute("aria-pressed", on);
@@ -461,6 +466,9 @@ export function createAccount({ openFavourites = () => {} } = {}) {
     attach(a) { app = a; start(); },
     routeShown(r) { route = r; syncHeart(); },
     toggleFavourite,
+    // For other modes' hearts: r is { raw: [[lon, lat], ...], distance }.
+    isFavourite: (r) => saved.has(idOf(r)),
+    onFavouritesChange(tell) { watchers.push(tell); },
     hasFavourites,
     showFavourites,
   };

@@ -483,3 +483,86 @@ body:not(.signed-in) .modebar .signed-in-only { display: none; }
   #list-toggle, #list-close { display: none; }
   .row2 { grid-template-columns: 52px 1fr; }
 }
+
+/* GPS art mode (js/art.js). It shares the deck with loop mode: in art mode
+   loop's panels, start marker, list and top-bar text are hidden, and the
+   art panel shows instead. */
+.art, .art-hint { display: none; }
+[data-mode="art"] .setup, [data-mode="art"] .results, [data-mode="art"] .list, [data-mode="art"] .info-tab,
+[data-mode="art"] .route-info, [data-mode="art"] .hud-top .hint, [data-mode="art"] .hud-top .info,
+[data-mode="art"] .start-marker:not(.art-marker) { display: none !important; }
+[data-mode="art"] .art { display: block; }
+[data-mode="art"] .art-hint {
+  display: block; margin-left: auto; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--neon);
+}
+.art-hint .a2, .art-has-centre .art-hint .a1, .art-results .art-hint { display: none; }
+.art-has-centre .art-hint .a2 { display: inline; }
+.art-setup { display: grid; gap: 10px; }
+.art-found { display: none; gap: 12px; }
+.art-results .art-setup { display: none; }
+.art-results .art-found { display: grid; }
+.art-shapes { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+.art-shape {
+  flex: 0 0 72px; display: grid; gap: 4px; justify-items: center; padding: 8px 4px 6px; border-radius: 12px;
+  border: 1px solid var(--edge); color: var(--dim); font-size: 11px; letter-spacing: .08em; text-transform: uppercase;
+}
+.art-shape svg { width: 44px; height: 44px; }
+.art-shape.active { color: var(--neon); border-color: var(--neon); background: rgba(var(--neon-rgb), .08); }
+.art-options { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 8px; }
+.art-option {
+  display: grid; gap: 2px; justify-items: center; padding: 10px 4px; border-radius: 14px; border: 1px solid var(--edge);
+}
+.art-option.active { border-color: var(--neon); background: rgba(var(--neon-rgb), .08); }
+.art-km { font-size: 22px; font-weight: 700; color: var(--text); }
+.art-option.active .art-km { color: var(--neon); }
+.art-km small { font-size: 11px; color: var(--dim); }
+.art-fit { font-size: 11px; color: var(--amber); }
+.art-fit.good { color: var(--dim); }
+.art-row { display: grid; grid-template-columns: 52px 1fr; gap: 10px; }
+.art-marker { cursor: grab; }
+
+/* GPS art's own shapes (js/shapes.js): the Search and Draw tiles at the
+   start of the shape row, and the two dialogs they open. */
+.art-tool { color: var(--text); border-style: dashed; border-color: rgba(255, 255, 255, .22); }
+.art-tool svg { width: 30px; height: 44px; }
+dialog.sheet {
+  margin: auto; padding: 0; border: 0; background: none; color: var(--text);
+  width: min(440px, calc(100vw - 24px)); max-height: calc(100dvh - 24px);
+}
+dialog.sheet::backdrop { background: rgba(7, 9, 13, .66); }
+.sheet-card {
+  display: grid; gap: 12px; padding: 16px; border-radius: 22px; border: 1px solid var(--edge);
+  background: rgba(16, 20, 28, .97); max-height: calc(100dvh - 24px); grid-template-rows: auto minmax(0, 1fr);
+}
+.sheet-head { display: flex; align-items: center; gap: 10px; }
+.sheet-head h2 { flex: 1; font-size: 15px; letter-spacing: .14em; text-transform: uppercase; }
+.sheet-head input {
+  flex: 1; min-width: 0; height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--edge);
+  background: rgba(255, 255, 255, .04); color: var(--text); font: inherit; font-size: 16px; outline: none;
+}
+.sheet-head input:focus { border-color: var(--neon); }
+.sheet-close { width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--edge); font-size: 22px; color: var(--dim); }
+.sheet-note { font-size: 12px; color: var(--dim); line-height: 1.4; }
+.sheet-note:empty { display: none; }
+.sheet-note a { color: inherit; text-decoration: underline; }
+.icon-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 8px;
+  overflow-y: auto; min-height: 120px; align-content: start;
+  /* rows keep their full height when the list is taller than the dialog,
+     and scroll: without this the tiles are squashed and their icons cut */
+  grid-auto-rows: max-content;
+}
+.icon-tile {
+  display: grid; gap: 4px; justify-items: center; padding: 10px 2px 8px; border-radius: 12px; border: 1px solid var(--edge);
+  color: var(--text); font-size: 10px; letter-spacing: .04em; text-transform: uppercase; overflow: hidden;
+}
+.icon-tile svg { width: 34px; height: 34px; }
+.icon-tile span { color: var(--dim); max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.icon-tile:active, .icon-tile:hover { border-color: var(--neon); color: var(--neon); }
+#draw-pad {
+  width: 100%; aspect-ratio: 1; border-radius: 14px; border: 1px dashed rgba(255, 255, 255, .22);
+  background: rgba(255, 255, 255, .03); touch-action: none; cursor: crosshair;
+  fill: none; stroke: var(--neon); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round;
+}
+.draw-row { display: grid; grid-template-columns: 1fr 1fr 1.4fr; gap: 10px; align-items: center; }
+.draw-row .wide { height: 44px; }
