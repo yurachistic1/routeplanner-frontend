@@ -16,7 +16,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@800&text=RUNTHEFAVOIS&display=swap" rel="stylesheet" />
   <link href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css" rel="stylesheet" />
   <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
-  <link href="./css/styles.css?v=25" rel="stylesheet" />
+  <link href="./css/styles.css?v=28" rel="stylesheet" />
 </head>
 <body>
   <div id="map"></div>
@@ -25,6 +25,7 @@
   <header class="hud-top glass">
     <div class="logo"><img src="./assets/mark.svg" alt="" width="28" height="28" /><span>RUNTHE</span></div>
     <div class="hint"><span class="h1">Tap to set start</span><span class="h2">Start set<span class="h2-more"> · tap to move</span></span></div>
+    <div class="art-hint"><span class="a1">Tap where to look</span><span class="a2">Place set</span></div>
     <div class="info">
       <div class="tag">Route <span class="mono" id="route-title">01</span> / <span class="mono" id="route-count">00</span></div>
       <div class="now mono"><span id="route-distance">0.00</span><small> KM</small></div>
@@ -84,6 +85,32 @@
         </button>
         <button class="ghost-btn" id="list-toggle">All routes</button>
         <button class="ghost-btn" id="edit">New run</button>
+      </div>
+    </div>
+
+    <!-- GPS art mode (js/art.js): pick a shape and where to look, then
+         choose between the routes found. -->
+    <div class="art">
+      <div class="art-setup">
+        <div class="tag">Shape</div>
+        <div class="art-shapes" id="art-shapes"></div>
+        <div class="tag">Look within</div>
+        <div class="chips">
+          <button class="chip" data-radius="10">10 km</button>
+          <button class="chip active" data-radius="15">15 km</button>
+          <button class="chip" data-radius="20">20 km</button>
+        </div>
+        <button class="go" id="art-find"><span class="t1">Find</span><svg class="t1" width="22" height="14" viewBox="0 0 22 14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 7h19M14 1l6 6-6 6"/></svg><span class="t2">Searching</span></button>
+      </div>
+      <div class="art-found">
+        <div class="art-options" id="art-options"></div>
+        <button class="wide" id="art-download">↓ Export GPX</button>
+        <div class="art-row">
+          <button class="ghost-btn fav" id="art-fav" aria-label="Favourite this route" aria-pressed="false">
+            <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 20.5S3 15 3 8.8A4.8 4.8 0 0 1 12 6.5a4.8 4.8 0 0 1 9 2.3C21 15 12 20.5 12 20.5z"/></svg>
+          </button>
+          <button class="ghost-btn" id="art-new">New search</button>
+        </div>
       </div>
     </div>
   </section>
@@ -147,6 +174,35 @@
       <div class="drawer-foot">
         <a class="drawer-link" href="./privacy/">Privacy</a>
         <button class="drawer-link" id="delete-account">Delete account</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- GPS art: finding an icon to use as the shape, and drawing one
+       (js/shapes.js). -->
+  <dialog id="icon-dialog" class="sheet" aria-label="Find a shape">
+    <div class="sheet-card">
+      <div class="sheet-head">
+        <input id="icon-search" type="search" autocomplete="off" placeholder="Search: dog, star, house…" aria-label="Search shapes" />
+        <button class="sheet-close" data-close aria-label="Close">×</button>
+      </div>
+      <div class="icon-grid" id="icon-grid"></div>
+      <p class="sheet-note" id="icon-count"></p>
+      <p class="sheet-note">Simple shapes draw best. Icons by <a href="https://lucide.dev" target="_blank" rel="noopener">Lucide</a> (<a href="./assets/icons-LICENSE.txt" target="_blank">licence</a>).</p>
+    </div>
+  </dialog>
+  <dialog id="draw-dialog" class="sheet" aria-label="Draw a shape">
+    <div class="sheet-card">
+      <div class="sheet-head">
+        <h2>Draw a shape</h2>
+        <button class="sheet-close" data-close aria-label="Close">×</button>
+      </div>
+      <svg id="draw-pad" viewBox="0 0 300 300" role="img" aria-label="Drawing pad"></svg>
+      <p class="sheet-note">Keep it simple: small details won't show on the streets. The top is north.</p>
+      <div class="draw-row">
+        <button class="ghost-btn" id="draw-undo">Undo</button>
+        <button class="ghost-btn" id="draw-clear">Clear</button>
+        <button class="wide" id="draw-use">Use it</button>
       </div>
     </div>
   </dialog>

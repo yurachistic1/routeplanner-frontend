@@ -1,0 +1,21 @@
+# Icons left out of GPS art's picker by hand, on top of the rules in
+# build-icons.py: ones that passed the measures but are dull boxes, office
+# or screen furniture, or unclear as an outline. One or more names a line;
+# anything after # is a note. Delete a name to bring its icon back.
+# First pass 2026-11-13, by eye from ops/icons-review.html.
+
+# boxes and slabs: little more than a rectangle once drawn
+archive banknote bandage battery book building calendar calendars carton container credit-card image
+keyboard laptop mail mailbox mails map monitor notebook package paper-bag receipt refrigerator smartphone
+speaker sticker sticky-note sticky-notes tablet tag tags ticket tickets tv vault video vote wallet
+door-closed door-open door-stairwell computer printer swatch-book playing-card playing-cards land-plot
+store hotel hospital school university stretch-horizontal stretch-vertical toy-brick brick-wall
+
+# screen, office and lab furniture
+cctv clapperboard crosshair diagram-project diagram-tree dices eraser ev-charger fuel funnel gauge
+highlighter iv-bag joystick lasso lasso-select lectern podium ruler scroll signature slice soap-dispenser-droplet
+spool stamp step-back tablets toolbox towel-rack tube-lotion webcam pipette plug pill headset mouse
+audio-waveform antenna ball-wave waves-ladder robot-arm shopping-bag shopping-basket shopping-cart
+groceries perfume-bottle test-tubes pin siren nut bolt blender can engine mop luggage milk medal
+concierge-bell hiking-stick mound-shovel road trailer tram-front train-front stone torus eclipse galaxy
+origami bean beef briefcase cylinder dome
