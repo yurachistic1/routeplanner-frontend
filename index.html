@@ -16,7 +16,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@800&text=RUNTHEFAVOIS&display=swap" rel="stylesheet" />
   <link href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css" rel="stylesheet" />
   <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
-  <link href="./css/styles.css?v=36" rel="stylesheet" />
+  <link href="./css/styles.css?v=37" rel="stylesheet" />
 </head>
 <body>
   <div id="map"></div>
@@ -49,7 +49,7 @@
       <div class="dial">
         <button class="icon-btn step" id="dec" aria-label="Shorter">−</button>
         <div class="readout">
-          <input id="distance" type="number" inputmode="decimal" min="1" max="35" value="10" aria-label="Distance in km" />
+          <input id="distance" type="text" inputmode="decimal" autocomplete="off" maxlength="4" value="10" aria-label="Distance in km" />
           <div class="tag">Kilometres</div>
         </div>
         <button class="icon-btn step" id="inc" aria-label="Longer">+</button>
@@ -94,7 +94,10 @@
         <div class="art-shapes" id="art-shapes"></div>
         <div class="tag">Where</div>
         <p class="art-note">Looks for your shape within 15 km of the middle of the map. Move the map to look somewhere else.</p>
-        <button class="btn btn-primary go" id="art-find"><span class="t1">Find</span><span class="t2"><i class="spin" aria-hidden="true"></i>Searching…</span></button>
+        <div class="art-go">
+          <button class="btn btn-secondary art-back" id="art-back" aria-label="Back to results"><span class="back-long">Back to results</span><span class="back-short" aria-hidden="true">Back</span><kbd>Esc</kbd></button>
+          <button class="btn btn-primary go" id="art-find"><span class="t1">Find</span><span class="t2"><i class="spin" aria-hidden="true"></i>Searching…</span></button>
+        </div>
       </div>
       <div class="art-found">
         <div class="art-options" id="art-options"></div>
@@ -207,20 +210,20 @@
   <script type="importmap">
   {
     "imports": {
-      "./js/account.js": "./js/account.js?v=10",
-      "./js/api.js": "./js/api.js?v=10",
-      "./js/art.js": "./js/art.js?v=10",
-      "./js/loop.js": "./js/loop.js?v=10",
-      "./js/main.js": "./js/main.js?v=10",
-      "./js/map.js": "./js/map.js?v=10",
-      "./js/mapstyle.js": "./js/mapstyle.js?v=10",
-      "./js/modes.js": "./js/modes.js?v=10",
-      "./js/polyline.js": "./js/polyline.js?v=10",
-      "./js/shapes.js": "./js/shapes.js?v=10",
-      "./js/ui.js": "./js/ui.js?v=10"
+      "./js/account.js": "./js/account.js?v=11",
+      "./js/api.js": "./js/api.js?v=11",
+      "./js/art.js": "./js/art.js?v=11",
+      "./js/loop.js": "./js/loop.js?v=11",
+      "./js/main.js": "./js/main.js?v=11",
+      "./js/map.js": "./js/map.js?v=11",
+      "./js/mapstyle.js": "./js/mapstyle.js?v=11",
+      "./js/modes.js": "./js/modes.js?v=11",
+      "./js/polyline.js": "./js/polyline.js?v=11",
+      "./js/shapes.js": "./js/shapes.js?v=11",
+      "./js/ui.js": "./js/ui.js?v=11"
     }
   }
   </script>
-  <script type="module" src="./js/main.js?v=10"></script>
+  <script type="module" src="./js/main.js?v=11"></script>
 </body>
 </html>

@@ -21,7 +21,7 @@ The app's button system, **Tonal**, chosen on 2026-11-14 from three options (moc
 | Tertiary | `.btn.btn-tertiary`, `.drawer-link` | Lime words, no fill (faint lime when pressed) | Undo in the message bar · Privacy · Delete account |
 | Danger | `.btn.btn-danger` | Red `#ff6a5f` pill, dark text | Delete my account |
 | Icon button | `.icon-btn` (+ `.close-btn`, `.nav-btn`, `.step`) | 48px circle (`.close-btn` 44px), `--tone` fill, white icon; `.nav-btn` is a 52px pill | − and + · previous and next · close (drawer, dialogs, route list) |
-| Toggle | `.icon-btn.fav`, `.ri-heart` | Off: neutral fill, outline heart. On: `#3d1a2b` fill, pink filled heart | Favourite on the panel and on every route card, favourites included: tapping a filled heart removes the route, with Undo |
+| Toggle | `.icon-btn.fav`, `.ri-heart` | Off: neutral fill, outline heart. On: `#3d1a2b` fill, pink filled heart | Favourite on the panel and on every route card, favourites included: tapping a filled heart removes the route (its card fades and shrinks away, the rest slide up, the list doesn't scroll), with Undo |
 | Map button | `.locate-btn`, `.account-btn` | 46px circle, `--float` fill, drop shadow (account 38px, in the top bar) | Satellite (on: `--ltone` with a lime icon) · My location (busy: icon pulses) · Account (signed in: `--ltone`, lime) |
 | Choice chips | `.chip` | 40px pill, `--tone` fill. Selected: lime with a tick | Distance presets 5K, 10K, 15K, Half, 30K |
 | Choice cards | `.route-item`, `.art-option`, `.art-shape`, `.icon-tile` | `--card` fill, radius 18. Selected: 2px lime edge, olive fill, tick badge | Route cards · Short / Medium / Long · the chosen shape · icons in the picker. Icons and Draw are `--tone` tiles that open a picker |
@@ -37,8 +37,9 @@ The app's button system, **Tonal**, chosen on 2026-11-14 from three options (moc
 | Map credits `.credits-btn` | under the top bar | Small icon (OSM attribution; open on load, closes after 5s) |
 | Satellite `#satellite`, My location `#locate` | over the map, left | Map buttons |
 | Back `#back` | loop planning, when there are routes | Secondary: "Back" on phones, "Back to routes" and the Esc key on laptops |
+| Back `#art-back` | GPS art, after New search | Secondary, the same as loop's: "Back" beside Find on phones, "Back to results" and Esc above it on laptops |
 | Shorter / Longer `#dec`, `#inc` | loop planning | Icon buttons |
-| Distance `#distance` | loop planning | Field |
+| Distance `#distance` | loop planning | Field: at most two digits before the point and one after ("21.1"), trimmed as typed |
 | Presets `.chip` | loop planning | Choice chips |
 | Generate `#generate` | loop planning | Primary |
 | Route info `#info-tab` | routes | Disclosure |
@@ -48,7 +49,7 @@ The app's button system, **Tonal**, chosen on 2026-11-14 from three options (moc
 | All routes `#list-toggle` (phones), New run `#edit`, New search `#art-new` | routes, GPS art found | Secondary |
 | Close `#list-close` | route list (phones) | Icon button |
 | Route card `.route-item`, heart `.ri-heart` | route list, favourites | Choice card, toggle |
-| Icons / Draw `.art-tool`, chosen shape `.art-shape.active` | GPS art | Tiles; chosen is a selected card |
+| Icons / Draw `.art-tool`, chosen shape `.art-shape.active` | GPS art | Tiles; chosen is a selected card. Names wrap to two lines, never cut |
 | Find `#art-find` | GPS art | Primary |
 | Short / Medium / Long `.art-option` | GPS art found | Choice cards |
 | Modes `#modebar` | bottom shelf | Tabs |

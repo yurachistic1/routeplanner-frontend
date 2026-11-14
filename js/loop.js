@@ -262,7 +262,14 @@ export function createLoopMode(map, mapReady, opts) {
       c.classList.toggle("active", parseFloat(c.dataset.km) === parseFloat(input.value));
     }
   }
-  input?.addEventListener("input", syncChips);
+  // At most two digits before the point and one after (35 km is the most),
+  // so "21.1", "5.5" or "30". Anything more is dropped as it's typed.
+  function tidy() {
+    const [whole, ...rest] = input.value.replace(",", ".").replace(/[^\d.]/g, "").split(".");
+    const v = whole.slice(0, 2) + (rest.length ? "." + rest.join("").slice(0, 1) : "");
+    if (v !== input.value) input.value = v;
+  }
+  input?.addEventListener("input", () => { tidy(); syncChips(); });
   for (const c of document.querySelectorAll(".chip[data-km]")) {
     c.addEventListener("click", () => setDistance(parseFloat(c.dataset.km)));
   }
@@ -384,14 +391,40 @@ export function createLoopMode(map, mapReady, opts) {
     o.onExitFavourites?.();
   }
 
-  // Swaps the list without redrawing the route, unless the one on screen went.
+  // Swaps the list without redrawing the route, unless the one on screen
+  // went. The list stays where it's scrolled to. A card that went (a
+  // favourite removed) fades and shrinks away first, then the others slide
+  // into place; one that came back (Undo) fades in.
+  let leaving = 0;
   function updateRoutes(routes, index, redraw) {
-    state.routes = routes.map((r, i) => ({ ...r, i }));
-    state.index = index;
-    renderList();
-    if (redraw) show(index);
-    else markCurrent();
+    const apply = () => {
+      leaving = 0;
+      const ul = $("route-list");
+      const key = (el) => el.dataset.id ?? `g${el.dataset.key}`;
+      const before = new Map([...(ul?.children ?? [])].map((el) => [key(el), el.getBoundingClientRect()]));
+      state.routes = routes.map((r, i) => ({ ...r, i }));
+      state.index = index;
+      renderList();
+      if (redraw) show(index, false);
+      else markCurrent(false);
+      if (!ul || calm()) return;
+      for (const el of ul.children) {
+        const a = before.get(key(el));
+        if (!a) { el.animate([{ opacity: 0, transform: "scale(.92)" }, { opacity: 1, transform: "none" }], { duration: 260, easing: "ease-out" }); continue; }
+        const b = el.getBoundingClientRect();
+        if (a.left !== b.left || a.top !== b.top) {
+          el.animate([{ transform: `translate(${a.left - b.left}px, ${a.top - b.top}px)` }, { transform: "none" }], { duration: 300, easing: "cubic-bezier(.2, .8, .2, 1)" });
+        }
+      }
+    };
+    clearTimeout(leaving);
+    const keep = new Set(routes.map((r) => String(r.id ?? "")));
+    const gone = [...document.querySelectorAll("#route-list .route-cell")].filter((c) => !keep.has(c.dataset.id));
+    if (!gone.length || calm()) return apply();
+    for (const c of gone) c.classList.add("leaving");
+    leaving = setTimeout(apply, 240);
   }
+  const calm = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   // ----- views: planning a new run vs viewing routes -----
   // New run: clear the route and list, leaving just the map and the start pin.
@@ -457,7 +490,7 @@ export function createLoopMode(map, mapReady, opts) {
       group = r.group;
       const delta = state.target === null ? null : r.distance / 1000 - state.target;
       const sign = delta >= 0 ? "+" : "−";
-      return `${heading}<li class="route-cell"><button class="route-item" data-i="${r.i}">
+      return `${heading}<li class="route-cell" data-id="${r.id ?? r.i}"><button class="route-item" data-i="${r.i}">
         ${thumbnail(r.raw)}
         <span class="ri-num">${o.formatIndex(r.i)}${r.info && warnings(r.info).length ? `<i class="ri-dot" role="img" aria-label="has warnings"></i>` : ""}</span>
         <span class="ri-dist">${km(r.distance)}<small> km</small></span>
@@ -594,7 +627,8 @@ export function createLoopMode(map, mapReady, opts) {
     else if (r.bottom > l.bottom) list.scrollBy({ top: r.bottom - l.bottom + 8, behavior: "smooth" });
   }
 
-  function show(i) {
+  // scroll: whether the list scrolls to the route (not when it changes under you)
+  function show(i, scroll = true) {
     if (!state.routes.length) return;
     state.index = (i + state.routes.length) % state.routes.length;
     const r = state.routes[state.index];
@@ -610,11 +644,11 @@ export function createLoopMode(map, mapReady, opts) {
 
     if (target) map.easeTo({ ...target, duration: 700 });
 
-    markCurrent();
+    markCurrent(scroll);
     o.onShow?.(state.index, r);
   }
 
-  function markCurrent() {
+  function markCurrent(scroll = true) {
     const r = state.routes[state.index];
     if ($("route-title")) $("route-title").textContent = o.formatIndex(state.index);
     if ($("route-distance")) $("route-distance").textContent = km(r.distance);
@@ -623,7 +657,7 @@ export function createLoopMode(map, mapReady, opts) {
       const on = +b.dataset.i === state.index;
       b.classList.toggle("selected", on);
       b.setAttribute("aria-current", on);
-      if (on) scrollListTo(b);
+      if (on && scroll) scrollListTo(b);
     }
   }
 

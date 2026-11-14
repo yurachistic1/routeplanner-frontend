@@ -85,6 +85,8 @@ export function createArtMode(map, mapReady, opts) {
   async function find() {
     if (!state.shape) return toast("Pick an icon or draw a shape first");
     const centre = map.getCenter();
+    // where the map was, for New search to go back to
+    const from = { center: centre, zoom: map.getZoom(), bearing: map.getBearing(), pitch: map.getPitch() };
     body.classList.add("loading");
     $("art-find").setAttribute("disabled", "");
     try {
@@ -108,6 +110,8 @@ export function createArtMode(map, mapReady, opts) {
       // raw is the path as [lon, lat], which the map and favourites use
       for (const r of routes) r.raw = r.path.map(([lat, lon]) => [lon, lat]);
       state.routes = routes;
+      state.from = from;
+      body.classList.remove("art-can-back");
       body.classList.add("art-results");
       $("art-options").innerHTML = routes.map((r, i) =>
         `<button class="art-option" data-option="${i}">
@@ -221,9 +225,26 @@ export function createArtMode(map, mapReady, opts) {
     const b = e.target.closest("[data-option]");
     if (b) show(+b.dataset.option);
   });
+  // New search goes back to where the map was for the last search (the
+  // map moves to fit a found route), and Back (or Esc) returns to the
+  // routes found, as they were.
   $("art-new").addEventListener("click", () => {
     body.classList.remove("art-results");
+    body.classList.add("art-can-back");
     draw();
+    if (state.from) map.easeTo({ ...state.from, duration: 700 });
+  });
+  function backToResults() {
+    if (!state.routes.length) return;
+    body.classList.remove("art-can-back");
+    body.classList.add("art-results");
+    show(state.index);
+  }
+  $("art-back").addEventListener("click", backToResults);
+  addEventListener("keydown", (e) => {
+    if (e.key !== "Escape" || body.dataset.mode !== "art" || !body.classList.contains("art-can-back")) return;
+    if (document.querySelector("dialog[open]") || body.classList.contains("loading")) return;
+    backToResults();
   });
   $("art-download").addEventListener("click", () => {
     const r = state.routes[state.index];
