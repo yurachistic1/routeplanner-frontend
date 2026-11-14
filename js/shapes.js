@@ -53,7 +53,7 @@ export function createIconPicker(onPick) {
     if (!words.length) return icons;
     const found = [];
     for (const icon of icons) {
-      const [name, tags] = icon;
+      const name = icon[0].toLowerCase(), tags = icon[1];   // letters are named in capitals
       if (!words.every((w) => name.includes(w) || tags.includes(w))) continue;
       const w = words[0];
       const rank = name === w ? 0 : name.startsWith(w) ? 1 : name.includes(w) ? 2 : 3;
@@ -85,10 +85,13 @@ export function createIconPicker(onPick) {
   return async function open() {
     if (!icons) {
       try {
-        icons = await (await fetch("./assets/icons.json?v=8")).json(); // bump ?v= when the icons change
-        // Words first (a-z), then the numbers 1 to 100 at the end of the list.
-        const num = (n) => (/^\d+$/.test(n) ? +n : null);
-        icons.sort((a, b) => (num(a[0]) ?? -1) - (num(b[0]) ?? -1) || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+        icons = await (await fetch("./assets/icons.json?v=9")).json(); // bump ?v= when the icons change
+        // Icons first (a-z), then the letters A-Z, then words in capitals
+        // (YC, RUN), then the numbers 1 to 100. Text icons are made by
+        // devtools/texticons in the backend repo.
+        const kind = (n) => (/^\d+$/.test(n) ? 3 : /^[A-Z]$/.test(n) ? 1 : /^[A-Z]+$/.test(n) ? 2 : 0);
+        icons.sort((a, b) => kind(a[0]) - kind(b[0]) ||
+          (kind(a[0]) === 3 ? a[0] - b[0] : a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
       } catch {
         return toast("Couldn't load the shapes. Check your connection and try again.");
       }
