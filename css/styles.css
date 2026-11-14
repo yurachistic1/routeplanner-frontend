@@ -526,7 +526,16 @@ body:not(.signed-in) .modebar .signed-in-only { display: none; }
   }
   .show-results .list { transform: none; }
   #list-toggle, #list-close { display: none; }
-  .row2 { grid-template-columns: 52px 1fr; }
+  /* The heart sits at the end of the Export row: ‹ Export GPX › ♥, with
+     New run on its own row below (none in favourites), so no gap beside
+     the heart (2026-11-14). GPS art the same: Export GPX ♥, New search. */
+  .show-results .results { grid-template-columns: 52px 1fr 52px 52px; }
+  .results > * { grid-column: 1 / -1; }
+  .results .nav, .results .row2 { display: contents; }
+  .nav > *, .row2 > * { grid-column: auto; }
+  .nav-btn { height: 52px; }
+  .fav { height: 52px; }
+  #edit { grid-column: 1 / -1; }
 }
 
 /* GPS art mode (js/art.js). It shares the deck with loop mode: in art mode
@@ -630,3 +639,14 @@ dialog.sheet::backdrop { background: rgba(7, 9, 13, .66); }
   fill: none; stroke: var(--neon); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round;
 }
 .draw-row { display: grid; grid-template-columns: 1fr 1fr 1.4fr; gap: 10px; align-items: center; }
+
+/* Laptops: GPS art's heart sits at the end of the Export row, like loop's
+   (after the art rules above, so it wins over them). */
+@media (min-width: 900px) {
+  .art-results .art-found { grid-template-columns: 1fr 52px; }
+  .art-found > * { grid-column: 1 / -1; }
+  .art-found .art-row { display: contents; }
+  #art-download { grid-column: 1; }
+  #art-fav { grid-column: 2; height: 52px; }
+  #art-new { grid-column: 1 / -1; }
+}

@@ -10,6 +10,7 @@ The app's button system, **Tonal**, chosen on 2026-11-14 from three options (moc
 - **Text contrast:** main text `--text` (15.8:1 on the panel), secondary text `--dim` `#aeb8c6` (9.2:1) for notes, labels and hints, small print `--dim-2` (6.1:1). Nothing people need to read is under 13px; notes are 15px.
 - **Every control has** a pressed look (shrinks to 96% and darkens), a keyboard focus look (3px lime outline, 3px out), and a disabled look (`#1a2029` fill, `#566070` text). Hover (laptops only) lightens the fill. Disabled is the only thing that looks faded.
 - **Targets** are at least 44px; most are 48–52px.
+- **Laptops:** the heart sits at the end of the Export row (‹ Export GPX › ♥, or Export GPX ♥ in GPS art), with New run / New search on a row below; favourites have just the one row. Phones keep the heart beside All routes and New run.
 - **Mode shelf:** every mode looks the same (grey icon, white on a lime pill with a lime label when current). No per-mode colours.
 
 ## Roles
