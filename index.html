@@ -12,11 +12,11 @@
   <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png" />
   <link rel="manifest" href="./manifest.webmanifest" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@800&text=RUNTHEFAVOIS&display=swap" rel="stylesheet" />
   <link href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css" rel="stylesheet" />
   <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
-  <link href="./css/styles.css?v=35" rel="stylesheet" />
+  <link href="./css/styles.css?v=36" rel="stylesheet" />
 </head>
 <body>
   <div id="map"></div>
@@ -35,7 +35,7 @@
   </header>
 
   <div id="toast" role="status" aria-live="polite"></div>
-  <div id="undo" role="status"><span>Removed from favourites</span><button id="undo-btn">Undo</button></div>
+  <div id="undo" role="status"><span>Removed from favourites</span><button class="btn btn-tertiary" id="undo-btn">Undo</button></div>
 
   <section class="deck glass">
     <button class="locate-btn sat-btn" id="satellite" aria-label="Satellite view" aria-pressed="false">
@@ -45,45 +45,44 @@
       <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="6.5"/><circle cx="12" cy="12" r="2" fill="currentColor" stroke="none"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
     </button>
     <div class="setup">
-      <button class="back" id="back" aria-label="Back to routes"><svg class="back-arrow" width="22" height="14" viewBox="0 0 22 14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 7H2M8 1 2 7l6 6"/></svg><span id="back-label">← Back to routes</span><kbd>Esc</kbd></button>
+      <button class="btn btn-secondary back" id="back" aria-label="Back to routes"><span id="back-label">Back to routes</span><span class="back-short" aria-hidden="true">Back</span><kbd>Esc</kbd></button>
       <div class="dial">
-        <button class="round" id="dec" aria-label="Shorter">−</button>
+        <button class="icon-btn step" id="dec" aria-label="Shorter">−</button>
         <div class="readout">
           <input id="distance" type="number" inputmode="decimal" min="1" max="35" value="10" aria-label="Distance in km" />
           <div class="tag">Kilometres</div>
         </div>
-        <button class="round" id="inc" aria-label="Longer">+</button>
+        <button class="icon-btn step" id="inc" aria-label="Longer">+</button>
       </div>
       <div class="chips">
         <button class="chip" data-km="5">5K</button>
         <button class="chip" data-km="10">10K</button>
         <button class="chip" data-km="15">15K</button>
-        <button class="chip" data-km="21.1">HALF</button>
+        <button class="chip" data-km="21.1">Half</button>
         <button class="chip" data-km="30">30K</button>
       </div>
-      <button class="go" id="generate"><span class="t1">Generate</span><svg class="t1" width="22" height="14" viewBox="0 0 22 14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 7h19M14 1l6 6-6 6"/></svg><span class="t2">Scanning</span></button>
+      <button class="btn btn-primary go" id="generate"><span class="t1">Generate</span><span class="t2"><i class="spin" aria-hidden="true"></i>Scanning…</span></button>
     </div>
 
     <div class="results">
       <button class="info-tab" id="info-tab" aria-expanded="false" aria-controls="route-info">
         <span class="info-dot" aria-hidden="true"></span>Route info
-        <svg viewBox="0 0 12 8" width="10" height="7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 6.5 6 1.5l5 5"/></svg>
       </button>
       <section class="route-info" id="route-info" aria-label="Route info">
         <ul class="info-list" id="info-list"></ul>
         <div class="info-legend" id="info-legend" aria-label="Map key"></div>
       </section>
       <div class="nav">
-        <button class="round" id="prev" aria-label="Previous route">◀</button>
-        <button class="wide" id="download">↓ Export GPX</button>
-        <button class="round" id="next" aria-label="Next route">▶</button>
+        <button class="icon-btn nav-btn" id="prev" aria-label="Previous route"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m14.5 5-7 7 7 7"/></svg></button>
+        <button class="btn btn-primary" id="download">Export GPX</button>
+        <button class="icon-btn nav-btn" id="next" aria-label="Next route"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9.5 5 7 7-7 7"/></svg></button>
       </div>
       <div class="row2">
-        <button class="ghost-btn fav" id="fav" aria-label="Favourite this route" aria-pressed="false">
+        <button class="icon-btn fav" id="fav" aria-label="Favourite this route" aria-pressed="false">
           <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 20.5S3 15 3 8.8A4.8 4.8 0 0 1 12 6.5a4.8 4.8 0 0 1 9 2.3C21 15 12 20.5 12 20.5z"/></svg>
         </button>
-        <button class="ghost-btn" id="list-toggle">All routes</button>
-        <button class="ghost-btn" id="edit">New run</button>
+        <button class="btn btn-secondary" id="list-toggle">All routes</button>
+        <button class="btn btn-secondary" id="edit">New run</button>
       </div>
     </div>
 
@@ -95,16 +94,16 @@
         <div class="art-shapes" id="art-shapes"></div>
         <div class="tag">Where</div>
         <p class="art-note">Looks for your shape within 15 km of the middle of the map. Move the map to look somewhere else.</p>
-        <button class="go" id="art-find"><span class="t1">Find</span><svg class="t1" width="22" height="14" viewBox="0 0 22 14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 7h19M14 1l6 6-6 6"/></svg><span class="t2">Searching</span></button>
+        <button class="btn btn-primary go" id="art-find"><span class="t1">Find</span><span class="t2"><i class="spin" aria-hidden="true"></i>Searching…</span></button>
       </div>
       <div class="art-found">
         <div class="art-options" id="art-options"></div>
-        <button class="wide" id="art-download">↓ Export GPX</button>
+        <button class="btn btn-primary" id="art-download">Export GPX</button>
         <div class="art-row">
-          <button class="ghost-btn fav" id="art-fav" aria-label="Favourite this route" aria-pressed="false">
+          <button class="icon-btn fav" id="art-fav" aria-label="Favourite this route" aria-pressed="false">
             <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 20.5S3 15 3 8.8A4.8 4.8 0 0 1 12 6.5a4.8 4.8 0 0 1 9 2.3C21 15 12 20.5 12 20.5z"/></svg>
           </button>
-          <button class="ghost-btn" id="art-new">New search</button>
+          <button class="btn btn-secondary" id="art-new">New search</button>
         </div>
       </div>
     </div>
@@ -116,23 +115,23 @@
   <aside class="list">
     <div class="list-head">
       <h2 id="list-title">Routes</h2>
-      <button class="ghost-btn" id="list-close" style="padding: 0 14px">Close</button>
+      <button class="icon-btn close-btn" id="list-close" aria-label="Close"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
     </div>
     <ul id="route-list"></ul>
   </aside>
 
   <dialog id="account-dialog" class="account" data-view="signin" aria-label="Account menu">
     <div class="drawer">
-      <button class="account-close" id="account-close" aria-label="Close">×</button>
+      <button class="icon-btn close-btn account-close" id="account-close" aria-label="Close"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
 
       <div data-view="signin">
         <h2>Sign in</h2>
         <p>Save the routes you love. Planning routes never needs an account.</p>
-        <button class="wide" id="google-signin">Continue with Google</button>
+        <button class="btn btn-primary" id="google-signin">Continue with Google</button>
         <div class="or">or</div>
         <form id="email-form">
           <input id="email" type="email" required autocomplete="email" placeholder="you@example.com" aria-label="Email address" />
-          <button class="ghost-btn" type="submit">Email me a sign-in link</button>
+          <button class="btn btn-secondary" type="submit">Email me a sign-in link</button>
         </form>
       </div>
 
@@ -146,7 +145,7 @@
         <p>You opened the link somewhere new, so enter your email address to finish signing in.</p>
         <form id="confirm-form">
           <input id="confirm-email" type="email" required autocomplete="email" placeholder="you@example.com" aria-label="Email address" />
-          <button class="wide" type="submit">Finish signing in</button>
+          <button class="btn btn-primary" type="submit">Finish signing in</button>
         </form>
       </div>
 
@@ -154,15 +153,15 @@
         <h2>Account</h2>
         <div class="drawer-user">
           <p id="account-email"></p>
-          <button class="ghost-btn" id="sign-out">Sign out</button>
+          <button class="btn btn-secondary" id="sign-out">Sign out</button>
         </div>
       </div>
 
       <div data-view="delete">
         <h2>Delete account?</h2>
         <p>This permanently removes your account and all your favourites. It can't be undone.</p>
-        <button class="danger-btn" id="delete-confirm">Delete my account</button>
-        <button class="ghost-btn" id="delete-cancel">Keep my account</button>
+        <button class="btn btn-danger" id="delete-confirm">Delete my account</button>
+        <button class="btn btn-secondary" id="delete-cancel">Keep my account</button>
       </div>
 
       <p id="account-error" role="alert"></p>
@@ -179,7 +178,7 @@
     <div class="sheet-card">
       <div class="sheet-head">
         <input id="icon-search" type="search" autocomplete="off" placeholder="Search: dog, star, house…" aria-label="Search shapes" />
-        <button class="sheet-close" data-close aria-label="Close">×</button>
+        <button class="icon-btn close-btn sheet-close" data-close aria-label="Close"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
       </div>
       <div class="icon-grid" id="icon-grid"></div>
       <p class="sheet-note" id="icon-count"></p>
@@ -190,14 +189,14 @@
     <div class="sheet-card">
       <div class="sheet-head">
         <h2>Draw a shape</h2>
-        <button class="sheet-close" data-close aria-label="Close">×</button>
+        <button class="icon-btn close-btn sheet-close" data-close aria-label="Close"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
       </div>
       <svg id="draw-pad" viewBox="0 0 300 300" role="img" aria-label="Drawing pad"></svg>
       <p class="sheet-note">Keep it simple: small details won't show on the streets. The top is north.</p>
       <div class="draw-row">
-        <button class="ghost-btn" id="draw-undo">Undo</button>
-        <button class="ghost-btn" id="draw-clear">Clear</button>
-        <button class="wide" id="draw-use">Use it</button>
+        <button class="btn btn-secondary" id="draw-undo">Undo</button>
+        <button class="btn btn-secondary" id="draw-clear">Clear</button>
+        <button class="btn btn-primary" id="draw-use">Use it</button>
       </div>
     </div>
   </dialog>
@@ -208,20 +207,20 @@
   <script type="importmap">
   {
     "imports": {
-      "./js/account.js": "./js/account.js?v=9",
-      "./js/api.js": "./js/api.js?v=9",
-      "./js/art.js": "./js/art.js?v=9",
-      "./js/loop.js": "./js/loop.js?v=9",
-      "./js/main.js": "./js/main.js?v=9",
-      "./js/map.js": "./js/map.js?v=9",
-      "./js/mapstyle.js": "./js/mapstyle.js?v=9",
-      "./js/modes.js": "./js/modes.js?v=9",
-      "./js/polyline.js": "./js/polyline.js?v=9",
-      "./js/shapes.js": "./js/shapes.js?v=9",
-      "./js/ui.js": "./js/ui.js?v=9"
+      "./js/account.js": "./js/account.js?v=10",
+      "./js/api.js": "./js/api.js?v=10",
+      "./js/art.js": "./js/art.js?v=10",
+      "./js/loop.js": "./js/loop.js?v=10",
+      "./js/main.js": "./js/main.js?v=10",
+      "./js/map.js": "./js/map.js?v=10",
+      "./js/mapstyle.js": "./js/mapstyle.js?v=10",
+      "./js/modes.js": "./js/modes.js?v=10",
+      "./js/polyline.js": "./js/polyline.js?v=10",
+      "./js/shapes.js": "./js/shapes.js?v=10",
+      "./js/ui.js": "./js/ui.js?v=10"
     }
   }
   </script>
-  <script type="module" src="./js/main.js?v=9"></script>
+  <script type="module" src="./js/main.js?v=10"></script>
 </body>
 </html>
