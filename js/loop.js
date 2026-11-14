@@ -333,6 +333,13 @@ export function createLoopMode(map, mapReady, opts) {
       };
     }
     if (!favourites) state.before = null;
+    // Favourites, like every mode, come back as they were left: the same
+    // route (if it's still saved) and the list open or closed as it was.
+    const left = favourites ? state.favouritesLeft : null;
+    if (left) {
+      const k = routes.findIndex((r) => r.id === left.id);
+      if (k >= 0) { index = k; start = routes[k].start ?? start; }
+    }
     state.favourites = favourites;
     body.classList.toggle("in-favourites", favourites);
     cancelAnimationFrame(anim);
@@ -343,7 +350,7 @@ export function createLoopMode(map, mapReady, opts) {
     state.index = index;
     renderList();
     body.classList.add("has-results", "show-results");
-    if (favourites && matchMedia("(max-width: 899px)").matches) body.classList.add("list-open");
+    if (favourites && (left?.listOpen ?? true) && matchMedia("(max-width: 899px)").matches) body.classList.add("list-open");
     marker?.setDraggable(false);
     await ready;
     show(index);
@@ -356,6 +363,7 @@ export function createLoopMode(map, mapReady, opts) {
   async function exitFavourites() {
     if (!state.favourites) return;
     const b = state.before;
+    state.favouritesLeft = { id: state.routes[state.index]?.id, listOpen: body.classList.contains("list-open") };
     body.classList.remove("list-open");
     if (b.routes.length) {
       const shown = showRoutes(b.routes, { target: b.target, start: b.routeStart, index: b.index });
