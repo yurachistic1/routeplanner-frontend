@@ -1,6 +1,38 @@
 # Buttons and controls
 
-The app's button system, **Tonal**, chosen on 2026-11-14 from three options (mockups: `designs/buttons.html`, git-ignored; the reasons are in `ROADMAP.md` §11). Everything you can tap has a fill. Lime is the main step. Selected things go lime with a tick. There are no outlines and no arrows in buttons. All styles are in `css/styles.css`; colours are tokens in its `:root`.
+The app's design system for everything you tap, read or type into: **Tonal**, chosen on 2026-11-14 from three options (mockups: `designs/buttons.html`, git-ignored; the reasons are in `ROADMAP.md` §11). Everything you can tap has a fill. Lime is the main step. Selected things go lime with a tick. There are no outlines and no arrows in buttons. All styles are in `css/styles.css`; colours are tokens in its `:root`.
+
+**This file is the rulebook for every addition to the UI** (the user, 2026-11-14: surfaces must stay readable, usable and consistent, and reuse the existing designs in a way that makes sense). Read it before adding or changing any control, panel or text. Keep it up to date: a new kind of control is written up here as part of the same change.
+
+## Principles
+
+1. **Readable.** Text meets the contrast and size rules below on the surface it actually sits on (panel, card, map). Nothing to read sits straight on the map without a panel behind it.
+2. **Usable.** Targets of 44px or more, every state visible (pressed, focus, disabled, busy, selected), and it works by touch, mouse and keyboard. Phones come first; check laptops too.
+3. **Consistent.** The same job looks and behaves the same everywhere. A new control is built from the existing roles and tokens, not given its own colours, shapes or type.
+4. **Reuse what makes sense.** Pick the existing role whose meaning fits (a choice of a few is chips, an action is a button, on/off is a toggle). If nothing fits, extend the system with a new pattern written up here, made of the same tokens, rather than a one-off. When it's unclear which pattern fits, ask the user before building.
+
+## Adding something new: checklist
+
+- Which role or pattern is it? Use its class (`.btn-*`, `.icon-btn`, `.chip`, card) rather than new CSS. A pattern from "Not built yet" below gets built as written there.
+- Colours only from the `:root` tokens; no new hex values in components. Lime is for the main step and for selected or on; pink only for favourites and the logo's dot; amber only for warnings; red only for danger.
+- Sentence case, no arrows, one primary per panel.
+- Text: 15px for body and notes, 13px the smallest anything readable gets, `--dim` for secondary text, never the old `#6c7889`.
+- States: rest, pressed, focus-visible, disabled, and selected or busy where they apply; hover only inside `@media (hover: hover)`.
+- Layout: fits a 360px-wide phone without cutting text (wrap to two lines rather than cut), and leaves no odd gaps on laptops.
+- Check it in Chrome at phone size (`designs/phone.html`) and laptop size before calling it done, and add it to "Every control" below.
+
+## Not built yet: how they should look
+
+Specs for controls the app will likely need, so they arrive already consistent. Build them as written; change this section first if something has to differ.
+
+- **Slider** (a range, e.g. hilliness, distance tolerance): a 6px track in `--tone`, the part up to the thumb lime; a 28px white thumb (`--text`) with a soft shadow, inside a 44px-tall touch area. The current value sits as text above the right end, 15px semibold, in `--text` (units in `--dim`). Label above the left end in `--dim`, 14px semibold, sentence case. Pressed: the thumb grows to 32px. Focus: the 3px lime outline round the thumb. Disabled: track `#1a2029`, thumb `#566070`. Arrow keys step it. If there are only a few fixed values, use chips instead.
+- **Switch** (on/off for a setting): a 52×32 pill in `--tone` with a 24px white knob; on, the pill turns lime and the knob dark (`#0b1004`) slides right. The label sits to its left in `--text`, with any explanation below in `--dim`. The whole row is the target. For an action that toggles (favourite, satellite), keep using the toggle icon buttons instead.
+- **Segmented control** (2–4 views of one thing, e.g. Map / Satellite / Hills): a `--card` pill holding equal segments; the chosen one is a lime pill with dark text (no tick needed, the shape shows it). More than 4, or choices that aren't views: chips.
+- **Checkbox and radio** (in forms): 24px, `--tone` fill; checked is lime with the dark tick (`--tick`), or a dark dot for radio. The label is the target too.
+- **Field with label, hint and error**: label above in `--dim` 14px semibold, the field as in Roles, hint below in `--dim` 14px; an error replaces the hint in `#ffd3e4` with a 2px `#ff6a5f` edge on the field. Say what's wrong and how to fix it.
+- **Progress** (a long job with steps): a 6px `--tone` track filling lime, with a sentence in `--dim` saying what's happening. A short wait inside a button uses the button's spinner instead.
+- **Panels, sheets and dialogs**: `--panel` fill, radius 24–26px, close is the cross icon button top right, at most one primary at the bottom. Headings 18–22px bold in `--text`.
+- **Messages**: a problem is the pink toast; something undoable is the `#undo` bar with a tertiary action. Badges or counts: `--ltone` with `--lime-ink` text, at least 12px.
 
 ## Rules
 
