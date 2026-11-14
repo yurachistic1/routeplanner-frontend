@@ -446,8 +446,7 @@ export function createLoopMode(map, mapReady, opts) {
 
   // ----- list -----
   const icon = (path) => `<svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${path}"/></svg>`;
-  const HEART = (i) => `<button class="ri-action ri-heart" data-i="${i}" aria-label="Favourite this route" aria-pressed="false">${icon("M12 20.5S3 15 3 8.8A4.8 4.8 0 0 1 12 6.5a4.8 4.8 0 0 1 9 2.3C21 15 12 20.5 12 20.5z")}</button>`;
-  const BIN = (i) => `<button class="ri-action ri-bin" data-i="${i}" aria-label="Remove from favourites">${icon("M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v5M14 11v5")}</button>`;
+  const HEART = (i, on) => `<button class="ri-action ri-heart${on ? " on" : ""}" data-i="${i}" aria-label="Favourite this route" aria-pressed="${on}">${icon("M12 20.5S3 15 3 8.8A4.8 4.8 0 0 1 12 6.5a4.8 4.8 0 0 1 9 2.3C21 15 12 20.5 12 20.5z")}</button>`;
   const km = (m) => (m / 1000).toFixed(2);
   function renderList() {
     const ul = $("route-list");
@@ -463,7 +462,7 @@ export function createLoopMode(map, mapReady, opts) {
         <span class="ri-num">${o.formatIndex(r.i)}${r.info && warnings(r.info).length ? `<i class="ri-dot" role="img" aria-label="has warnings"></i>` : ""}</span>
         <span class="ri-dist">${km(r.distance)}<small> km</small></span>
         ${delta === null ? "" : `<span class="ri-delta">${sign}${Math.abs(delta).toFixed(2)}</span>`}
-      </button>${o.onRouteAction ? (state.favourites ? BIN(r.i) : HEART(r.i)) : ""}</li>`;
+      </button>${o.onRouteAction ? HEART(r.i, !!o.isFavourite?.(r)) : ""}</li>`;
     }).join("");
     for (const b of ul.querySelectorAll(".ri-action")) {
       b.addEventListener("click", () => o.onRouteAction(state.routes[+b.dataset.i]));
@@ -478,8 +477,8 @@ export function createLoopMode(map, mapReady, opts) {
     const name = state.favourites ? "favourites" : "routes";
     if ($("list-title")) $("list-title").textContent = state.favourites ? `${state.routes.length} saved` : "Routes";
     if ($("list-toggle")) $("list-toggle").textContent = `All ${name}`;
-    // Phones show only an arrow, so the label is also the button's name.
-    if ($("back-label")) $("back-label").textContent = `← Back to ${name}`;
+    // Phones show just "Back", so the full label is also the button's name.
+    if ($("back-label")) $("back-label").textContent = `Back to ${name}`;
     $("back")?.setAttribute("aria-label", `Back to ${name}`);
   }
 

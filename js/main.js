@@ -56,6 +56,8 @@ const app = createLoopMode(map, ready, {
   onExitFavourites: () => { if (currentMode() === "favourites") setMode("loop"); },
   onShow: (_, route) => account.routeShown(route),
   onRouteAction: (route) => account.toggleFavourite(route),
+  // The hearts in the route list start filled for saved routes (in favourites, all).
+  isFavourite: (route) => account.isFavourite(route),
   formatIndex: (i) => String(i + 1).padStart(2, "0"),
   padding: () => {
     const top = document.querySelector(".hud-top").getBoundingClientRect();

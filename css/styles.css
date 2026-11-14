@@ -1,4 +1,6 @@
-/* Dark "Dusk" theme, phone first. */
+/* Dark "Dusk" theme, phone first. Buttons and controls follow the Tonal
+   system chosen on 2026-11-14 (see UI.md): everything tappable has a fill,
+   lime is the main step, selected things go lime with a tick. */
 :root {
   --hud-h: 56px;
   /* The shelf of modes along the bottom, and the space it leaves above. */
@@ -8,13 +10,31 @@
   --glass: rgba(14, 18, 26, 0.72);
   --edge: rgba(255, 255, 255, 0.08);
   --text: #e9eef5;
-  --dim: #6c7889;
+  /* Secondary text (notes, labels, hints): 9.2:1 on the panel. It was
+     #6c7889 (4.1:1), which friends found hard to read. */
+  --dim: #aeb8c6;
+  --dim-2: #8a96a7;   /* small print and units, 6.1:1 */
   --neon: #c8ff2e;
   --neon-rgb: 200, 255, 46;
   --neon-glow: 0 0 18px rgba(var(--neon-rgb), 0.55);
   --pink: #ff3d8b;
   --amber: #ffb547;
   --red: #ff4a3d;
+  /* Fills for controls */
+  --panel: #10141c;
+  --card: #1c232e;        /* choice cards, tiles and fields */
+  --tone: #2a3342;        /* icon buttons and chips */
+  --tone-2: #354052;      /* ... hovered */
+  --tone-press: #3d495d;  /* ... pressed */
+  --ltone: #2f3c19;       /* lime-tinted: secondary buttons, things switched on */
+  --ltone-2: #3a4a1e;
+  --ltone-press: #465a23;
+  --lime-ink: #dcff7a;    /* text on --ltone, 10.5:1 */
+  --float: #232b38;       /* buttons floating over the map */
+  /* A lime circle with a dark tick, for selected cards and tiles. */
+  --tick-badge: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Ccircle cx='10' cy='10' r='10' fill='%23c8ff2e'/%3E%3Cpath d='m5.6 10.4 3 3 5.8-6.2' fill='none' stroke='%230b1004' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  /* Just the tick, used as a mask so it takes the text colour. */
+  --tick: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 12.5 4.5 4.5L19 7.5'/%3E%3C/svg%3E");
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; overflow: clip; background: var(--bg); }
@@ -27,6 +47,60 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 .mono { font-family: "JetBrains Mono", ui-monospace, monospace; }
 #map { position: absolute; inset: 0; }
 
+/* ----- Buttons -----
+   Primary: lime, the one main step on a panel. Secondary: a lime-tinted
+   pill. Tertiary: lime words. Danger: red. Icon buttons: round, neutral.
+   No arrows in buttons; previous and next use chevrons. */
+.btn {
+  height: 48px; padding: 0 20px; border-radius: 999px; min-width: 0;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  font-size: 16px; font-weight: 600; letter-spacing: .01em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  transition: transform .12s, background-color .15s, box-shadow .15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn-primary {
+  height: 52px; background: var(--neon); color: #0b1004;
+  box-shadow: 0 8px 22px rgba(var(--neon-rgb), .2), inset 0 1px 0 rgba(255, 255, 255, .45);
+}
+.btn-secondary { background: var(--ltone); color: var(--lime-ink); }
+.btn-tertiary { height: 44px; padding: 0 14px; background: none; color: var(--neon); }
+.btn-danger { background: #ff6a5f; color: #1a0503; }
+.icon-btn {
+  width: 48px; height: 48px; padding: 0; border-radius: 50%; display: grid; place-items: center;
+  background: var(--tone); color: var(--text); font-size: 24px; line-height: 1;
+  transition: transform .12s, background-color .15s; -webkit-tap-highlight-color: transparent;
+}
+.close-btn { width: 44px; height: 44px; flex: none; }
+@media (hover: hover) {
+  .btn-primary:hover:not(:disabled) { background: #d4ff58; }
+  .btn-secondary:hover:not(:disabled) { background: var(--ltone-2); }
+  .btn-tertiary:hover:not(:disabled) { background: rgba(var(--neon-rgb), .08); }
+  .icon-btn:not(.on):hover:not(:disabled) { background: var(--tone-2); }
+}
+:is(.btn, .icon-btn):active:not(:disabled) { transform: scale(.96); }
+.btn-primary:active:not(:disabled) { background: #b3ea1d; box-shadow: 0 3px 10px rgba(var(--neon-rgb), .18); }
+.btn-secondary:active:not(:disabled) { background: var(--ltone-press); }
+.btn-tertiary:active:not(:disabled) { background: rgba(var(--neon-rgb), .14); }
+.icon-btn:not(.on):active:not(:disabled) { background: var(--tone-press); }
+:is(.btn, .icon-btn):disabled { background: #1a2029; color: #566070; box-shadow: none; cursor: not-allowed; }
+.btn-tertiary:disabled { background: none; }
+button:focus-visible { outline: 3px solid var(--neon); outline-offset: 3px; }
+/* Busy (Generate, Find): stays lime, with a spinner. */
+.go .t2 { display: none; align-items: center; gap: 10px; }
+.loading .go .t1 { display: none; }
+.loading .go .t2 { display: inline-flex; }
+.loading .go:disabled { background: var(--neon); color: #0b1004; cursor: progress; }
+.spin { width: 16px; height: 16px; border-radius: 50%; border: 2.5px solid currentColor; border-right-color: transparent; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+/* Fields: email, icon search and the distance. */
+.field, .drawer input, .sheet-head input {
+  height: 50px; padding: 0 16px; border-radius: 16px; border: 2px solid transparent;
+  background: var(--card); color: var(--text); font: inherit; font-size: 16px; outline: none;
+}
+:is(.field, .drawer input, .sheet-head input)::placeholder { color: var(--dim-2); }
+:is(.field, .drawer input, .sheet-head input):focus { border-color: var(--neon); }
+
 /* Vignette over the map */
 .vignette { position: absolute; inset: 0; z-index: 1; pointer-events: none;
   background: radial-gradient(ellipse at center, transparent 45%, rgba(0,0,0,.55) 100%); }
@@ -37,99 +111,73 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 .hud-top {
   position: absolute; z-index: 3; top: max(12px, env(safe-area-inset-top)); left: 12px; right: 12px;
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  height: var(--hud-h); padding: 0 14px; border-radius: 14px;
+  height: var(--hud-h); padding: 0 12px 0 14px; border-radius: 18px;
 }
-.tag { font-size: 11px; letter-spacing: .2em; text-transform: uppercase; color: var(--dim); }
+.tag { font-size: 13px; color: var(--dim); }
 .logo { display: flex; align-items: center; gap: 5px; font-family: Poppins, "Space Grotesk", sans-serif; font-weight: 800; letter-spacing: .02em; font-size: 16px; }
 .hud-top .info { text-align: right; display: none; }
 .show-results .hud-top .info { display: block; }
 .show-results .hud-top .hint { display: none; }
-.hint { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--neon); }
+.hint { font-size: 14px; font-weight: 600; color: var(--neon); }
 .has-start .hint .h1 { display: none; }
 .hint .h2 { display: none; }
 .has-start .hint .h2 { display: inline; }
 .hud-top .now { font-size: 22px; font-weight: 700; color: var(--neon); text-shadow: var(--neon-glow); line-height: 1.05; }
-.hud-top .now small { font-size: 12px; color: var(--dim); text-shadow: none; }
+.hud-top .now small { font-size: 13px; color: var(--dim); text-shadow: none; }
 
 /* Bottom deck */
 .deck {
   position: absolute; z-index: 3; left: 12px; right: 12px; bottom: var(--above-modebar);
-  border-radius: 22px; padding: 16px;
+  border-radius: 24px; padding: 16px;
 }
 .setup { display: grid; gap: 14px; }
 
-/* Back to the previous routes, shown only once there are some */
-.back {
-  display: none; align-items: center; justify-content: space-between;
-  height: 44px; padding: 0 14px; border-radius: 12px;
-  border: 1px solid rgba(var(--neon-rgb), .45); color: var(--neon);
-  font-size: 13px; font-weight: 500; letter-spacing: .12em; text-transform: uppercase;
-}
-.back:active { background: rgba(var(--neon-rgb), .1); }
+/* Back to the previous routes, shown only once there are some. Laptops
+   show "Back to routes" and the Esc key; phones just "Back". */
+.back { display: none; justify-content: space-between; }
 .has-results .back { display: flex; }
+.back-short { display: none; }
 .back kbd {
-  font: 500 11px "JetBrains Mono", monospace; color: var(--dim);
-  border: 1px solid var(--edge); border-radius: 6px; padding: 2px 6px;
+  font: 500 11px "JetBrains Mono", monospace; color: var(--lime-ink);
+  border: 1px solid rgba(var(--neon-rgb), .35); border-radius: 6px; padding: 2px 6px;
 }
-@media (hover: none) { .back kbd { display: none; } }
-.back-arrow { display: none; }
+@media (hover: none) { .back kbd { display: none; } .back { justify-content: center; } }
 .results { display: none; }
 .show-results .setup { display: none; }
 .show-results .results { display: grid; gap: 12px; }
 
 .dial { display: flex; align-items: center; justify-content: space-between; }
-.round {
-  width: 52px; height: 52px; border-radius: 50%; border: 1px solid var(--edge); background: rgba(255,255,255,.04);
-  display: grid; place-items: center; font-size: 22px; transition: background .15s, border-color .15s;
-}
-.round:active { background: rgba(var(--neon-rgb),.12); border-color: var(--neon); }
 .readout { text-align: center; }
+/* The distance sits in a field, so it looks like something you can type in. */
 .readout input {
-  width: 4.2ch; background: none; border: 0; outline: none; text-align: center; color: var(--text);
-  font: 700 60px/1 "JetBrains Mono", monospace; letter-spacing: -0.04em; -moz-appearance: textfield;
+  width: 4.2ch; box-sizing: content-box; padding: 2px 12px; border-radius: 18px; border: 2px solid transparent;
+  background: var(--card); outline: none; text-align: center; color: var(--text);
+  font: 700 60px/1.1 "JetBrains Mono", monospace; letter-spacing: -0.04em; -moz-appearance: textfield;
 }
+.readout input:focus { border-color: var(--neon); }
 .readout input::-webkit-inner-spin-button { -webkit-appearance: none; }
-.readout .tag { margin-top: 2px; }
+.readout .tag { margin-top: 4px; }
 
+/* Distance presets: pick one. The selected one goes lime with a tick. */
 .chips { display: flex; gap: 6px; }
 .chip {
-  flex: 1; padding: 8px 0; border-radius: 10px; border: 1px solid var(--edge);
-  font: 500 13px "JetBrains Mono", monospace; color: var(--dim);
+  flex: 1; min-width: 0; height: 40px; padding: 0; border-radius: 999px; background: var(--tone); color: #dfe5ec;
+  font-size: 15px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 3px;
+  transition: transform .12s, background-color .15s; -webkit-tap-highlight-color: transparent;
 }
-.chip.active { color: var(--bg); background: var(--neon); border-color: var(--neon); box-shadow: var(--neon-glow); }
-
-.go {
-  height: 60px; border-radius: 16px; background: var(--neon); color: var(--bg);
-  font-weight: 700; font-size: 18px; letter-spacing: .16em; text-transform: uppercase;
-  display: flex; align-items: center; justify-content: center; gap: 12px;
-  box-shadow: 0 0 30px rgba(var(--neon-rgb),.35); position: relative; overflow: hidden;
+.chip.active { background: var(--neon); color: #0b1004; }
+.chip.active::before {
+  content: ""; flex: none; width: 15px; height: 15px; background: currentColor;
+  -webkit-mask: var(--tick) center / contain no-repeat; mask: var(--tick) center / contain no-repeat;
 }
-.go:active { transform: scale(.98); }
-.go svg { transition: transform .2s; }
-.go:hover svg { transform: translateX(3px); }
-.go .t2 { display: none; }
-.loading .go .t1 { display: none; }
-.loading .go .t2 { display: inline; }
-.loading .go::after {
-  content: ""; position: absolute; inset: 0;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,.55), transparent);
-  transform: translateX(-100%); animation: sweep 1s linear infinite;
-}
-@keyframes sweep { to { transform: translateX(100%); } }
+@media (hover: hover) { .chip:not(.active):hover { background: var(--tone-2); } }
+.chip:active { transform: scale(.96); }
+.chip:not(.active):active { background: var(--tone-press); }
 
 .nav { display: grid; grid-template-columns: 64px 1fr 64px; gap: 10px; }
-.nav .round { width: 64px; height: 56px; border-radius: 16px; }
-.wide {
-  height: 56px; border-radius: 16px; border: 1px solid var(--neon); color: var(--neon);
-  font-weight: 700; letter-spacing: .14em; text-transform: uppercase; font-size: 14px;
-  display: flex; align-items: center; justify-content: center; gap: 8px;
-}
-.wide:active { background: rgba(var(--neon-rgb),.12); }
+.nav-btn { width: 100%; height: 52px; border-radius: 999px; }
 .row2 { display: grid; grid-template-columns: 52px 1fr 1fr; gap: 10px; }
-.ghost-btn {
-  height: 44px; border-radius: 12px; border: 1px solid var(--edge); color: var(--dim);
-  font-size: 12px; letter-spacing: .14em; text-transform: uppercase;
-}
+:is(.row2, .art-row, .draw-row) .btn { padding-inline: 8px; }
 
 /* Viewing favourites, a mode left from the shelf: the top bar gets a pink
    edge, the list arrives like a new page, and there's no New run button. */
@@ -142,25 +190,27 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
   .in-favourites .list { animation: none; }
 }
 
-/* Favourite heart */
-.fav { display: grid; place-items: center; padding: 0; }
+/* Favourite heart: a toggle. On, it's pink and filled. */
+.fav { width: 100%; border-radius: 999px; }
 .fav svg { fill: none; }
-.fav.on { color: var(--pink); border-color: var(--pink); }
+.fav.on { background: #3d1a2b; color: var(--pink); }
 .fav.on svg { fill: currentColor; }
 
 /* Account */
 .account-btn {
-  flex: none; width: 34px; height: 34px; padding: 0; border-radius: 50%; border: 1px solid var(--edge);
-  display: grid; place-items: center; color: var(--dim);
+  flex: none; width: 38px; height: 38px; padding: 0; border-radius: 50%;
+  display: grid; place-items: center; background: var(--tone); color: var(--text);
+  transition: transform .12s, background-color .15s;
 }
-.signed-in .account-btn { color: var(--neon); border-color: rgba(var(--neon-rgb), .45); }
+.account-btn:active { transform: scale(.94); }
+.signed-in .account-btn { background: var(--ltone); color: var(--neon); }
 .hud-top .hint, .hud-top .info { margin-left: auto; }
 /* Account menu: a native dialog that slides in from the right. Browsers
    without these transitions just show and hide it. */
 dialog.account {
   inset: 0 0 0 auto; margin: 0; padding: 0; width: min(340px, 86vw); height: 100dvh;
   max-width: none; max-height: none; border: 0; border-left: 1px solid var(--edge);
-  background: #10141c; color: var(--text); transform: translateX(100%);
+  background: var(--panel); color: var(--text); transform: translateX(100%);
   transition: transform .28s cubic-bezier(.2, .8, .2, 1), display .28s allow-discrete, overlay .28s allow-discrete;
 }
 dialog.account[open] { transform: none; }
@@ -175,7 +225,7 @@ dialog.account[open]::backdrop { background: rgba(7, 9, 13, .6); }
 }
 .drawer {
   height: 100%; overflow-y: auto; touch-action: pan-y; display: flex; flex-direction: column;
-  padding: calc(20px + env(safe-area-inset-top)) 18px calc(18px + env(safe-area-inset-bottom));
+  padding: calc(22px + env(safe-area-inset-top)) 18px calc(18px + env(safe-area-inset-bottom));
 }
 .drawer > [data-view] { display: none; gap: 12px; }
 dialog.account[data-view="signin"] .drawer > [data-view="signin"],
@@ -183,29 +233,21 @@ dialog.account[data-view="sent"] .drawer > [data-view="sent"],
 dialog.account[data-view="confirm"] .drawer > [data-view="confirm"],
 dialog.account[data-view="account"] .drawer > [data-view="account"],
 dialog.account[data-view="delete"] .drawer > [data-view="delete"] { display: grid; }
-.drawer h2 { margin: 0; font-size: 20px; padding-right: 40px; }
-.drawer p { margin: 0; font-size: 14px; line-height: 1.45; color: var(--dim); overflow-wrap: anywhere; }
-.drawer strong { color: var(--text); font-weight: 500; }
+.drawer h2 { margin: 0; font-size: 22px; padding-right: 48px; }
+.drawer p { margin: 0; font-size: 15px; line-height: 1.5; color: var(--dim); overflow-wrap: anywhere; }
+.drawer strong { color: var(--text); font-weight: 600; }
 .drawer form { display: grid; gap: 10px; }
-.drawer input {
-  height: 46px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--edge);
-  background: rgba(255, 255, 255, .04); color: var(--text); font: inherit; font-size: 16px; outline: none;
-}
-.drawer input:focus { border-color: var(--neon); }
-.drawer .or { text-align: center; font-size: 12px; color: var(--dim); }
+.drawer .btn:not(.btn-tertiary) { padding-inline: 12px; }
+.drawer .or { text-align: center; font-size: 14px; color: var(--dim); }
 .drawer-user { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .drawer-user p { min-width: 0; }
-.drawer-user .ghost-btn { flex: none; height: 36px; padding: 0 12px; font-size: 11px; }
+.drawer-user .btn { flex: none; height: 40px; padding: 0 16px; font-size: 15px; }
 .drawer-foot { margin-top: auto; padding-top: 18px; display: flex; justify-content: space-between; align-items: center; }
-.drawer-link { padding: 0; font-size: 13px; color: var(--dim); text-decoration: none; }
-.drawer-link:hover { color: var(--text); }
+/* Privacy and Delete account: tertiary, lime words. */
+.drawer-link { padding: 10px 0; font-size: 15px; font-weight: 600; color: var(--neon); text-decoration: none; text-underline-offset: .2em; }
+.drawer-link:hover { text-decoration: underline; }
 dialog.account:not([data-view="account"]) #delete-account { display: none; }
-.danger-btn { height: 50px; border-radius: 14px; background: #ff5c5c; color: var(--bg); font-weight: 700; }
-.danger-btn:disabled { opacity: .6; }
-.account-close {
-  position: absolute; z-index: 1; top: calc(12px + env(safe-area-inset-top)); right: 10px;
-  width: 36px; height: 36px; font-size: 22px; color: var(--dim);
-}
+.account-close { position: absolute; z-index: 1; top: calc(14px + env(safe-area-inset-top)); right: 12px; }
 #account-error { color: #ffd3e4; }
 #account-error:not(:empty) { margin-top: 12px; }
 
@@ -217,71 +259,77 @@ dialog.account:not([data-view="account"]) #delete-account { display: none; }
   opacity: 0; pointer-events: none; transition: opacity .2s;
 }
 .list-open .list { opacity: 1; pointer-events: auto; }
-.list-head { display: flex; justify-content: space-between; align-items: center; }
-.list-head h2 { margin: 0; font-size: 13px; letter-spacing: .2em; text-transform: uppercase; color: var(--dim); font-weight: 500; }
+.list-head { display: flex; justify-content: space-between; align-items: center; min-height: 44px; }
+.list-head h2 { margin: 0; font-size: 18px; font-weight: 700; color: var(--text); }
 .route-group {
   grid-column: 1 / -1; padding: 10px 2px 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px;
 }
-.rg-place { font-size: 15px; font-weight: 500; color: var(--text); }
+.rg-place { font-size: 16px; font-weight: 600; color: var(--text); }
 .rg-place:empty { display: none; }
-.rg-label { font: 500 12px "JetBrains Mono", monospace; color: var(--dim); }
+.rg-label { font: 500 13px "JetBrains Mono", monospace; color: var(--dim); }
 .route-group:first-child { padding-top: 0; }
-#route-list { list-style: none; margin: 0; padding: 0; overflow-y: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+#route-list { list-style: none; margin: 0; padding: 0; overflow-y: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+/* Route cards: pick one. Selected: lime edge and a tick. */
 .route-item {
-  width: 100%; border: 1px solid var(--edge); border-radius: 14px; padding: 12px; text-align: left;
-  display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; background: rgba(255,255,255,.03);
+  position: relative; width: 100%; border: 2px solid transparent; border-radius: 18px; padding: 12px; text-align: left;
+  display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; background: var(--card);
+  transition: transform .12s, background-color .15s; -webkit-tap-highlight-color: transparent;
 }
-.route-item .thumb { grid-column: 1 / 3; width: 100%; height: 72px; color: #3a4455; margin-bottom: 6px; }
-.route-item.selected { border-color: var(--neon); box-shadow: inset 0 0 0 1px var(--neon), 0 0 22px rgba(var(--neon-rgb),.15); }
-.route-item.selected .thumb { color: var(--neon); filter: drop-shadow(0 0 4px rgba(var(--neon-rgb),.7)); }
+.route-item .thumb { grid-column: 1 / 3; width: 100%; height: 72px; color: #7d8899; margin-bottom: 6px; }
+.route-item.selected { background: #222c16; border-color: var(--neon); }
+.route-item.selected .thumb { color: var(--neon); filter: drop-shadow(0 0 4px rgba(var(--neon-rgb), .5)); }
+.route-item.selected::after { content: ""; position: absolute; top: 8px; left: 8px; width: 20px; height: 20px; background: var(--tick-badge); }
+@media (hover: hover) { .route-item:not(.selected):hover { background: var(--float); } }
+.route-item:active { transform: scale(.98); }
 .thumb-start { fill: var(--pink); stroke: none; }
 .route-cell { position: relative; }
+/* The heart on each card, also in favourites: a filled heart takes the
+   route out, with Undo (2026-11-14; it used to be a bin there). */
 .ri-action {
-  position: absolute; top: 6px; right: 6px; width: 32px; height: 32px; padding: 0; border-radius: 50%;
-  display: grid; place-items: center; color: var(--dim); background: rgba(16, 20, 28, .75);
+  position: absolute; top: 6px; right: 6px; width: 36px; height: 36px; padding: 0; border-radius: 50%;
+  display: grid; place-items: center; color: var(--text); background: rgba(28, 35, 46, .92);
+  transition: transform .12s, background-color .15s; -webkit-tap-highlight-color: transparent;
 }
-.ri-action svg { fill: none; }
-.ri-action:active { background: rgba(255, 255, 255, .1); }
-.ri-bin { color: #ff5c5c; }
-.ri-heart.on { color: var(--pink); }
+.ri-action svg { fill: none; width: 18px; height: 18px; }
+.ri-action:active { transform: scale(.92); background: var(--tone-press); }
+.ri-heart.on { color: var(--pink); background: #3d1a2b; }
 .ri-heart.on svg { fill: currentColor; }
-.ri-num { font: 500 11px "JetBrains Mono"; color: var(--dim); grid-column: 1; }
+.ri-num { font: 500 13px "JetBrains Mono"; color: var(--dim); grid-column: 1; }
 .ri-num::before { content: "#"; }
 /* Same as the route info tab's dot: this route has warnings. */
-.ri-dot { display: inline-block; width: 6px; height: 6px; margin-left: 6px; vertical-align: 1px; border-radius: 50%; background: var(--amber); box-shadow: 0 0 6px rgba(255, 181, 71, .7); }
-.ri-delta { font: 500 11px "JetBrains Mono"; color: var(--dim); grid-column: 2; grid-row: 2; text-align: right; }
+.ri-dot { display: inline-block; width: 7px; height: 7px; margin-left: 6px; vertical-align: 1px; border-radius: 50%; background: var(--amber); box-shadow: 0 0 6px rgba(255, 181, 71, .7); }
+.ri-delta { font: 500 13px "JetBrains Mono"; color: var(--dim); grid-column: 2; grid-row: 2; text-align: right; }
 .ri-dist { grid-column: 1 / 3; font: 700 20px "JetBrains Mono"; }
-.ri-dist small { font-size: 11px; color: var(--dim); }
+.ri-dist small { font-size: 12px; color: var(--dim); }
 /* Route info: a tab on the panel's top edge opens a drawer above the route
-   controls. The amber dot says there's something to know. */
+   controls. The amber dot says there's something to know. Open, it's lime. */
 .info-tab {
-  display: none; position: absolute; top: -14px; left: 50%; transform: translateX(-50%);
-  height: 26px; padding: 0 12px; border-radius: 13px; align-items: center; gap: 7px;
-  background: rgba(16, 20, 28, .96); border: 1px solid var(--edge); color: var(--dim);
-  font-size: 10px; letter-spacing: .16em; text-transform: uppercase; white-space: nowrap;
+  display: none; position: absolute; top: -15px; left: 0; right: 0; margin-inline: auto; width: max-content;
+  height: 30px; padding: 0 14px; border-radius: 999px; align-items: center; gap: 7px;
+  background: var(--float); color: var(--text); box-shadow: 0 4px 12px rgba(0, 0, 0, .4);
+  font-size: 13px; font-weight: 600; white-space: nowrap;
+  transition: transform .12s, background-color .15s; -webkit-tap-highlight-color: transparent;
 }
-.info-tab:active { background: rgba(255, 255, 255, .08); }
+.info-tab:active { transform: scale(.96); }
 .show-results.has-info .info-tab { display: flex; }
-.info-tab svg { transform: rotate(0deg); transition: transform .2s; }
-.info-open .info-tab svg { transform: rotate(180deg); }
-.info-open .info-tab { color: var(--text); }
-.info-dot { display: none; width: 6px; height: 6px; border-radius: 50%; background: var(--amber); box-shadow: 0 0 6px rgba(255, 181, 71, .7); }
+.info-open .info-tab { background: var(--ltone); color: var(--lime-ink); }
+.info-dot { display: none; width: 7px; height: 7px; border-radius: 50%; background: var(--amber); box-shadow: 0 0 6px rgba(255, 181, 71, .7); }
 .has-warnings .info-dot { display: block; }
 .route-info { display: none; }
 .info-open.has-info .route-info { display: block; animation: info-in .2s ease-out; }
 @keyframes info-in { from { opacity: 0; transform: translateY(6px); } }
-.info-list { list-style: none; margin: 0; padding: 4px 0 0; display: grid; gap: 10px; }
+.info-list { list-style: none; margin: 0; padding: 6px 0 0; display: grid; gap: 10px; }
 .info-list li { display: grid; grid-template-columns: 20px 1fr; gap: 10px; align-items: start; }
-.info-list b { display: block; font-size: 14px; font-weight: 500; color: var(--text); }
-.info-list li span:not(.info-mark) { display: block; font-size: 12px; line-height: 1.35; color: var(--dim); margin-top: 1px; }
+.info-list b { display: block; font-size: 15px; font-weight: 600; color: var(--text); }
+.info-list li span:not(.info-mark) { display: block; font-size: 14px; line-height: 1.4; color: var(--dim); margin-top: 1px; }
 .info-mark {
   width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center;
   font: 700 12px "JetBrains Mono", monospace; margin-top: 1px;
 }
 .warn .info-mark { color: var(--bg); background: var(--amber); }
-.ok .info-mark { color: var(--neon); border: 1px solid rgba(var(--neon-rgb), .5); }
+.ok .info-mark { color: var(--neon); border: 1.5px solid var(--neon); }
 /* Map key: how the map marks what's listed above (see main.js). */
-.info-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--edge); font-size: 12px; color: var(--dim); }
+.info-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--edge); font-size: 13px; color: var(--dim); }
 .info-legend:empty { display: none; }
 .key { display: inline-flex; align-items: center; gap: 7px; }
 .key i { width: 20px; height: 3px; border-radius: 2px; }
@@ -306,7 +354,7 @@ body:not(.show-results):not(.loading) .start-marker::before { animation: pulse 2
 
 #toast {
   position: absolute; z-index: 6; left: 12px; right: 12px; top: calc(76px + env(safe-area-inset-top));
-  padding: 12px 14px; border-radius: 12px; font-size: 14px;
+  padding: 12px 14px; border-radius: 14px; font-size: 15px;
   background: #24141d; border: 1px solid rgba(255, 61, 139, .55); color: #ffd3e4;
   box-shadow: 0 10px 30px rgba(0, 0, 0, .45);
   opacity: 0; transform: translateY(-8px); transition: .2s; pointer-events: none;
@@ -317,18 +365,13 @@ body:not(.show-results):not(.loading) .start-marker::before { animation: pulse 2
 #undo {
   position: absolute; z-index: 7; left: 12px; right: 12px; bottom: var(--above-modebar);
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  padding: 6px 6px 6px 16px; border-radius: 14px; font-size: 14px;
-  background: #1c222c; border: 1px solid var(--edge); box-shadow: 0 10px 30px rgba(0, 0, 0, .5);
+  padding: 6px 6px 6px 20px; border-radius: 999px; font-size: 15px;
+  background: var(--float); box-shadow: 0 10px 30px rgba(0, 0, 0, .5);
   opacity: 0; visibility: hidden; transform: translateY(10px);
   transition: opacity .2s, transform .2s, visibility .2s;
 }
 #undo.show { opacity: 1; visibility: visible; transform: none; animation: undo-in .22s cubic-bezier(.2, .8, .2, 1); }
 @keyframes undo-in { from { opacity: 0; transform: translateY(10px); } }
-#undo-btn {
-  height: 40px; padding: 0 14px; border-radius: 10px; color: var(--neon); font-weight: 700;
-  font-size: 13px; letter-spacing: .12em; text-transform: uppercase;
-}
-#undo-btn:active { background: rgba(var(--neon-rgb), .12); }
 
 /* Map credits: the ⓘ sits just under the top bar on the left, clear of the
    bottom panel and its route info tab. The text slides out to its right. */
@@ -342,7 +385,7 @@ body:not(.show-results):not(.loading) .start-marker::before { animation: pulse 2
 .credits-btn:hover { opacity: 1; }
 .credits-i { fill: var(--bg); }
 .credits-text {
-  font-size: 11px; color: var(--dim); white-space: nowrap; overflow: hidden;
+  font-size: 12px; color: var(--dim); white-space: nowrap; overflow: hidden;
   background: rgba(16, 20, 28, .9); border: 1px solid var(--edge); border-radius: 8px;
   padding: 5px 10px; max-width: min(420px, calc(100vw - 80px)); opacity: 1;
   transition: max-width .5s cubic-bezier(.2, .8, .2, 1), padding .5s cubic-bezier(.2, .8, .2, 1),
@@ -358,19 +401,20 @@ body:not(.show-results):not(.loading) .start-marker::before { animation: pulse 2
   max-width: 0; padding-left: 0; padding-right: 0; opacity: 0; border-color: transparent; pointer-events: none;
 }
 
-/* My location: a round button where the credits used to be, just above the
-   bottom panel on the left, moving with the panel. The dot marks where you are. */
+/* My location: a round button just above the bottom panel on the left,
+   moving with the panel. The dot marks where you are. */
 .locate-btn {
-  position: absolute; left: 0; bottom: calc(100% + 8px);
-  width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center;
-  background: rgba(16, 20, 28, .94); border: 1px solid var(--edge); color: var(--text);
-  -webkit-tap-highlight-color: transparent;
+  position: absolute; left: 0; bottom: calc(100% + 10px);
+  width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--float); color: var(--text); box-shadow: 0 6px 16px rgba(0, 0, 0, .5);
+  transition: transform .12s, background-color .15s; -webkit-tap-highlight-color: transparent;
 }
 .locate-btn[hidden] { display: none; }
 /* Satellite toggle: the same round button, stacked above the location one. */
-.sat-btn { bottom: calc(100% + 56px); }
-.sat-btn[aria-pressed="true"] { color: var(--neon); border-color: rgba(var(--neon-rgb), .5); }
-.locate-btn:active { background: rgba(40, 46, 58, .96); }
+.sat-btn { bottom: calc(100% + 64px); }
+.sat-btn[aria-pressed="true"] { color: var(--neon); background: var(--ltone); }
+.locate-btn:active { transform: scale(.94); }
+.locate-btn:not([aria-pressed="true"]):active { background: var(--tone-press); }
 .locate-btn.busy svg { animation: locate-busy 1s ease-in-out infinite; }
 @keyframes locate-busy { 50% { opacity: .35; } }
 .me-dot {
@@ -400,12 +444,12 @@ body:not(.signed-in) .modebar .signed-in-only { display: none; }
 .mode-icon { width: 52px; height: 30px; border-radius: 15px; display: grid; place-items: center; transition: background .2s; }
 .mode-icon svg { display: block; }
 .mode-icon .logo-dot { fill: var(--pink); } /* the logo's dot, the one exception */
-.mode-label { font-size: 11px; font-weight: 500; letter-spacing: .04em; }
-.modebar .active { color: var(--text); }
-.modebar .active .mode-icon { background: rgba(var(--neon-rgb), .14); }
+.mode-label { font-size: 12px; font-weight: 600; }
+.modebar .active { color: #fff; }
+.modebar .active .mode-icon { background: rgba(var(--neon-rgb), .16); }
 .modebar .active .mode-label { color: var(--neon); }
-.modebar .soon { opacity: .7; }
-.modebar button:active .mode-icon { background: rgba(255, 255, 255, .08); }
+.modebar .soon { opacity: .6; }
+.modebar button:active .mode-icon { background: rgba(255, 255, 255, .1); }
 
 /* Phones: lighter to draw (no live blur behind panels, no edge overlay),
    and a more compact setup panel so more of the map shows. */
@@ -422,43 +466,35 @@ body:not(.signed-in) .modebar .signed-in-only { display: none; }
   .in-favourites .list.list { animation-name: page-in-phone; }
   .vignette { display: none; }
 
-  .deck { padding: 12px; border-radius: 20px; }
+  .deck { padding: 12px; border-radius: 24px; }
   /* Planning a run, kept compact so the map shows (2026-11-11): the
-     distance on one line with "km" beside it, and Back to routes shortened
-     to an arrow beside Generate rather than a row of its own. */
-  .setup { gap: 8px; grid-template-columns: auto 1fr; }
+     distance on one line with "km" beside it, and Back beside Generate
+     rather than a row of its own. */
+  .setup { gap: 10px; grid-template-columns: auto 1fr; }
   .setup > * { grid-column: 1 / -1; }
   .setup .dial { grid-row: 1; }
   .setup .chips { grid-row: 2; }
-  /* Just an arrow, Generate's own one mirrored, as wide as the route
-     arrows (2026-11-13). */
-  .setup .back { grid-row: 3; grid-column: 1; width: 64px; height: 46px; padding: 0; justify-content: center; }
+  .setup .back { grid-row: 3; grid-column: 1; height: 52px; padding: 0 20px; }
   .has-results .setup .go { grid-row: 3; grid-column: 2; }
-  /* A touch smaller than Generate's: neon on dark reads bigger than dark on neon. */
-  .back-arrow { display: block; width: 20px; height: 12.7px; }
   #back-label, .back kbd { display: none; }
-  .round { width: 40px; height: 40px; font-size: 20px; }
+  .back-short { display: inline; }
   /* The number stays centred; "km" hangs off its right side. */
   .readout { position: relative; }
-  .readout .tag { position: absolute; left: calc(100% + 6px); bottom: 5px; white-space: nowrap; }
+  .readout .tag { position: absolute; left: calc(100% + 8px); bottom: 10px; white-space: nowrap; }
   /* Sized to the number where browsers can, so "km" sits right beside it;
      elsewhere the box keeps room for "21.1". */
-  .readout input { font-size: 38px; }
+  .readout input { font-size: 34px; }
   @supports (field-sizing: content) { .readout input { width: auto; field-sizing: content; min-width: 1.5ch; } }
   .readout .tag { margin-top: 0; font-size: 0; }
-  .readout .tag::after { content: "km"; font-size: 13px; letter-spacing: .1em; }
-  .chip { padding: 6px 0; }
-  .go { height: 46px; font-size: 16px; }
+  .readout .tag::after { content: "km"; font-size: 15px; }
   .show-results .results { gap: 10px; }
-  .nav .round, .wide { height: 50px; }
-  .ghost-btn { height: 38px; }
 }
 
 @keyframes page-in-phone { from { transform: translateX(100%); } }
 
 /* Narrow phones: keep the name and the hint on one line in the top bar. */
 @media (max-width: 380px) {
-  .hint { font-size: 10px; letter-spacing: .08em; }
+  .hint { font-size: 13px; }
   .logo { font-size: 14px; }
 }
 
@@ -479,7 +515,7 @@ body:not(.signed-in) .modebar .signed-in-only { display: none; }
     backdrop-filter: blur(14px) saturate(140%); -webkit-backdrop-filter: blur(14px) saturate(140%);
   }
   .list {
-    inset: auto; right: 12px; top: 12px; bottom: 12px; width: 340px; border-radius: 22px; padding: 16px;
+    inset: auto; right: 12px; top: 12px; bottom: 12px; width: 340px; border-radius: 24px; padding: 16px;
     opacity: 1; pointer-events: auto; background: var(--glass); border: 1px solid var(--edge);
     transform: translateX(110%); transition: transform .35s cubic-bezier(.2,.8,.2,1);
   }
@@ -501,71 +537,81 @@ body:not(.signed-in) .modebar .signed-in-only { display: none; }
 .art-start { cursor: default !important; }
 .art-start::before, .art-start::after { animation: none !important; }
 .art-setup { display: grid; gap: 10px; }
-.art-note { font-size: 13px; line-height: 1.45; color: var(--dim); }
+.art-setup > .tag { font-size: 14px; font-weight: 600; }
+.art-note { margin: 0 0 4px; font-size: 15px; line-height: 1.5; color: var(--dim); }
 .art-found { display: none; gap: 12px; }
 .art-results .art-setup { display: none; }
 .art-results .art-found { display: grid; }
-.art-shapes { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+.art-shapes { display: flex; gap: 8px; overflow-x: auto; padding: 2px 2px 4px; scrollbar-width: none; }
+/* Shape tiles: Icons and Draw open a picker; the chosen shape shows as
+   selected, with a tick. */
 .art-shape {
-  flex: 0 0 72px; display: grid; gap: 4px; justify-items: center; padding: 8px 4px 6px; border-radius: 12px;
-  border: 1px solid var(--edge); color: var(--dim); font-size: 11px; letter-spacing: .08em; text-transform: uppercase;
+  position: relative; flex: 0 0 76px; display: grid; gap: 4px; justify-items: center; padding: 8px 4px 7px; border-radius: 18px;
+  border: 2px solid transparent; background: var(--card); color: var(--text); font-size: 13px; font-weight: 600;
 }
+.art-shape span { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .art-shape svg { width: 44px; height: 44px; }
-.art-shape.active { color: var(--neon); border-color: var(--neon); background: rgba(var(--neon-rgb), .08); }
+.art-shape.active { background: var(--ltone); border-color: var(--neon); color: var(--lime-ink); }
+.art-shape.active::after { content: ""; position: absolute; top: 5px; right: 5px; width: 18px; height: 18px; background: var(--tick-badge); }
+.art-tool { background: var(--tone); transition: transform .12s, background-color .15s; -webkit-tap-highlight-color: transparent; }
+.art-tool svg { width: 30px; height: 44px; }
+@media (hover: hover) { .art-tool:hover { background: var(--tone-2); } }
+.art-tool:active { transform: scale(.96); background: var(--tone-press); }
+/* Short / Medium / Long: pick one. Selected: lime edge and a tick. */
 .art-options { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 8px; }
 .art-option {
-  display: grid; gap: 2px; justify-items: center; padding: 10px 4px; border-radius: 14px; border: 1px solid var(--edge);
+  position: relative; display: grid; gap: 2px; justify-items: center; padding: 10px 4px; border-radius: 18px;
+  border: 2px solid transparent; background: var(--card);
+  transition: transform .12s, background-color .15s; -webkit-tap-highlight-color: transparent;
 }
-.art-option.active { border-color: var(--neon); background: rgba(var(--neon-rgb), .08); }
+.art-option.active { border-color: var(--neon); background: #222c16; }
+.art-option.active::after { content: ""; position: absolute; top: 6px; right: 6px; width: 18px; height: 18px; background: var(--tick-badge); }
+@media (hover: hover) { .art-option:not(.active):hover { background: var(--float); } }
+.art-option:active { transform: scale(.97); }
+.art-option .tag { font-size: 13px; font-weight: 600; color: var(--text); }
 .art-km { font-size: 22px; font-weight: 700; color: var(--text); }
 .art-option.active .art-km { color: var(--neon); }
-.art-km small { font-size: 11px; color: var(--dim); }
-.art-fit { font-size: 11px; color: var(--amber); }
+.art-km small { font-size: 12px; color: var(--dim); }
+.art-fit { font-size: 13px; font-weight: 500; color: var(--amber); }
 .art-fit.good { color: var(--dim); }
 .art-row { display: grid; grid-template-columns: 52px 1fr; gap: 10px; }
 
-/* GPS art's own shapes (js/shapes.js): the Search and Draw tiles at the
-   start of the shape row, and the two dialogs they open. */
-.art-tool { color: var(--text); border-style: dashed; border-color: rgba(255, 255, 255, .22); }
-.art-tool svg { width: 30px; height: 44px; }
+/* GPS art's own shapes (js/shapes.js): the dialogs the Icons and Draw tiles
+   open. */
 dialog.sheet {
   margin: auto; padding: 0; border: 0; background: none; color: var(--text);
   width: min(440px, calc(100vw - 24px)); max-height: calc(100dvh - 24px);
 }
 dialog.sheet::backdrop { background: rgba(7, 9, 13, .66); }
 .sheet-card {
-  display: grid; gap: 12px; padding: 16px; border-radius: 22px; border: 1px solid var(--edge);
-  background: rgba(16, 20, 28, .97); max-height: calc(100dvh - 24px); grid-template-rows: auto minmax(0, 1fr);
+  display: grid; gap: 12px; padding: 16px; border-radius: 26px; border: 1px solid var(--edge);
+  background: var(--panel); max-height: calc(100dvh - 24px); grid-template-rows: auto minmax(0, 1fr);
 }
 .sheet-head { display: flex; align-items: center; gap: 10px; }
-.sheet-head h2 { flex: 1; font-size: 15px; letter-spacing: .14em; text-transform: uppercase; }
-.sheet-head input {
-  flex: 1; min-width: 0; height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--edge);
-  background: rgba(255, 255, 255, .04); color: var(--text); font: inherit; font-size: 16px; outline: none;
-}
-.sheet-head input:focus { border-color: var(--neon); }
-.sheet-close { width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--edge); font-size: 22px; color: var(--dim); }
-.sheet-note { font-size: 12px; color: var(--dim); line-height: 1.4; }
+.sheet-head h2 { flex: 1; margin: 0; font-size: 18px; font-weight: 700; }
+.sheet-head input { flex: 1; min-width: 0; height: 48px; }
+.sheet-note { margin: 0; font-size: 14px; color: var(--dim); line-height: 1.45; }
 .sheet-note:empty { display: none; }
 .sheet-note a { color: inherit; text-decoration: underline; }
 .icon-grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 8px;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px;
   overflow-y: auto; min-height: 120px; align-content: start;
   /* rows keep their full height when the list is taller than the dialog,
      and scroll: without this the tiles are squashed and their icons cut */
   grid-auto-rows: max-content;
 }
 .icon-tile {
-  display: grid; gap: 4px; justify-items: center; padding: 10px 2px 8px; border-radius: 12px; border: 1px solid var(--edge);
-  color: var(--text); font-size: 10px; letter-spacing: .04em; text-transform: uppercase; overflow: hidden;
+  display: grid; gap: 4px; justify-items: center; padding: 10px 2px 8px; border-radius: 18px; border: 2px solid transparent;
+  background: var(--card); color: var(--text); font-size: 12px; font-weight: 500; overflow: hidden;
+  transition: transform .12s, background-color .15s; -webkit-tap-highlight-color: transparent;
 }
 .icon-tile svg { width: 34px; height: 34px; }
 .icon-tile span { color: var(--dim); max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.icon-tile:active, .icon-tile:hover { border-color: var(--neon); color: var(--neon); }
+@media (hover: hover) { .icon-tile:hover { background: var(--tone-2); } }
+.icon-tile:active { transform: scale(.96); background: var(--tone-press); }
 #draw-pad {
-  width: 100%; aspect-ratio: 1; border-radius: 14px; border: 1px dashed rgba(255, 255, 255, .22);
-  background: rgba(255, 255, 255, .03); touch-action: none; cursor: crosshair;
+  width: 100%; aspect-ratio: 1; border-radius: 18px; border: 2px dashed #5b6678;
+  background: rgba(255, 255, 255, .02); touch-action: none; cursor: crosshair;
   fill: none; stroke: var(--neon); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round;
 }
 .draw-row { display: grid; grid-template-columns: 1fr 1fr 1.4fr; gap: 10px; align-items: center; }
-.draw-row .wide { height: 44px; }
