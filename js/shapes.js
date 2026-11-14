@@ -85,7 +85,7 @@ export function createIconPicker(onPick) {
   return async function open() {
     if (!icons) {
       try {
-        icons = await (await fetch("./assets/icons.json?v=4")).json(); // bump ?v= when the icons change
+        icons = await (await fetch("./assets/icons.json?v=5")).json(); // bump ?v= when the icons change
         // Words first (a-z), then the numbers 1 to 100 at the end of the list.
         const num = (n) => (/^\d+$/.test(n) ? +n : null);
         icons.sort((a, b) => (num(a[0]) ?? -1) - (num(b[0]) ?? -1) || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
