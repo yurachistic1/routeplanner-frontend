@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<!-- Picking which icons GPS art offers. Served by ops/icons-pick.py: see
+     there. -->
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Pick the shapes</title>
+<style>
+  :root { --bg: #07090d; --card: #10141c; --edge: #2a3140; --text: #e9eef5; --dim: #7d8899; --neon: #c8ff2e; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.4 system-ui, sans-serif; }
+  header {
+    position: sticky; top: 0; z-index: 2; display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+    padding: 12px 16px; background: rgba(7, 9, 13, .94); border-bottom: 1px solid var(--edge);
+  }
+  header h1 { font-size: 16px; margin: 0 8px 0 0; }
+  #count { color: var(--neon); font-weight: 700; min-width: 9ch; }
+  input, button { font: inherit; color: inherit; background: var(--card); border: 1px solid var(--edge); border-radius: 10px; height: 38px; padding: 0 14px; }
+  input { flex: 1; min-width: 140px; outline: none; }
+  input:focus { border-color: var(--neon); }
+  button { cursor: pointer; }
+  #save { background: var(--neon); color: var(--bg); border-color: var(--neon); font-weight: 700; }
+  #said { color: var(--dim); width: 100%; min-height: 1.4em; }
+  #grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 10px; padding: 16px; }
+  .t {
+    display: grid; justify-items: center; gap: 6px; padding: 12px 6px 8px; height: auto; border-radius: 14px;
+    border: 2px solid var(--edge); background: var(--card); color: #b9c2d0;
+  }
+  .t svg { width: 84px; height: 84px; fill: none; stroke: currentColor; stroke-width: 1.1; stroke-linecap: round; stroke-linejoin: round; }
+  .t span { font-size: 12px; color: var(--dim); max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .t.on { border-color: var(--neon); color: var(--neon); background: rgba(200, 255, 46, .07); }
+  .t.on span { color: var(--text); }
+  .t[hidden] { display: none; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Pick the shapes</h1>
+  <span id="count"></span>
+  <input id="find" type="search" placeholder="Filter by name or word" autocomplete="off" />
+  <button id="all">All</button>
+  <button id="none">None</button>
+  <button id="only">Show chosen only</button>
+  <button id="save">Save</button>
+  <div id="said">Tap a shape to choose it. Your picks are kept in this browser as you go; Save writes them for the app.</div>
+</header>
+<div id="grid"></div>
+<script type="module">
+  const $ = (id) => document.getElementById(id);
+  const KEY = "runthe.icons.chosen";
+  let all;
+  try {
+    all = await (await fetch("/assets/icons-all.json")).json();
+  } catch {
+    $("said").textContent = "No data yet: run  python3 ops/build-icons.py --all  and reload.";
+    throw new Error("no icons-all.json");
+  }
+  // what the rules keep, whether or not it was chosen last time
+  const icons = all.filter(([, , , why]) => !why || why === "not chosen");
+  const saved = await (await fetch("/chosen")).json();
+  const local = JSON.parse(localStorage.getItem(KEY) ?? "null");
+  const chosen = new Set(local ?? saved ?? []);
+  let onlyChosen = false;
+
+  $("grid").innerHTML = icons.map(([name, , strokes]) =>
+    `<button class="t" data-name="${name}"><svg viewBox="-1 -1 26 26">${strokes.map((s) =>
+      `<polyline points="${s.map((p) => p.join(",")).join(" ")}"/>`).join("")}</svg><span>${name.replaceAll("-", " ")}</span></button>`).join("");
+  const tiles = [...document.querySelectorAll(".t")];
+  const words = new Map(icons.map(([name, w]) => [name, `${name} ${w}`]));
+
+  function sync() {
+    const q = $("find").value.trim().toLowerCase();
+    for (const t of tiles) {
+      const on = chosen.has(t.dataset.name);
+      t.classList.toggle("on", on);
+      t.hidden = (onlyChosen && !on) || (q && !words.get(t.dataset.name).includes(q));
+    }
+    $("count").textContent = `${chosen.size} of ${icons.length}`;
+    localStorage.setItem(KEY, JSON.stringify([...chosen]));
+  }
+  const shown = () => tiles.filter((t) => !t.hidden).map((t) => t.dataset.name);
+  $("grid").addEventListener("click", (e) => {
+    const t = e.target.closest(".t");
+    if (!t) return;
+    chosen.has(t.dataset.name) ? chosen.delete(t.dataset.name) : chosen.add(t.dataset.name);
+    sync();
+  });
+  $("find").addEventListener("input", sync);
+  // All and None act on what is showing, so a filter can be picked in one go
+  $("all").addEventListener("click", () => { for (const n of shown()) chosen.add(n); sync(); });
+  $("none").addEventListener("click", () => { for (const n of shown()) chosen.delete(n); sync(); });
+  $("only").addEventListener("click", () => {
+    onlyChosen = !onlyChosen;
+    $("only").textContent = onlyChosen ? "Show all" : "Show chosen only";
+    sync();
+  });
+  $("save").addEventListener("click", async () => {
+    const res = await fetch("/chosen", { method: "POST", body: JSON.stringify([...chosen]) });
+    $("said").textContent = res.ok
+      ? `Saved ${await res.json()} shapes to ops/icons-chosen.txt. Run  python3 ops/build-icons.py  (or tell Claude) to put them in the app.`
+      : "Couldn't save. Is ops/icons-pick.py still running?";
+  });
+  sync();
+</script>
+</body>
+</html>

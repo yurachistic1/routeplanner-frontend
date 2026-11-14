@@ -16,7 +16,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@800&text=RUNTHEFAVOIS&display=swap" rel="stylesheet" />
   <link href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css" rel="stylesheet" />
   <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
-  <link href="./css/styles.css?v=16" rel="stylesheet" />
+  <link href="./css/styles.css?v=35" rel="stylesheet" />
 </head>
 <body>
   <div id="map"></div>
@@ -24,10 +24,6 @@
 
   <header class="hud-top glass">
     <div class="logo"><img src="./assets/mark.svg" alt="" width="28" height="28" /><span>RUNTHE</span></div>
-    <button class="fav-back" id="exit-favourites" aria-label="Exit favourites">
-      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12H5M11 6l-6 6 6 6"/></svg>
-      <span>Favourites</span>
-    </button>
     <div class="hint"><span class="h1">Tap to set start</span><span class="h2">Start set<span class="h2-more"> · tap to move</span></span></div>
     <div class="info">
       <div class="tag">Route <span class="mono" id="route-title">01</span> / <span class="mono" id="route-count">00</span></div>
@@ -42,8 +38,14 @@
   <div id="undo" role="status"><span>Removed from favourites</span><button id="undo-btn">Undo</button></div>
 
   <section class="deck glass">
+    <button class="locate-btn sat-btn" id="satellite" aria-label="Satellite view" aria-pressed="false">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2 8.5 12 14l10-5.5L12 3Z"/><path d="m2 13 10 5.5L22 13" opacity=".6"/></svg>
+    </button>
+    <button class="locate-btn" id="locate" aria-label="Centre on my location">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="6.5"/><circle cx="12" cy="12" r="2" fill="currentColor" stroke="none"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+    </button>
     <div class="setup">
-      <button class="back" id="back"><span id="back-label">← Back to routes</span><kbd>Esc</kbd></button>
+      <button class="back" id="back" aria-label="Back to routes"><svg class="back-arrow" width="22" height="14" viewBox="0 0 22 14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 7H2M8 1 2 7l6 6"/></svg><span id="back-label">← Back to routes</span><kbd>Esc</kbd></button>
       <div class="dial">
         <button class="round" id="dec" aria-label="Shorter">−</button>
         <div class="readout">
@@ -84,7 +86,32 @@
         <button class="ghost-btn" id="edit">New run</button>
       </div>
     </div>
+
+    <!-- GPS art mode (js/art.js): pick a shape, then choose between the
+         routes found round the middle of the map. -->
+    <div class="art">
+      <div class="art-setup">
+        <div class="tag">Shape</div>
+        <div class="art-shapes" id="art-shapes"></div>
+        <div class="tag">Where</div>
+        <p class="art-note">Looks for your shape within 15 km of the middle of the map. Move the map to look somewhere else.</p>
+        <button class="go" id="art-find"><span class="t1">Find</span><svg class="t1" width="22" height="14" viewBox="0 0 22 14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 7h19M14 1l6 6-6 6"/></svg><span class="t2">Searching</span></button>
+      </div>
+      <div class="art-found">
+        <div class="art-options" id="art-options"></div>
+        <button class="wide" id="art-download">↓ Export GPX</button>
+        <div class="art-row">
+          <button class="ghost-btn fav" id="art-fav" aria-label="Favourite this route" aria-pressed="false">
+            <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 20.5S3 15 3 8.8A4.8 4.8 0 0 1 12 6.5a4.8 4.8 0 0 1 9 2.3C21 15 12 20.5 12 20.5z"/></svg>
+          </button>
+          <button class="ghost-btn" id="art-new">New search</button>
+        </div>
+      </div>
+    </div>
   </section>
+
+  <!-- The shelf of modes along the bottom, filled in by js/modes.js. -->
+  <nav class="modebar" id="modebar" aria-label="Modes"></nav>
 
   <aside class="list">
     <div class="list-head">
@@ -129,13 +156,6 @@
           <p id="account-email"></p>
           <button class="ghost-btn" id="sign-out">Sign out</button>
         </div>
-        <nav class="drawer-menu" aria-label="Account sections">
-          <button class="menu-item" id="show-favourites">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 20.5S3 15 3 8.8A4.8 4.8 0 0 1 12 6.5a4.8 4.8 0 0 1 9 2.3C21 15 12 20.5 12 20.5z"/></svg>
-            <span>Favourites</span>
-            <span class="menu-arrow" aria-hidden="true">›</span>
-          </button>
-        </nav>
       </div>
 
       <div data-view="delete">
@@ -153,6 +173,55 @@
     </div>
   </dialog>
 
-  <script type="module" src="./js/main.js"></script>
+  <!-- GPS art: finding an icon to use as the shape, and drawing one
+       (js/shapes.js). -->
+  <dialog id="icon-dialog" class="sheet" aria-label="Find a shape">
+    <div class="sheet-card">
+      <div class="sheet-head">
+        <input id="icon-search" type="search" autocomplete="off" placeholder="Search: dog, star, house…" aria-label="Search shapes" />
+        <button class="sheet-close" data-close aria-label="Close">×</button>
+      </div>
+      <div class="icon-grid" id="icon-grid"></div>
+      <p class="sheet-note" id="icon-count"></p>
+      <p class="sheet-note">Simple shapes draw best. Icons by <a href="https://lucide.dev" target="_blank" rel="noopener">Lucide</a> (<a href="./assets/icons-LICENSE.txt" target="_blank">licence</a>).</p>
+    </div>
+  </dialog>
+  <dialog id="draw-dialog" class="sheet" aria-label="Draw a shape">
+    <div class="sheet-card">
+      <div class="sheet-head">
+        <h2>Draw a shape</h2>
+        <button class="sheet-close" data-close aria-label="Close">×</button>
+      </div>
+      <svg id="draw-pad" viewBox="0 0 300 300" role="img" aria-label="Drawing pad"></svg>
+      <p class="sheet-note">Keep it simple: small details won't show on the streets. The top is north.</p>
+      <div class="draw-row">
+        <button class="ghost-btn" id="draw-undo">Undo</button>
+        <button class="ghost-btn" id="draw-clear">Clear</button>
+        <button class="wide" id="draw-use">Use it</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Versioned like styles.css: bump every ?v= here whenever any JS file
+       changes, so browsers fetch the new code. The map catches the files'
+       imports of each other too. A new JS file needs a line here. -->
+  <script type="importmap">
+  {
+    "imports": {
+      "./js/account.js": "./js/account.js?v=9",
+      "./js/api.js": "./js/api.js?v=9",
+      "./js/art.js": "./js/art.js?v=9",
+      "./js/loop.js": "./js/loop.js?v=9",
+      "./js/main.js": "./js/main.js?v=9",
+      "./js/map.js": "./js/map.js?v=9",
+      "./js/mapstyle.js": "./js/mapstyle.js?v=9",
+      "./js/modes.js": "./js/modes.js?v=9",
+      "./js/polyline.js": "./js/polyline.js?v=9",
+      "./js/shapes.js": "./js/shapes.js?v=9",
+      "./js/ui.js": "./js/ui.js?v=9"
+    }
+  }
+  </script>
+  <script type="module" src="./js/main.js?v=9"></script>
 </body>
 </html>

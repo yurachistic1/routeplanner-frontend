@@ -16,13 +16,13 @@ const notTunnel = ["!=", ["get", "brunnel"], "tunnel"];
 /**
  * p (palette):
  *   land, water, park, wood, building, casing (optional),
- *   motorway, major, minor, service, path, rail (optional),
- *   label, labelHalo, waterLabel, parkLabel
+ *   motorway, major, minor, service, path, pathNear (optional), rail (optional),
+ *   label, labelHalo, roadLabel (optional), waterLabel, parkLabel
  * o (options):
  *   buildings: bool, casing: bool, pathDash: [a, b] | null,
  *   labels: "few" | "normal", placeUpper: bool
  */
-// Credits for the map data, shown by the ⓘ control (see app.js).
+// Credits for the map data, shown by the ⓘ control (see addCredits in map.js).
 export const ATTRIBUTION = '<a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a> © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>';
 
 export function buildStyle(p, o = {}) {
@@ -74,16 +74,33 @@ export function buildStyle(p, o = {}) {
   }
 
   // Roads, drawn from small to big so big roads sit on top.
-  const road = (id, classes, color, widths, extra = {}) => ({
+  const road = (id, classes, color, widths, extra = {}, where = true) => ({
     id, type: "line", source: "omt", "source-layer": "transportation",
-    filter: ["all", isClass(classes), notTunnel],
+    filter: ["all", isClass(classes), notTunnel, where],
     layout: { "line-cap": "round", "line-join": "round" },
     paint: { "line-color": color, "line-width": grow(widths), ...extra },
   });
 
+  // pathNear (optional): a brighter path colour for close zooms, where
+  // paths get wider too, so they're easy to see beside or under a route.
+  const pathColor = p.pathNear ? ["interpolate", ["linear"], ["zoom"], 14, p.path, 17, p.pathNear] : p.path;
+  const pathWidths = p.pathNear ? [[14, 0.4], [16, 1.5], [18, 3]] : [[14, 0.4], [18, 2]];
+  // With pathDash, only trails are dashed: tracks, bridleways and paths not
+  // tagged paved, plus anything tagged unpaved. Pavements, platforms, steps
+  // and paved footways are drawn as plain lines. (The tiles can't tell a
+  // pavement from a paved park path, so paved park paths are plain too.)
+  const surface = ["get", "surface"];
+  const trail = ["any",
+    ["==", surface, "unpaved"],
+    ["all", ["!=", surface, "paved"],
+      ["any", ["==", ["get", "class"], "track"], ["match", ["get", "subclass"], ["path", "bridleway"], true, false]]]];
+  const pathDefs = opt.pathDash
+    ? [["path", ["path", "track"], pathColor, pathWidths, {}, ["!", trail]],
+       ["trail", ["path", "track"], pathColor, pathWidths, { "line-dasharray": opt.pathDash }, trail]]
+    : [["path", ["path", "track"], pathColor, pathWidths]];
+
   const roadDefs = [
-    ["path", ["path", "track"], p.path, [[14, 0.4], [18, 2]],
-      opt.pathDash ? { "line-dasharray": opt.pathDash } : {}],
+    ...pathDefs,
     ["service", ["service"], p.service, [[13, 0.3], [18, 4]]],
     ["minor", ["minor"], p.minor, [[12, 0.4], [18, 9]]],
     ["secondary", ["secondary", "tertiary"], p.major, [[10, 0.6], [18, 14]]],
@@ -92,13 +109,13 @@ export function buildStyle(p, o = {}) {
   ];
 
   if (opt.casing && p.casing) {
-    for (const [id, classes, , widths] of roadDefs.slice(2)) {
+    for (const [id, classes, , widths] of roadDefs.slice(pathDefs.length + 1)) {
       const wider = widths.map(([z, w]) => [z, w + Math.max(1, w * 0.25)]);
       layers.push(road(`${id}-casing`, classes, p.casing, wider));
     }
   }
-  for (const [id, classes, color, widths, extra] of roadDefs) {
-    layers.push(road(id, classes, color, widths, extra));
+  for (const [id, classes, color, widths, extra, where] of roadDefs) {
+    layers.push(road(id, classes, color, widths, extra, where));
   }
 
   if (p.rail) {
@@ -129,8 +146,9 @@ export function buildStyle(p, o = {}) {
     layers.push({
       id: "road-name", type: "symbol", source: "omt", "source-layer": "transportation_name", minzoom: 14,
       filter: isClass(["primary", "secondary", "tertiary", "trunk"]),
-      layout: { ...textBase, "symbol-placement": "line", "text-field": ["get", "name"], "text-size": 10.5 },
-      paint: { "text-color": p.label, ...halo },
+      layout: { ...textBase, "symbol-placement": "line", "text-field": ["get", "name"],
+        "text-size": ["interpolate", ["linear"], ["zoom"], 14, 11.5, 17, 13.5] },
+      paint: { "text-color": p.roadLabel ?? p.label, ...halo, "text-halo-width": 1.8 },
     });
   }
 

@@ -4,7 +4,8 @@
 // someone opens sign-in, follows an email link, or has signed in here before.
 //
 // Page elements: #account, #account-dialog (the side menu) and its [data-view]
-// sections, #fav, #undo, #undo-btn.
+// sections, #fav, #undo, #undo-btn. Favourites are a mode on the shelf
+// (see main.js), shown only when signed in; openFavourites switches to it.
 // Body class: signed-in.
 
 import { encodeLine, decodeLine, lineId } from "./polyline.js";
@@ -72,8 +73,13 @@ function groupRoutes(routes) {
 // one request at a time at most once a second, and keep every answer on the
 // device. Start points are sent rounded to about 100m. Headings simply have no
 // name if a lookup fails.
+// Looked up at street level (zoom 16), then named by the district that
+// address is in. District level (zoom 14) snapped to the nearest district
+// instead: Hyde Park Corner came back as East Marylebone (2026-11-13). The
+// cache key changed then, so names from the old lookup are dropped.
 const NOMINATIM = "https://nominatim.openstreetmap.org/reverse";
-const PLACES = "runthe.places";
+const PLACES = "runthe.places.v2";
+try { localStorage.removeItem("runthe.places"); } catch {} // blocked storage: nothing to tidy
 const LOOKUP_GAP_MS = 1100;
 let lookingUp = false;
 
@@ -85,7 +91,7 @@ function placeName(address = {}) {
 
 async function lookUpPlace(key) {
   const [lat, lon] = key.split(",");
-  const res = await fetch(`${NOMINATIM}?format=jsonv2&lat=${lat}&lon=${lon}&zoom=14&addressdetails=1&accept-language=en`);
+  const res = await fetch(`${NOMINATIM}?format=jsonv2&lat=${lat}&lon=${lon}&zoom=16&addressdetails=1&accept-language=en`);
   if (!res.ok) throw new Error(`Place lookup failed (${res.status})`);
   return placeName((await res.json()).address);
 }
@@ -118,7 +124,7 @@ async function namePlaces(routes) {
   }
 }
 
-export function createAccount() {
+export function createAccount({ openFavourites = () => {} } = {}) {
   const dialog = $("account-dialog");
   const heart = $("fav");
   const saved = new Map(); // favourite id -> { line, distance, info?, savedAt }
@@ -290,7 +296,7 @@ export function createAccount() {
   }
 
   // ----- favourites -----
-  // A favourite keeps its route info (see renderInfo in app.js) as "info".
+  // A favourite keeps its route info (see renderInfo in loop.js) as "info".
   // Firestore can't store lists of lists, so the [from, to] stretches are
   // stored flat: [from, to, from, to, ...]. Favourites saved before
   // 2026-11-08 have no info. Ones saved on 8-9 Nov also hold noPavement,
@@ -305,6 +311,10 @@ export function createAccount() {
   const packInfo = (i) => ({ countryPaths: i.countryPaths, countryPathSpans: flat(i.countryPathSpans) });
   const unpackInfo = (s) => s && { countryPaths: s.countryPaths ?? 0, countryPathSpans: pairs(s.countryPathSpans) };
 
+  // Called whenever the favourites change, for hearts drawn elsewhere (GPS
+  // art's).
+  const watchers = [];
+
   function idOf(r) {
     r.line ??= encodeLine(r.raw);
     r.id ??= lineId(r.line);
@@ -313,6 +323,7 @@ export function createAccount() {
 
   // The heart under the map, and the hearts in the route list.
   function syncHeart() {
+    for (const tell of watchers) tell();
     const on = !!route && saved.has(idOf(route));
     heart.classList.toggle("on", on);
     heart.setAttribute("aria-pressed", on);
@@ -383,7 +394,7 @@ export function createAccount() {
     undoAction = async () => {
       await write.catch(() => {});
       await toggleFavourite(r, savedAt);
-      if (wasLast) showFavourites(); // removing the last one left favourites
+      if (wasLast) openFavourites(); // removing the last one left favourites
     };
     undoBar.classList.remove("show");
     void undoBar.offsetWidth; // restart the animation, so a new offer is noticeable
@@ -398,9 +409,14 @@ export function createAccount() {
     undoBar.classList.remove("show");
   }
 
+  // Whether there's anything to show, saying so if not.
+  function hasFavourites() {
+    if (!saved.size) toast("No favourites yet. Tap the heart on a route to save it.");
+    return saved.size > 0;
+  }
   async function showFavourites() {
     dialog.close();
-    if (!saved.size) return toast("No favourites yet. Tap the heart on a route to save it.");
+    if (!saved.size) return;
     const routes = favouriteRoutes();
     await app.showRoutes(routes, { favourites: true, start: routes[0].start });
     namePlaces(routes);
@@ -422,7 +438,6 @@ export function createAccount() {
     e.preventDefault();
     finishLink($("confirm-email").value.trim());
   });
-  $("show-favourites").addEventListener("click", showFavourites);
   $("delete-account").addEventListener("click", () => setView("delete"));
   $("delete-cancel").addEventListener("click", () => setView("account"));
   $("delete-confirm").addEventListener("click", deleteAccount);
@@ -456,5 +471,10 @@ export function createAccount() {
     attach(a) { app = a; start(); },
     routeShown(r) { route = r; syncHeart(); },
     toggleFavourite,
+    // For other modes' hearts: r is { raw: [[lon, lat], ...], distance }.
+    isFavourite: (r) => saved.has(idOf(r)),
+    onFavouritesChange(tell) { watchers.push(tell); },
+    hasFavourites,
+    showFavourites,
   };
 }
