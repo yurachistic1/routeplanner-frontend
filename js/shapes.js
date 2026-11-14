@@ -59,7 +59,8 @@ export function createIconPicker(onPick) {
       const rank = name === w ? 0 : name.startsWith(w) ? 1 : name.includes(w) ? 2 : 3;
       found.push([rank, name.length, icon]);
     }
-    return found.sort((a, b) => a[0] - b[0] || a[1] - b[1] || (a[2][0] < b[2][0] ? -1 : 1)).map((f) => f[2]);
+    // best match first; ties keep the list's order (words, then numbers in order)
+    return found.sort((a, b) => a[0] - b[0] || a[1] - b[1] || icons.indexOf(a[2]) - icons.indexOf(b[2])).map((f) => f[2]);
   }
   function show() {
     const found = matches(input.value);
@@ -84,7 +85,10 @@ export function createIconPicker(onPick) {
   return async function open() {
     if (!icons) {
       try {
-        icons = await (await fetch("./assets/icons.json?v=2")).json(); // bump ?v= when the icons change
+        icons = await (await fetch("./assets/icons.json?v=3")).json(); // bump ?v= when the icons change
+        // Words first (a-z), then the numbers 1 to 100 at the end of the list.
+        const num = (n) => (/^\d+$/.test(n) ? +n : null);
+        icons.sort((a, b) => (num(a[0]) ?? -1) - (num(b[0]) ?? -1) || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
       } catch {
         return toast("Couldn't load the shapes. Check your connection and try again.");
       }
