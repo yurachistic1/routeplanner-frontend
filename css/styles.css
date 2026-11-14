@@ -134,16 +134,19 @@ button:focus-visible { outline: 3px solid var(--neon); outline-offset: 3px; }
 
 /* Back to the previous routes, shown only once there are some. Laptops
    show "Back to routes" and the Esc key; phones just "Back". */
-.back { display: none; justify-content: space-between; }
-.has-results .back { display: flex; }
+.back, .art-back { display: none; justify-content: space-between; }
+.has-results .back, .art-can-back .art-back { display: flex; }
 .back-short { display: none; }
-.back kbd {
+:is(.back, .art-back) kbd {
   font: 500 11px "JetBrains Mono", monospace; color: var(--lime-ink);
   border: 1px solid rgba(var(--neon-rgb), .35); border-radius: 6px; padding: 2px 6px;
 }
-@media (hover: none) { .back kbd { display: none; } .back { justify-content: center; } }
+@media (hover: none) { :is(.back, .art-back) kbd { display: none; } :is(.back, .art-back) { justify-content: center; } }
 .results { display: none; }
 .show-results .setup { display: none; }
+/* The route info tab sits on the panel's top edge: the panel leaves room
+   under it, so it never touches Export GPX. */
+body:not([data-mode="art"]).show-results.has-info .deck { padding-top: 26px; }
 .show-results .results { display: grid; gap: 12px; }
 
 .dial { display: flex; align-items: center; justify-content: space-between; }
@@ -282,7 +285,8 @@ dialog.account:not([data-view="account"]) #delete-account { display: none; }
 @media (hover: hover) { .route-item:not(.selected):hover { background: var(--float); } }
 .route-item:active { transform: scale(.98); }
 .thumb-start { fill: var(--pink); stroke: none; }
-.route-cell { position: relative; }
+.route-cell { position: relative; transition: opacity .24s ease, transform .24s ease; }
+.route-cell.leaving { opacity: 0; transform: scale(.85); pointer-events: none; }
 /* The heart on each card, also in favourites: a filled heart takes the
    route out, with Undo (2026-11-14; it used to be a bin there). */
 .ri-action {
@@ -476,7 +480,8 @@ body:not(.signed-in) .modebar .signed-in-only { display: none; }
   .setup .chips { grid-row: 2; }
   .setup .back { grid-row: 3; grid-column: 1; height: 52px; padding: 0 20px; }
   .has-results .setup .go { grid-row: 3; grid-column: 2; }
-  #back-label, .back kbd { display: none; }
+  #back-label, .back-long, :is(.back, .art-back) kbd { display: none; }
+  .art-back { height: 52px; padding: 0 20px; }
   .back-short { display: inline; }
   /* The number stays centred; "km" hangs off its right side. */
   .readout { position: relative; }
@@ -539,6 +544,10 @@ body:not(.signed-in) .modebar .signed-in-only { display: none; }
 .art-setup { display: grid; gap: 10px; }
 .art-setup > .tag { font-size: 14px; font-weight: 600; }
 .art-note { margin: 0 0 4px; font-size: 15px; line-height: 1.5; color: var(--dim); }
+/* Back (after New search) and Find: side by side on phones, Back above on
+   laptops (as in loop mode). */
+.art-go { display: grid; gap: 10px; }
+@media (max-width: 899px) { .art-can-back .art-go { grid-template-columns: auto 1fr; } }
 .art-found { display: none; gap: 12px; }
 .art-results .art-setup { display: none; }
 .art-results .art-found { display: grid; }
@@ -549,9 +558,15 @@ body:not(.signed-in) .modebar .signed-in-only { display: none; }
   position: relative; flex: 0 0 76px; display: grid; gap: 4px; justify-items: center; padding: 8px 4px 7px; border-radius: 18px;
   border: 2px solid transparent; background: var(--card); color: var(--text); font-size: 13px; font-weight: 600;
 }
-.art-shape span { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Names wrap onto a second line rather than being cut off. */
+.art-shape span, .icon-tile span {
+  max-width: 100%; text-align: center; line-height: 1.2; overflow-wrap: break-word;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden;
+}
+.art-shapes { align-items: stretch; }
+.art-shape { align-content: start; }
 .art-shape svg { width: 44px; height: 44px; }
-.art-shape.active { background: var(--ltone); border-color: var(--neon); color: var(--lime-ink); }
+.art-shape.active { background: var(--ltone); border-color: var(--neon); color: var(--lime-ink); flex: 0 1 auto; min-width: 76px; max-width: 116px; padding-inline: 10px; }
 .art-shape.active::after { content: ""; position: absolute; top: 5px; right: 5px; width: 18px; height: 18px; background: var(--tick-badge); }
 .art-tool { background: var(--tone); transition: transform .12s, background-color .15s; -webkit-tap-highlight-color: transparent; }
 .art-tool svg { width: 30px; height: 44px; }
@@ -606,7 +621,7 @@ dialog.sheet::backdrop { background: rgba(7, 9, 13, .66); }
   transition: transform .12s, background-color .15s; -webkit-tap-highlight-color: transparent;
 }
 .icon-tile svg { width: 34px; height: 34px; }
-.icon-tile span { color: var(--dim); max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.icon-tile span { color: var(--dim); }
 @media (hover: hover) { .icon-tile:hover { background: var(--tone-2); } }
 .icon-tile:active { transform: scale(.96); background: var(--tone-press); }
 #draw-pad {
