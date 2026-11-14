@@ -485,6 +485,9 @@ export function createLoopMode(map, mapReady, opts) {
     const ul = $("route-list");
     if (!ul) return;
     let group = null;
+    // Place names are looked up later (account.js); keep the ones already
+    // shown, so redrawing the list (a favourite removed) doesn't blank them.
+    const places = new Map([...ul.querySelectorAll(".route-group")].map((g) => [g.dataset.key, g.querySelector(".rg-place")?.textContent ?? ""]));
     ul.innerHTML = state.routes.map((r) => {
       const heading = r.group && r.group !== group ? `<li class="route-group" data-key="${r.group.key}"><span class="rg-place"></span><span class="rg-label">${r.group.label}</span></li>` : "";
       group = r.group;
@@ -497,6 +500,10 @@ export function createLoopMode(map, mapReady, opts) {
         ${delta === null ? "" : `<span class="ri-delta">${sign}${Math.abs(delta).toFixed(2)}</span>`}
       </button>${o.onRouteAction ? HEART(r.i, !!o.isFavourite?.(r)) : ""}</li>`;
     }).join("");
+    for (const g of ul.querySelectorAll(".route-group")) {
+      const name = places.get(g.dataset.key);
+      if (name) g.querySelector(".rg-place").textContent = name;
+    }
     for (const b of ul.querySelectorAll(".ri-action")) {
       b.addEventListener("click", () => o.onRouteAction(state.routes[+b.dataset.i]));
     }

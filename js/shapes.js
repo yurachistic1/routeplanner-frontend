@@ -84,7 +84,7 @@ export function createIconPicker(onPick) {
   return async function open() {
     if (!icons) {
       try {
-        icons = await (await fetch("./assets/icons.json")).json();
+        icons = await (await fetch("./assets/icons.json?v=2")).json(); // bump ?v= when the icons change
       } catch {
         return toast("Couldn't load the shapes. Check your connection and try again.");
       }
