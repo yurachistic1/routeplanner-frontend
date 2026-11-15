@@ -115,7 +115,7 @@ button:focus-visible { outline: 3px solid var(--neon); outline-offset: 3px; }
 /* The name with its motion-blur stripes (assets/logo-runthe.svg, made by the
    backend's devtools/texticons/logo_export.py; trial 2026-11-15), filling the bar. */
 .logo { display: flex; align-items: center; flex: none; }
-.logo img { display: block; height: 30px; width: auto; }
+.logo img { display: block; height: 26px; width: auto; }
 /* Logo trials (2026-11-15): ?logo=white, or ?logo=black on a white rectangle (js/main.js). */
 .logo-black { background: #fff; padding: 3px 8px; border-radius: 4px; }
 .hud-top .info { text-align: right; display: none; }
