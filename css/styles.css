@@ -113,11 +113,9 @@ button:focus-visible { outline: 3px solid var(--neon); outline-offset: 3px; }
 }
 .tag { font-size: 13px; color: var(--dim); }
 /* The name with its motion-blur stripes (assets/logo-runthe.svg, made by the
-   backend's devtools/texticons/logo_export.py; trial 2026-11-15), filling the bar. */
+   backend's devtools/texticons/logo_export.py; chosen 2026-11-15: lime, 30px). */
 .logo { display: flex; align-items: center; flex: none; }
 .logo img { display: block; height: 30px; width: auto; }
-/* Logo trials (2026-11-15): ?logo=white, or ?logo=black on a white rectangle (js/main.js). */
-.logo-black { background: #fff; padding: 3px 8px; border-radius: 4px; }
 .hud-top .info { text-align: right; display: none; }
 .show-results .hud-top .info { display: block; }
 .show-results .hud-top .hint { display: none; }
