@@ -115,7 +115,9 @@ button:focus-visible { outline: 3px solid var(--neon); outline-offset: 3px; }
 /* The name with its motion-blur stripes (assets/logo-runthe.svg, made by the
    backend's devtools/texticons/logo_export.py; trial 2026-11-15), filling the bar. */
 .logo { display: flex; align-items: center; flex: none; }
-.logo img { display: block; height: 40px; width: auto; }
+.logo img { display: block; height: 34px; width: auto; }
+/* Logo trials (2026-11-15): ?logo=white, or ?logo=black on a white rectangle (js/main.js). */
+.logo-black { background: #fff; padding: 3px 8px; border-radius: 4px; }
 .hud-top .info { text-align: right; display: none; }
 .show-results .hud-top .info { display: block; }
 .show-results .hud-top .hint { display: none; }
@@ -496,7 +498,6 @@ body:not(.signed-in) .modebar .signed-in-only { display: none; }
 /* Narrow phones: keep the name and the hint on one line in the top bar. */
 @media (max-width: 380px) {
   .hint { font-size: 13px; }
-  .logo img { height: 34px; }
 }
 
 /* Phones: the account button shares the top bar, so shorten the hint. */

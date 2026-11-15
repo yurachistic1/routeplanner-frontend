@@ -38,6 +38,13 @@ const ICON_VIEW = { center: [-0.15454, 51.52975], zoom: 12.41 };
 const installed = matchMedia("(display-mode: standalone)").matches;
 const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+// Logo trials (2026-11-15): ?logo=white, or ?logo=black on a white rectangle.
+const logoTrial = new URLSearchParams(location.search).get("logo");
+if (logoTrial === "white" || logoTrial === "black") {
+  document.querySelector(".logo img").src = `./assets/logo-runthe-${logoTrial}.svg?v=1`;
+  document.querySelector(".logo").classList.add(`logo-${logoTrial}`);
+}
+
 // ----- the map, shared by every mode -----
 const { map, ready } = createMap({
   style,
