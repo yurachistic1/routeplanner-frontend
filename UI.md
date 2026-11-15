@@ -1,6 +1,6 @@
 # Buttons and controls
 
-The app's design system for everything you tap, read or type into: **Tonal**, chosen on 2026-11-14 from three options (mockups: `designs/buttons.html`, git-ignored; the reasons are in `ROADMAP.md` §11). Everything you can tap has a fill. Lime is the main step. Selected things go lime with a tick. There are no outlines and no arrows in buttons. All styles are in `css/styles.css`; colours are tokens in its `:root`.
+The app's design system for everything you tap, read or type into: **Tonal**, chosen on 2026-11-14 from three options (mockups: `designs/buttons.html`, git-ignored; the reasons are in `ROADMAP.md` §11). Everything you can tap has a fill. Lime is the main step. Selected things go lime (no ticks: they cost space and the lime edge or fill already shows it, 2026-11-15). There are no outlines and no arrows in buttons. All styles are in `css/styles.css`; colours are tokens in its `:root`.
 
 **This file is the rulebook for every addition to the UI** (the user, 2026-11-14: surfaces must stay readable, usable and consistent, and reuse the existing designs in a way that makes sense). Read it before adding or changing any control, panel or text. Keep it up to date: a new kind of control is written up here as part of the same change.
 
@@ -56,8 +56,8 @@ Specs for controls the app will likely need, so they arrive already consistent. 
 | Icon button | `.icon-btn` (+ `.close-btn`, `.nav-btn`, `.step`) | 48px circle (`.close-btn` 44px), `--tone` fill, white icon; `.nav-btn` is a 52px pill | − and + · previous and next · close (drawer, dialogs, route list) |
 | Toggle | `.icon-btn.fav`, `.ri-heart` | Off: neutral fill, outline heart. On: `#3d1a2b` fill, pink filled heart | Favourite on the panel and on every route card, favourites included: tapping a filled heart removes the route (its card fades and shrinks away, the rest slide up, the list doesn't scroll), with Undo |
 | Map button | `.locate-btn`, `.account-btn` | 46px circle, `--float` fill, drop shadow (account 38px, in the top bar) | Satellite (on: `--ltone` with a lime icon) · My location (busy: icon pulses) · Account (signed in: `--ltone`, lime) |
-| Choice chips | `.chip` | 40px pill, `--tone` fill. Selected: lime with a tick | Distance presets 5K, 10K, 15K, Half, 30K |
-| Choice cards | `.route-item`, `.art-option`, `.art-shape`, `.icon-tile` | `--card` fill, radius 18. Selected: 2px lime edge, olive fill, tick badge | Route cards · Short / Medium / Long · the chosen shape · icons in the picker. Icons and Draw are `--tone` tiles that open a picker |
+| Choice chips | `.chip` | 40px pill, `--tone` fill. Selected: solid lime, dark text | Distance presets 5K, 10K, 15K, Half, 30K |
+| Choice cards | `.route-item`, `.art-option`, `.art-shape`, `.icon-tile` | `--card` fill, radius 18. Selected: 2px lime edge, olive fill | Route cards · Short / Medium / Long · the chosen shape · icons in the picker. Icons and Draw are `--tone` tiles that open a picker |
 | Disclosure | `.info-tab` | 30px pill on the panel's top edge, `--float` fill. Open: `--ltone`, lime text | Route info (amber dot: warnings) |
 | Field | `.drawer input`, `.sheet-head input`, `.readout input` | `--card` fill, radius 16, 2px lime edge when focused | Email · icon search · the distance |
 | Busy | `.go` + `body.loading` | Stays lime; a spinner and "Scanning…" / "Searching…" | Generate, Find |

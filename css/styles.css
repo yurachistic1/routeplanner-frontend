@@ -1,6 +1,6 @@
 /* Dark "Dusk" theme, phone first. Buttons and controls follow the Tonal
    system chosen on 2026-11-14 (see UI.md): everything tappable has a fill,
-   lime is the main step, selected things go lime with a tick. */
+   lime is the main step, selected things go lime (no ticks: 2026-11-15). */
 :root {
   --hud-h: 56px;
   /* The shelf of modes along the bottom, and the space it leaves above. */
@@ -31,9 +31,7 @@
   --ltone-press: #465a23;
   --lime-ink: #dcff7a;    /* text on --ltone, 10.5:1 */
   --float: #232b38;       /* buttons floating over the map */
-  /* A lime circle with a dark tick, for selected cards and tiles. */
-  --tick-badge: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Ccircle cx='10' cy='10' r='10' fill='%23c8ff2e'/%3E%3Cpath d='m5.6 10.4 3 3 5.8-6.2' fill='none' stroke='%230b1004' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  /* Just the tick, used as a mask so it takes the text colour. */
+  /* A tick, as a mask so it takes the text colour: for checkboxes (UI.md). */
   --tick: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 12.5 4.5 4.5L19 7.5'/%3E%3C/svg%3E");
 }
 * { box-sizing: border-box; }
@@ -161,7 +159,7 @@ body:not([data-mode="art"]).show-results.has-info .deck { padding-top: 26px; }
 .readout input::-webkit-inner-spin-button { -webkit-appearance: none; }
 .readout .tag { margin-top: 4px; }
 
-/* Distance presets: pick one. The selected one goes lime with a tick. */
+/* Distance presets: pick one. The selected one goes lime. */
 .chips { display: flex; gap: 6px; }
 .chip {
   flex: 1; min-width: 0; height: 40px; padding: 0; border-radius: 999px; background: var(--tone); color: #dfe5ec;
@@ -169,10 +167,6 @@ body:not([data-mode="art"]).show-results.has-info .deck { padding-top: 26px; }
   transition: transform .12s, background-color .15s; -webkit-tap-highlight-color: transparent;
 }
 .chip.active { background: var(--neon); color: #0b1004; }
-.chip.active::before {
-  content: ""; flex: none; width: 15px; height: 15px; background: currentColor;
-  -webkit-mask: var(--tick) center / contain no-repeat; mask: var(--tick) center / contain no-repeat;
-}
 @media (hover: hover) { .chip:not(.active):hover { background: var(--tone-2); } }
 .chip:active { transform: scale(.96); }
 .chip:not(.active):active { background: var(--tone-press); }
@@ -272,7 +266,7 @@ dialog.account:not([data-view="account"]) #delete-account { display: none; }
 .rg-label { font: 500 13px "JetBrains Mono", monospace; color: var(--dim); }
 .route-group:first-child { padding-top: 0; }
 #route-list { list-style: none; margin: 0; padding: 0; overflow-y: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-/* Route cards: pick one. Selected: lime edge and a tick. */
+/* Route cards: pick one. Selected: lime edge and a tinted fill. */
 .route-item {
   position: relative; width: 100%; border: 2px solid transparent; border-radius: 18px; padding: 12px; text-align: left;
   display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; background: var(--card);
@@ -281,7 +275,6 @@ dialog.account:not([data-view="account"]) #delete-account { display: none; }
 .route-item .thumb { grid-column: 1 / 3; width: 100%; height: 72px; color: #7d8899; margin-bottom: 6px; }
 .route-item.selected { background: #222c16; border-color: var(--neon); }
 .route-item.selected .thumb { color: var(--neon); filter: drop-shadow(0 0 4px rgba(var(--neon-rgb), .5)); }
-.route-item.selected::after { content: ""; position: absolute; top: 8px; left: 8px; width: 20px; height: 20px; background: var(--tick-badge); }
 @media (hover: hover) { .route-item:not(.selected):hover { background: var(--float); } }
 .route-item:active { transform: scale(.98); }
 .thumb-start { fill: var(--pink); stroke: none; }
@@ -562,7 +555,7 @@ body:not(.signed-in) .modebar .signed-in-only { display: none; }
 .art-results .art-found { display: grid; }
 .art-shapes { display: flex; gap: 8px; overflow-x: auto; padding: 2px 2px 4px; scrollbar-width: none; }
 /* Shape tiles: Icons and Draw open a picker; the chosen shape shows as
-   selected, with a tick. */
+   selected (lime edge, tinted fill). */
 .art-shape {
   position: relative; flex: 0 0 76px; display: grid; gap: 4px; justify-items: center; padding: 8px 4px 7px; border-radius: 18px;
   border: 2px solid transparent; background: var(--card); color: var(--text); font-size: 13px; font-weight: 600;
@@ -575,24 +568,20 @@ body:not(.signed-in) .modebar .signed-in-only { display: none; }
 .art-shapes { align-items: stretch; }
 .art-shape { align-content: start; }
 .art-shape svg { width: 44px; height: 44px; }
-/* Every chosen tile keeps its picture clear of the tick (it overlapped YC, 75, the heart). */
-.art-shape.active { background: var(--ltone); border-color: var(--neon); color: var(--lime-ink); flex: 0 1 auto; min-width: 76px; max-width: 150px; padding-inline: 25px; }
+.art-shape.active { background: var(--ltone); border-color: var(--neon); color: var(--lime-ink); flex: 0 1 auto; min-width: 76px; max-width: 140px; padding-inline: 10px; }
 .art-shape.active svg { max-width: 100%; }
-.art-shape.active::after { content: ""; position: absolute; top: 5px; right: 5px; width: 18px; height: 18px; background: var(--tick-badge); }
 .art-tool { background: var(--tone); transition: transform .12s, background-color .15s; -webkit-tap-highlight-color: transparent; }
 .art-tool svg { width: 30px; height: 44px; }
 @media (hover: hover) { .art-tool:hover { background: var(--tone-2); } }
 .art-tool:active { transform: scale(.96); background: var(--tone-press); }
-/* Short / Medium / Long: pick one. Selected: lime edge and a tick. */
+/* Short / Medium / Long: pick one. Selected: lime edge and a tinted fill. */
 .art-options { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 8px; }
 .art-option {
-  /* the top strip is kept for the tick, on every card so nothing jumps when one is picked */
-  position: relative; display: grid; gap: 2px; justify-items: center; padding: 22px 4px 10px; border-radius: 18px;
+  position: relative; display: grid; gap: 2px; justify-items: center; padding: 10px 4px; border-radius: 18px;
   border: 2px solid transparent; background: var(--card);
   transition: transform .12s, background-color .15s; -webkit-tap-highlight-color: transparent;
 }
 .art-option.active { border-color: var(--neon); background: #222c16; }
-.art-option.active::after { content: ""; position: absolute; top: 6px; right: 6px; width: 18px; height: 18px; background: var(--tick-badge); }
 @media (hover: hover) { .art-option:not(.active):hover { background: var(--float); } }
 .art-option:active { transform: scale(.97); }
 .art-option .tag { font-size: 13px; font-weight: 600; color: var(--text); }
