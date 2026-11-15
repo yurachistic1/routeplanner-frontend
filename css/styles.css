@@ -112,7 +112,10 @@ button:focus-visible { outline: 3px solid var(--neon); outline-offset: 3px; }
   height: var(--hud-h); padding: 0 12px 0 14px; border-radius: 18px;
 }
 .tag { font-size: 13px; color: var(--dim); }
-.logo { display: flex; align-items: center; gap: 5px; font-family: Poppins, "Space Grotesk", sans-serif; font-weight: 800; letter-spacing: .02em; font-size: 16px; }
+/* The name with its motion-blur stripes (assets/logo-runthe.svg, made by the
+   backend's devtools/texticons/logo_export.py; chosen 2026-11-15: lime, 30px). */
+.logo { display: flex; align-items: center; flex: none; }
+.logo img { display: block; height: 30px; width: auto; }
 .hud-top .info { text-align: right; display: none; }
 .show-results .hud-top .info { display: block; }
 .show-results .hud-top .hint { display: none; }
@@ -493,7 +496,6 @@ body:not(.signed-in) .modebar .signed-in-only { display: none; }
 /* Narrow phones: keep the name and the hint on one line in the top bar. */
 @media (max-width: 380px) {
   .hint { font-size: 13px; }
-  .logo { font-size: 14px; }
 }
 
 /* Phones: the account button shares the top bar, so shorten the hint. */
