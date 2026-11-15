@@ -46,23 +46,29 @@ function groupRoutes(routes) {
     if (area) area.push(r);
     else areas.push([r]);
   }
+  // routes come newest first; that order wins everywhere: areas by their
+  // newest route, length groups within an area by theirs, routes within a
+  // group newest first (2026-11-14: sorting by length put a new route second)
+  const order = new Map(routes.map((r, i) => [r, i]));
   const out = [];
   for (const area of areas) {
     const [lon, lat] = area[0].start;
     const key = `${lat.toFixed(3)},${lon.toFixed(3)}`; // about 100m
-    area.sort((a, b) => a.distance - b.distance);
+    const byLength = [...area].sort((a, b) => a.distance - b.distance);
+    const groups = [];
     let members = [];
-    const close = () => {
-      const km = Math.round(members.reduce((sum, r) => sum + r.distance, 0) / members.length / 1000);
-      const group = { key, label: `${km} km · ${members.length} route${members.length === 1 ? "" : "s"}` };
-      for (const r of members) out.push({ ...r, group });
-      members = [];
-    };
-    for (const r of area) {
-      if (members.length && r.distance - members[0].distance > SAME_LENGTH_M) close();
+    for (const r of byLength) {
+      if (members.length && r.distance - members[0].distance > SAME_LENGTH_M) { groups.push(members); members = []; }
       members.push(r);
     }
-    close();
+    groups.push(members);
+    for (const g of groups) g.sort((a, b) => order.get(a) - order.get(b));
+    groups.sort((a, b) => order.get(a[0]) - order.get(b[0]));
+    for (const g of groups) {
+      const km = Math.round(g.reduce((sum, r) => sum + r.distance, 0) / g.length / 1000);
+      const group = { key, label: `${km} km · ${g.length} route${g.length === 1 ? "" : "s"}` };
+      for (const r of g) out.push({ ...r, group });
+    }
   }
   return out;
 }
