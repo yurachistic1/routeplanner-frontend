@@ -575,9 +575,9 @@ body:not(.signed-in) .modebar .signed-in-only { display: none; }
 .art-shapes { align-items: stretch; }
 .art-shape { align-content: start; }
 .art-shape svg { width: 44px; height: 44px; }
-.art-shape.active { background: var(--ltone); border-color: var(--neon); color: var(--lime-ink); flex: 0 1 auto; min-width: 76px; max-width: 140px; padding-inline: 10px; }
+/* Every chosen tile keeps its picture clear of the tick (it overlapped YC, 75, the heart). */
+.art-shape.active { background: var(--ltone); border-color: var(--neon); color: var(--lime-ink); flex: 0 1 auto; min-width: 76px; max-width: 150px; padding-inline: 25px; }
 .art-shape.active svg { max-width: 100%; }
-.art-shape.active.wide { padding-inline: 24px; max-width: 150px; }   /* a wide picture clears the tick */
 .art-shape.active::after { content: ""; position: absolute; top: 5px; right: 5px; width: 18px; height: 18px; background: var(--tick-badge); }
 .art-tool { background: var(--tone); transition: transform .12s, background-color .15s; -webkit-tap-highlight-color: transparent; }
 .art-tool svg { width: 30px; height: 44px; }
