@@ -586,7 +586,8 @@ body:not(.signed-in) .modebar .signed-in-only { display: none; }
 /* Short / Medium / Long: pick one. Selected: lime edge and a tick. */
 .art-options { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 8px; }
 .art-option {
-  position: relative; display: grid; gap: 2px; justify-items: center; padding: 10px 4px; border-radius: 18px;
+  /* the top strip is kept for the tick, on every card so nothing jumps when one is picked */
+  position: relative; display: grid; gap: 2px; justify-items: center; padding: 22px 4px 10px; border-radius: 18px;
   border: 2px solid transparent; background: var(--card);
   transition: transform .12s, background-color .15s; -webkit-tap-highlight-color: transparent;
 }
