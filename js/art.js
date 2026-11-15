@@ -15,7 +15,7 @@
 
 import { API_BASE } from "./api.js";
 import { smoothLine, metresPerPixel } from "./loop.js";
-import { createIconPicker, createDrawPad } from "./shapes.js";
+import { createIconPicker, createDrawPad, isTextIcon } from "./shapes.js";
 import { $, toast } from "./ui.js";
 
 const EMPTY = { type: "FeatureCollection", features: [] };
@@ -26,15 +26,22 @@ const half = (z) => Math.round(z * 2) / 2;
 const boundsOf = (pts) => pts.reduce((b, p) => b.extend(p), new maplibregl.LngLatBounds(pts[0], pts[0]));
 
 // A shape's strokes as a small drawing.
-function thumbnail(shape) {
+// The chosen shape on its tile: as wide as the shape (up to the tile's
+// limit), with lines a steady width in screen pixels, thinner for text
+// icons (outlines of letters).
+function thumbnail(shape, text = false) {
   const pts = shape.strokes.flat();
   const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
   const x0 = Math.min(...xs), y0 = Math.min(...ys);
   const w = Math.max(...xs) - x0, h = Math.max(...ys) - y0;
   const pad = Math.max(w, h) * 0.08;
+  const width = Math.min(116, Math.max(44, Math.round(44 * (w + 2 * pad) / (h + 2 * pad))));
   const lines = shape.strokes.map((s) => `<polyline points="${s.map((p) => p.join(",")).join(" ")}"/>`).join("");
-  return `<svg viewBox="${x0 - pad} ${y0 - pad} ${w + 2 * pad} ${h + 2 * pad}" fill="none" stroke="currentColor"
-    stroke-width="${Math.max(w, h) / 22}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${lines}</svg>`;
+  return {
+    svg: `<svg class="px" viewBox="${x0 - pad} ${y0 - pad} ${w + 2 * pad} ${h + 2 * pad}" style="width:${width}px" fill="none" stroke="currentColor"
+      stroke-width="${text ? 1.5 : 2}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${lines}</svg>`,
+    wide: width > 60,
+  };
 }
 
 /**
@@ -64,8 +71,9 @@ export function createArtMode(map, mapReady, opts) {
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19.3 8.7a2 2 0 0 0 0-2.8l-1.2-1.2a2 2 0 0 0-2.8 0L4 16v4z"/><path d="m13.5 6.5 4 4"/></svg><span>Draw</span></button>`;
   function renderShapes() {
     const s = state.shape;
+    const pic = s && thumbnail(s.shape, s.icon && isTextIcon(s.name));
     $("art-shapes").innerHTML = TOOLS + (s
-      ? `<div class="art-shape active" aria-label="${s.name}">${thumbnail(s.shape)}<span>${s.name}</span></div>` : "");
+      ? `<div class="art-shape active${pic.wide ? " wide" : ""}" aria-label="${s.name}">${pic.svg}<span>${s.name}</span></div>` : "");
   }
   // icon: whether it's one of the app's icons, which the server caches
   // results for (it doesn't for drawings)

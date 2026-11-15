@@ -40,6 +40,39 @@ const closeButtons = (dialog) => {
   dialog.addEventListener("click", (e) => { if (e.target === dialog) dialog.close(); });
 };
 
+// ----- how icons are drawn on tiles -----
+// Text icons (letters, words, numbers) are made by devtools/texticons in the
+// backend repo and named in capitals or digits.
+export const isTextIcon = (name) => /^[A-Z0-9]+$/.test(name);
+
+const poly = (strokes) => strokes.map((s) => `<polyline points="${s.map((p) => p.join(",")).join(" ")}"/>`).join("");
+const bounds = (strokes) => {
+  const pts = strokes.flat(), xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
+  const x0 = Math.min(...xs), y0 = Math.min(...ys);
+  return { x0, y0, w: Math.max(...xs) - x0, h: Math.max(...ys) - y0 };
+};
+
+// A tile's picture. Wide icons (words, 2-3 digit numbers) get a picture as
+// wide as they are, rather than shrinking into the square, and the widest a
+// double tile; text icons get thinner lines, as they're outlines of letters.
+// Line widths are in screen pixels, so they don't swell or shrink with the
+// picture. Other icons look as before. (2026-11-14: RUN and 100 were small
+// and smushed.)
+function tilePicture(name, strokes) {
+  const text = isTextIcon(name);
+  const { x0, y0, w, h } = bounds(strokes);
+  if (!text && w <= h * 1.15) {
+    return { svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${poly(strokes)}</svg>`, wide: false };
+  }
+  const pad = h * 0.1;
+  const width = Math.round(34 * (w + 2 * pad) / (h + 2 * pad));
+  return {
+    svg: `<svg class="px" viewBox="${x0 - pad} ${y0 - pad} ${w + 2 * pad} ${h + 2 * pad}" style="width:${Math.max(34, width)}px" fill="none" stroke="currentColor"
+      stroke-width="${text ? 1.3 : 1.8}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${poly(strokes)}</svg>`,
+    wide: width > 92,
+  };
+}
+
 // ----- finding an icon -----
 /** createIconPicker(onPick) returns open(). onPick(name, strokes) gets the icon chosen. */
 export function createIconPicker(onPick) {
@@ -64,12 +97,12 @@ export function createIconPicker(onPick) {
   }
   function show() {
     const found = matches(input.value);
-    grid.innerHTML = found.map(([name, , strokes]) =>
-      `<button class="icon-tile" data-icon="${name}" aria-label="${name}">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${
-          strokes.map((s) => `<polyline points="${s.map((p) => p.join(",")).join(" ")}"/>`).join("")}</svg>
-        <span>${name.replaceAll("-", " ")}</span>
-      </button>`).join("");
+    grid.innerHTML = found.map(([name, , strokes]) => {
+      const pic = tilePicture(name, strokes);
+      return `<button class="icon-tile${pic.wide ? " wide" : ""}" data-icon="${name}" aria-label="${name}">
+        ${pic.svg}<span>${name.replaceAll("-", " ")}</span>
+      </button>`;
+    }).join("");
     grid.scrollTop = 0;
     note.textContent = found.length ? "" : "Nothing by that name. Try another word, or draw it yourself.";
   }
@@ -85,7 +118,7 @@ export function createIconPicker(onPick) {
   return async function open() {
     if (!icons) {
       try {
-        icons = await (await fetch("./assets/icons.json?v=9")).json(); // bump ?v= when the icons change
+        icons = await (await fetch("./assets/icons.json?v=10")).json(); // bump ?v= when the icons change
         // Icons first (a-z), then the letters A-Z, then words in capitals
         // (YC, RUN), then the numbers 1 to 100. Text icons are made by
         // devtools/texticons in the backend repo.
