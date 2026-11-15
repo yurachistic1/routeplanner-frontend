@@ -52,23 +52,24 @@ const bounds = (strokes) => {
   return { x0, y0, w: Math.max(...xs) - x0, h: Math.max(...ys) - y0 };
 };
 
-// A tile's picture. Wide icons (words, 2-3 digit numbers) get a picture as
-// wide as they are, rather than shrinking into the square, and the widest a
-// double tile; text icons get thinner lines, as they're outlines of letters.
-// Line widths are in screen pixels, so they don't swell or shrink with the
-// picture. Other icons look as before. (2026-11-14: RUN and 100 were small
-// and smushed.)
+// A tile's picture. Every icon is sized by its own shape into the same box:
+// 28px tall at most, wide icons up to 50px wide, words (text icons) up to a
+// double tile; the picture box is always 34px tall so labels line up. Text
+// icons get thinner lines, as they're outlines of letters, and line widths
+// are in screen pixels, so they don't swell or shrink with the picture.
+// (2026-11-15: icons fitted to a fixed 24-unit square drew at different
+// sizes, and infinity and ichthys came out huge.)
+const TILE_H = 28, TILE_W = 50, WORD_W = 96, TILE_PAD = 3;
 function tilePicture(name, strokes) {
   const text = isTextIcon(name);
   const { x0, y0, w, h } = bounds(strokes);
-  if (!text && w <= h * 1.15) {
-    return { svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${poly(strokes)}</svg>`, wide: false };
-  }
-  const pad = h * 0.1;
-  const width = Math.round(34 * (w + 2 * pad) / (h + 2 * pad));
+  const k = Math.min(TILE_H / h, (text ? WORD_W : TILE_W) / w);   // screen px per icon unit
+  const width = Math.round(w * k + 2 * TILE_PAD);
+  const vw = width / k, vh = (TILE_H + 2 * TILE_PAD) / k;               // a 34px tall box, the drawing centred in it
+  const vx = x0 + w / 2 - vw / 2, vy = y0 + h / 2 - vh / 2;
   return {
-    svg: `<svg class="px" viewBox="${x0 - pad} ${y0 - pad} ${w + 2 * pad} ${h + 2 * pad}" style="width:${Math.max(34, width)}px" fill="none" stroke="currentColor"
-      stroke-width="${text ? 1.3 : 1.8}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${poly(strokes)}</svg>`,
+    svg: `<svg class="px" viewBox="${vx} ${vy} ${vw} ${vh}" style="width:${width}px" fill="none" stroke="currentColor"
+      stroke-width="${text ? 1.3 : 2.1}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${poly(strokes)}</svg>`,
     wide: width > 92,
   };
 }
