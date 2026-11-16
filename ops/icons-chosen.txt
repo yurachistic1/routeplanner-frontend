@@ -8,7 +8,6 @@ banana
 biceps-flexed
 bike
 bird
-birdhouse
 bone
 bottle-wine
 box

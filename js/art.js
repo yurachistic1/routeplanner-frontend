@@ -15,7 +15,8 @@
 
 import { API_BASE } from "./api.js";
 import { smoothLine, metresPerPixel } from "./loop.js";
-import { createIconPicker, createDrawPad } from "./shapes.js";
+import { goBack } from "./modes.js";
+import { createIconPicker, createDrawPad, isTextIcon } from "./shapes.js";
 import { $, toast } from "./ui.js";
 
 const EMPTY = { type: "FeatureCollection", features: [] };
@@ -26,20 +27,27 @@ const half = (z) => Math.round(z * 2) / 2;
 const boundsOf = (pts) => pts.reduce((b, p) => b.extend(p), new maplibregl.LngLatBounds(pts[0], pts[0]));
 
 // A shape's strokes as a small drawing.
-function thumbnail(shape) {
+// The chosen shape on its tile: as wide as the shape (up to the tile's
+// limit), with lines a steady width in screen pixels, thinner for text
+// icons (outlines of letters).
+function thumbnail(shape, text = false) {
   const pts = shape.strokes.flat();
   const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
   const x0 = Math.min(...xs), y0 = Math.min(...ys);
   const w = Math.max(...xs) - x0, h = Math.max(...ys) - y0;
   const pad = Math.max(w, h) * 0.08;
+  const width = Math.min(116, Math.max(44, Math.round(44 * (w + 2 * pad) / (h + 2 * pad))));
   const lines = shape.strokes.map((s) => `<polyline points="${s.map((p) => p.join(",")).join(" ")}"/>`).join("");
-  return `<svg viewBox="${x0 - pad} ${y0 - pad} ${w + 2 * pad} ${h + 2 * pad}" fill="none" stroke="currentColor"
-    stroke-width="${Math.max(w, h) / 22}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${lines}</svg>`;
+  return {
+    svg: `<svg class="px" viewBox="${x0 - pad} ${y0 - pad} ${w + 2 * pad} ${h + 2 * pad}" style="width:${width}px" fill="none" stroke="currentColor"
+      stroke-width="${text ? 1.5 : 2}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${lines}</svg>`,
+    wide: width > 60,
+  };
 }
 
 /**
  * createArtMode(map, mapReady, opts) wires up the GPS art panel (.art in the
- * deck) and returns { enter, leave } for js/modes.js.
+ * deck) and returns { enter, leave, canGoBack, goBack } for js/modes.js.
  *   padding(): room to leave round a route when fitting it on screen
  *   addArtLayers(map): adds the layers that draw source "art", the route
  *   favourites: { toggle(route), has(route), onChange(fn) } from accounts,
@@ -64,8 +72,9 @@ export function createArtMode(map, mapReady, opts) {
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19.3 8.7a2 2 0 0 0 0-2.8l-1.2-1.2a2 2 0 0 0-2.8 0L4 16v4z"/><path d="m13.5 6.5 4 4"/></svg><span>Draw</span></button>`;
   function renderShapes() {
     const s = state.shape;
+    const pic = s && thumbnail(s.shape, s.icon && isTextIcon(s.name));
     $("art-shapes").innerHTML = TOOLS + (s
-      ? `<div class="art-shape active" aria-label="${s.name}">${thumbnail(s.shape)}<span>${s.name}</span></div>` : "");
+      ? `<div class="art-shape active${pic.wide ? " wide" : ""}" aria-label="${s.name}">${pic.svg}<span>${s.name}</span></div>` : "");
   }
   // icon: whether it's one of the app's icons, which the server caches
   // results for (it doesn't for drawings)
@@ -85,6 +94,8 @@ export function createArtMode(map, mapReady, opts) {
   async function find() {
     if (!state.shape) return toast("Pick an icon or draw a shape first");
     const centre = map.getCenter();
+    // where the map was, for New search to go back to
+    const from = { center: centre, zoom: map.getZoom(), bearing: map.getBearing(), pitch: map.getPitch() };
     body.classList.add("loading");
     $("art-find").setAttribute("disabled", "");
     try {
@@ -108,6 +119,8 @@ export function createArtMode(map, mapReady, opts) {
       // raw is the path as [lon, lat], which the map and favourites use
       for (const r of routes) r.raw = r.path.map(([lat, lon]) => [lon, lat]);
       state.routes = routes;
+      state.from = from;
+      body.classList.remove("art-can-back");
       body.classList.add("art-results");
       $("art-options").innerHTML = routes.map((r, i) =>
         `<button class="art-option" data-option="${i}">
@@ -206,8 +219,15 @@ export function createArtMode(map, mapReady, opts) {
     const r = state.routes[state.index];
     if (r) opts.favourites.toggle(r);
   });
+  // Whether the map has been moved by hand (or to your location) since a
+  // route was framed on it. Only in this mode, and not by the framing.
+  let moved = false;
+  map.on("movestart", (e) => {
+    if (body.dataset.mode === "art" && viewing() && (e.originalEvent || e.byUser)) moved = true;
+  });
   async function show(i) {
     state.index = i;
+    moved = false;
     for (const b of document.querySelectorAll(".art-option")) b.classList.toggle("active", +b.dataset.option === i);
     await ready;
     const r = state.routes[i];
@@ -221,9 +241,30 @@ export function createArtMode(map, mapReady, opts) {
     const b = e.target.closest("[data-option]");
     if (b) show(+b.dataset.option);
   });
+  // New search goes back to where the map was for the last search (the
+  // map moves to fit a found route), unless you've moved the map since the
+  // route was framed: then you're looking where you want to search next,
+  // and it stays (the user, 2026-11-16). Back (or Esc, or the phone's back
+  // button, through js/modes.js) returns to the routes found, as they
+  // were, framed again.
   $("art-new").addEventListener("click", () => {
     body.classList.remove("art-results");
+    body.classList.add("art-can-back");
     draw();
+    if (state.from && !moved) map.easeTo({ ...state.from, duration: 700 });
+  });
+  const canGoBack = () => body.classList.contains("art-can-back") && state.routes.length > 0;
+  function backToResults() {
+    if (!state.routes.length) return;
+    body.classList.remove("art-can-back");
+    body.classList.add("art-results");
+    show(state.index);
+  }
+  $("art-back").addEventListener("click", goBack);
+  addEventListener("keydown", (e) => {
+    if (e.key !== "Escape" || body.dataset.mode !== "art" || !canGoBack()) return;
+    if (document.querySelector("dialog[open]") || body.classList.contains("loading")) return;
+    goBack();
   });
   $("art-download").addEventListener("click", () => {
     const r = state.routes[state.index];
@@ -259,5 +300,5 @@ export function createArtMode(map, mapReady, opts) {
     ready.then(() => map.getSource("art").setData(EMPTY));
   }
 
-  return { enter, leave };
+  return { enter, leave, canGoBack, goBack: backToResults };
 }

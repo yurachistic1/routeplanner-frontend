@@ -16,6 +16,7 @@
 //   has-info (the route has info to show), has-warnings, info-open
 
 import { API_BASE } from "./api.js";
+import { goBack } from "./modes.js";
 import { $, toast } from "./ui.js";
 
 const API_URL = `${API_BASE}/routes`;
@@ -212,6 +213,10 @@ export function thumbnail(pts, size = 44) {
  */
 export function createLoopMode(map, mapReady, opts) {
   const o = { padding: () => 60, formatIndex: (i) => String(i + 1), ...opts };
+  // A route's number. Favourites count from the oldest, which is 01 at the
+  // bottom of the list, so a new save gets the next number rather than
+  // renumbering the rest (the user, 2026-11-16; names will come later).
+  const number = (i) => o.formatIndex(state.favourites ? state.routes.length - 1 - i : i);
 
   const state = { start: null, routes: [], index: 0, target: 0 };
   let marker = null;
@@ -257,12 +262,24 @@ export function createLoopMode(map, mapReady, opts) {
     input.value = Math.max(1, Math.min(35, Math.round(km * 10) / 10));
     syncChips();
   }
+  // The chips light up for the distance chosen, and − and + switch off at
+  // 1 and 35 km, where they can't go further.
   function syncChips() {
+    const v = parseFloat(input.value);
     for (const c of document.querySelectorAll(".chip[data-km]")) {
-      c.classList.toggle("active", parseFloat(c.dataset.km) === parseFloat(input.value));
+      c.classList.toggle("active", parseFloat(c.dataset.km) === v);
     }
+    $("dec")?.toggleAttribute("disabled", v <= 1);
+    $("inc")?.toggleAttribute("disabled", v >= 35);
   }
-  input?.addEventListener("input", syncChips);
+  // At most two digits before the point and one after (35 km is the most),
+  // so "21.1", "5.5" or "30". Anything more is dropped as it's typed.
+  function tidy() {
+    const [whole, ...rest] = input.value.replace(",", ".").replace(/[^\d.]/g, "").split(".");
+    const v = whole.slice(0, 2) + (rest.length ? "." + rest.join("").slice(0, 1) : "");
+    if (v !== input.value) input.value = v;
+  }
+  input?.addEventListener("input", () => { tidy(); syncChips(); });
   for (const c of document.querySelectorAll(".chip[data-km]")) {
     c.addEventListener("click", () => setDistance(parseFloat(c.dataset.km)));
   }
@@ -326,6 +343,13 @@ export function createLoopMode(map, mapReady, opts) {
       };
     }
     if (!favourites) state.before = null;
+    // Favourites, like every mode, come back as they were left: the same
+    // route (if it's still saved) and the list open or closed as it was.
+    const left = favourites ? state.favouritesLeft : null;
+    if (left) {
+      const k = routes.findIndex((r) => r.id === left.id);
+      if (k >= 0) { index = k; start = routes[k].start ?? start; }
+    }
     state.favourites = favourites;
     body.classList.toggle("in-favourites", favourites);
     cancelAnimationFrame(anim);
@@ -336,7 +360,7 @@ export function createLoopMode(map, mapReady, opts) {
     state.index = index;
     renderList();
     body.classList.add("has-results", "show-results");
-    if (favourites && matchMedia("(max-width: 899px)").matches) body.classList.add("list-open");
+    if (favourites && (left?.listOpen ?? true) && matchMedia("(max-width: 899px)").matches) body.classList.add("list-open");
     marker?.setDraggable(false);
     await ready;
     show(index);
@@ -349,6 +373,7 @@ export function createLoopMode(map, mapReady, opts) {
   async function exitFavourites() {
     if (!state.favourites) return;
     const b = state.before;
+    state.favouritesLeft = { id: state.routes[state.index]?.id, listOpen: body.classList.contains("list-open") };
     body.classList.remove("list-open");
     if (b.routes.length) {
       const shown = showRoutes(b.routes, { target: b.target, start: b.routeStart, index: b.index });
@@ -360,7 +385,7 @@ export function createLoopMode(map, mapReady, opts) {
       await shown;
       newRun();
       if (b.start) setStart(b.start);
-      map.easeTo({ ...b.camera, duration: 700 });
+      if (mine()) map.easeTo({ ...b.camera, duration: 700 });
       return;
     }
     state.before = null;
@@ -384,14 +409,40 @@ export function createLoopMode(map, mapReady, opts) {
     o.onExitFavourites?.();
   }
 
-  // Swaps the list without redrawing the route, unless the one on screen went.
+  // Swaps the list without redrawing the route, unless the one on screen
+  // went. The list stays where it's scrolled to. A card that went (a
+  // favourite removed) fades and shrinks away first, then the others slide
+  // into place; one that came back (Undo) fades in.
+  let leaving = 0;
   function updateRoutes(routes, index, redraw) {
-    state.routes = routes.map((r, i) => ({ ...r, i }));
-    state.index = index;
-    renderList();
-    if (redraw) show(index);
-    else markCurrent();
+    const apply = () => {
+      leaving = 0;
+      const ul = $("route-list");
+      const key = (el) => el.dataset.id;
+      const before = new Map([...(ul?.children ?? [])].map((el) => [key(el), el.getBoundingClientRect()]));
+      state.routes = routes.map((r, i) => ({ ...r, i }));
+      state.index = index;
+      renderList();
+      if (redraw) show(index, false);
+      else markCurrent(false);
+      if (!ul || calm()) return;
+      for (const el of ul.children) {
+        const a = before.get(key(el));
+        if (!a) { el.animate([{ opacity: 0, transform: "scale(.92)" }, { opacity: 1, transform: "none" }], { duration: 260, easing: "ease-out" }); continue; }
+        const b = el.getBoundingClientRect();
+        if (a.left !== b.left || a.top !== b.top) {
+          el.animate([{ transform: `translate(${a.left - b.left}px, ${a.top - b.top}px)` }, { transform: "none" }], { duration: 300, easing: "cubic-bezier(.2, .8, .2, 1)" });
+        }
+      }
+    };
+    clearTimeout(leaving);
+    const keep = new Set(routes.map((r) => String(r.id ?? "")));
+    const gone = [...document.querySelectorAll("#route-list .route-cell")].filter((c) => !keep.has(c.dataset.id));
+    if (!gone.length || calm()) return apply();
+    for (const c of gone) c.classList.add("leaving");
+    leaving = setTimeout(apply, 240);
   }
+  const calm = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   // ----- views: planning a new run vs viewing routes -----
   // New run: clear the route and list, leaving just the map and the start pin.
@@ -418,53 +469,38 @@ export function createLoopMode(map, mapReady, opts) {
     if (state.favourites) await exitFavourites();
     newRun();
   });
-  // The phone's back button does the same as Back while a new run is being
-  // planned and routes from before are there to go back to. While that's
-  // true, one history entry of ours sits on top: the back button pops it,
-  // which brings the routes back. When it stops being true some other way
-  // (Generate, Back, another mode), the entry is popped quietly, so no back
-  // press is ever wasted on it.
+  // Back works while a new run is being planned and routes from before are
+  // there to go back to. The phone's back button does the same: js/modes.js
+  // asks canGoBack() and calls goBack(), and Back and Esc go through it too
+  // (goBack there), so its history entry is used up.
   const canGoBack = () => body.dataset.mode === "loop" && !state.favourites &&
     state.routes.length > 0 && body.classList.contains("has-results") && !viewingRoutes();
-  const ourEntry = () => history.state?.runthe === "plan";
-  let popping = false; // waiting for a quiet pop of our entry
-  function syncHistory() {
-    if (popping) return;
-    const want = canGoBack();
-    if (want && !ourEntry()) history.pushState({ runthe: "plan" }, "");
-    else if (!want && ourEntry()) { popping = true; history.back(); }
-  }
-  addEventListener("popstate", () => {
-    if (popping) popping = false;
-    else if (canGoBack()) backToRoutes();
-    syncHistory();
-  });
-  new MutationObserver(syncHistory).observe(body, { attributes: true, attributeFilter: ["class", "data-mode"] });
-  // Back and Esc go through history when our entry is there, so it's used up.
-  const goBack = () => (ourEntry() && !popping ? history.back() : backToRoutes());
   $("back")?.addEventListener("click", goBack);
 
   // ----- list -----
   const icon = (path) => `<svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${path}"/></svg>`;
-  const HEART = (i) => `<button class="ri-action ri-heart" data-i="${i}" aria-label="Favourite this route" aria-pressed="false">${icon("M12 20.5S3 15 3 8.8A4.8 4.8 0 0 1 12 6.5a4.8 4.8 0 0 1 9 2.3C21 15 12 20.5 12 20.5z")}</button>`;
-  const BIN = (i) => `<button class="ri-action ri-bin" data-i="${i}" aria-label="Remove from favourites">${icon("M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v5M14 11v5")}</button>`;
+  const HEART = (i, on) => `<button class="ri-action ri-heart${on ? " on" : ""}" data-i="${i}" aria-label="Favourite this route" aria-pressed="${on}">${icon("M12 20.5S3 15 3 8.8A4.8 4.8 0 0 1 12 6.5a4.8 4.8 0 0 1 9 2.3C21 15 12 20.5 12 20.5z")}</button>`;
   const km = (m) => (m / 1000).toFixed(2);
   function renderList() {
     const ul = $("route-list");
     if (!ul) return;
-    let group = null;
+    // One row per route: its shape, distance, number, and how far off the
+    // distance asked for (results) or the area it starts in (favourites,
+    // whose routes have a place key). Area names are looked up later
+    // (account.js); keep the ones already shown, so redrawing the list (a
+    // favourite removed) doesn't blank them.
+    const places = new Map([...ul.querySelectorAll(".ri-place")].map((p) => [p.dataset.key, p.textContent]));
     ul.innerHTML = state.routes.map((r) => {
-      const heading = r.group && r.group !== group ? `<li class="route-group" data-key="${r.group.key}"><span class="rg-place"></span><span class="rg-label">${r.group.label}</span></li>` : "";
-      group = r.group;
       const delta = state.target === null ? null : r.distance / 1000 - state.target;
       const sign = delta >= 0 ? "+" : "−";
-      return `${heading}<li class="route-cell"><button class="route-item" data-i="${r.i}">
-        ${thumbnail(r.raw)}
-        <span class="ri-num">${o.formatIndex(r.i)}${r.info && warnings(r.info).length ? `<i class="ri-dot" role="img" aria-label="has warnings"></i>` : ""}</span>
+      return `<li class="route-cell" data-id="${r.id ?? r.i}"><button class="route-item" data-i="${r.i}">
+        ${thumbnail(r.raw, 48)}
         <span class="ri-dist">${km(r.distance)}<small> km</small></span>
+        <span class="ri-meta"><span class="ri-num">${number(r.i)}</span>${r.info && warnings(r.info).length ? `<i class="ri-dot" role="img" aria-label="has warnings"></i>` : ""}${r.place ? `<span class="ri-place" data-key="${r.place}"></span>` : ""}</span>
         ${delta === null ? "" : `<span class="ri-delta">${sign}${Math.abs(delta).toFixed(2)}</span>`}
-      </button>${o.onRouteAction ? (state.favourites ? BIN(r.i) : HEART(r.i)) : ""}</li>`;
+      </button>${o.onRouteAction ? HEART(r.i, !!o.isFavourite?.(r)) : ""}</li>`;
     }).join("");
+    for (const p of ul.querySelectorAll(".ri-place")) p.textContent = places.get(p.dataset.key) ?? "";
     for (const b of ul.querySelectorAll(".ri-action")) {
       b.addEventListener("click", () => o.onRouteAction(state.routes[+b.dataset.i]));
     }
@@ -478,8 +514,8 @@ export function createLoopMode(map, mapReady, opts) {
     const name = state.favourites ? "favourites" : "routes";
     if ($("list-title")) $("list-title").textContent = state.favourites ? `${state.routes.length} saved` : "Routes";
     if ($("list-toggle")) $("list-toggle").textContent = `All ${name}`;
-    // Phones show only an arrow, so the label is also the button's name.
-    if ($("back-label")) $("back-label").textContent = `← Back to ${name}`;
+    // Phones show just "Back", so the full label is also the button's name.
+    if ($("back-label")) $("back-label").textContent = `Back to ${name}`;
     $("back")?.setAttribute("aria-label", `Back to ${name}`);
   }
 
@@ -493,8 +529,10 @@ export function createLoopMode(map, mapReady, opts) {
   // ----- route info -----
   // A drawer above the route controls, opened from the tab on the panel's
   // top edge: what to know about the route before running it. Warnings are
-  // honest about what the map data can't promise. Favourites keep it too,
-  // except ones saved before 2026-11-08, which show no tab.
+  // honest about what the map data can't promise. Every route has the tab,
+  // favourites too, as it will also hold the elevation profile and the
+  // route's name (the user, 2026-11-16). Favourites saved without path
+  // details (GPS art, and loops saved before 2026-11-08) say so.
   const kmText = (m) => `${(m / 1000).toFixed(1)} km`;
   function warnings(info) {
     const out = [];
@@ -510,10 +548,15 @@ export function createLoopMode(map, mapReady, opts) {
   }
   function renderInfo(r) {
     const list = $("info-list");
-    body.classList.toggle("has-info", !!r.info);
-    if (!r.info || !list) return;
-    const w = warnings(r.info);
+    const w = r.info ? warnings(r.info) : [];
+    body.classList.add("has-info");
     body.classList.toggle("has-warnings", w.length > 0);
+    if (!list) return;
+    if (!r.info) {
+      list.innerHTML = `<li class="none"><span class="info-mark" aria-hidden="true">i</span><div><b>No path details</b><span>They weren't saved with this route, so there's nothing to check.</span></div></li>`;
+      if ($("info-legend")) $("info-legend").innerHTML = "";
+      return;
+    }
     list.innerHTML = w.length
       ? w.map((x) => `<li class="warn"><span class="info-mark" aria-hidden="true">!</span><div><b>${x.title}</b><span>${x.text}</span></div></li>`).join("")
       : `<li class="ok"><span class="info-mark" aria-hidden="true">✓</span><div><b>Nothing to flag</b>${nothingToFlag(r.info)}</div></li>`;
@@ -595,7 +638,8 @@ export function createLoopMode(map, mapReady, opts) {
     else if (r.bottom > l.bottom) list.scrollBy({ top: r.bottom - l.bottom + 8, behavior: "smooth" });
   }
 
-  function show(i) {
+  // scroll: whether the list scrolls to the route (not when it changes under you)
+  function show(i, scroll = true) {
     if (!state.routes.length) return;
     state.index = (i + state.routes.length) % state.routes.length;
     const r = state.routes[state.index];
@@ -609,22 +653,24 @@ export function createLoopMode(map, mapReady, opts) {
     if (o.animate) drawProgressively(r, key);
     else { drawRoute(shapeAt(r, key)); shownKey = key; }
 
-    if (target) map.easeTo({ ...target, duration: 700 });
+    // Not once another mode has the map: leaving favourites for GPS art
+    // shows loop's routes again, but art puts its own view back.
+    if (target && mine()) map.easeTo({ ...target, duration: 700 });
 
-    markCurrent();
+    markCurrent(scroll);
     o.onShow?.(state.index, r);
   }
 
-  function markCurrent() {
+  function markCurrent(scroll = true) {
     const r = state.routes[state.index];
-    if ($("route-title")) $("route-title").textContent = o.formatIndex(state.index);
+    if ($("route-title")) $("route-title").textContent = number(state.index);
     if ($("route-distance")) $("route-distance").textContent = km(r.distance);
     renderInfo(r);
     for (const b of document.querySelectorAll(".route-item")) {
       const on = +b.dataset.i === state.index;
       b.classList.toggle("selected", on);
       b.setAttribute("aria-current", on);
-      if (on) scrollListTo(b);
+      if (on && scroll) scrollListTo(b);
     }
   }
 
@@ -682,5 +728,5 @@ export function createLoopMode(map, mapReady, opts) {
   const enter = () => {};
   const leave = () => {};
 
-  return { map, state, show, showRoutes, updateRoutes, exitFavourites, toggleList, toast, setStart, enter, leave };
+  return { map, state, show, showRoutes, updateRoutes, exitFavourites, toggleList, toast, setStart, enter, leave, canGoBack, goBack: backToRoutes };
 }

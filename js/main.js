@@ -56,6 +56,8 @@ const app = createLoopMode(map, ready, {
   onExitFavourites: () => { if (currentMode() === "favourites") setMode("loop"); },
   onShow: (_, route) => account.routeShown(route),
   onRouteAction: (route) => account.toggleFavourite(route),
+  // The hearts in the route list start filled for saved routes (in favourites, all).
+  isFavourite: (route) => account.isFavourite(route),
   formatIndex: (i) => String(i + 1).padStart(2, "0"),
   padding: () => {
     const top = document.querySelector(".hud-top").getBoundingClientRect();
@@ -97,6 +99,8 @@ registerMode("favourites", {
   leave: () => app.exitFavourites(),
   // Tapping the heart again while in favourites opens or closes their list.
   reselect: () => app.toggleList(),
+  keepsView: false,
+  restores: "loop",
 });
 
 // ----- GPS art mode -----
@@ -122,6 +126,6 @@ registerMode("art", createArtMode(map, ready, {
 // ----- the shelf of modes along the bottom -----
 // Point to point and edit are placeholders for now (see modes.js).
 // The favourites heart sits in the middle.
-createModeBar("loop");
+createModeBar("loop", map);
 
 document.getElementById("list-close").addEventListener("click", () => document.body.classList.remove("list-open"));

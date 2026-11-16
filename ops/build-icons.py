@@ -537,6 +537,43 @@ def suitable(name, m, names):
     return ""
 
 
+# Every icon has a one-word name (the user, 2026-11-14): it's what the app
+# shows under the icon and what the server caches results by. Lucide's
+# hyphenated names get a word here; the old name's words stay searchable.
+# A new hyphenated name stops the build until it's given one.
+RENAME = {
+    "biceps-flexed": "biceps", "bottle-wine": "bottle", "candy-cane": "candycane",
+    "chess-king": "king", "chess-knight": "knight", "christmas-tree": "tree",
+    "clef-treble": "clef", "cup-soda": "soda", "eighth-notes": "quavers",
+    "fish-symbol": "ichthys", "graduation-cap": "mortarboard", "hand-fist": "fist",
+    "hand-metal": "horns", "ice-cream-bowl": "sundae", "ice-cream-cone": "cornet",
+    "plant-pot": "plant", "santa-hat": "santa", "sixteenth-notes": "semiquavers",
+    "thumbs-down": "dislike", "thumbs-up": "like", "traffic-cone": "cone",
+    **{f"zodiac-{sign}": sign for sign in
+       "aquarius aries cancer capricorn gemini leo libra ophiuchus pisces sagittarius scorpio taurus virgo".split()},
+}
+
+
+def one_word(icons):
+    """Gives each icon its one-word name, keeping the old name's words as
+    search words. Stops if a name is still more than one word."""
+    out = []
+    for icon in icons:
+        name, words = icon[0], icon[1]
+        new = RENAME.get(name, name)
+        if new != name:
+            words = (words + " " + name.replace("-", " ")).strip()
+        kept = len(icon) < 4 or not icon[3]  # icons-all.json also lists the left-out ones
+        if kept and "-" in new:
+            sys.exit(f"icon {name!r} needs a one-word name: add it to RENAME in ops/build-icons.py")
+        out.append([new, words] + icon[2:])
+    names = [i[0] for i in out if len(i) < 4 or not i[3]]
+    clash = {n for n in names if names.count(n) > 1}
+    if clash:
+        sys.exit(f"two icons would share a name: {', '.join(sorted(clash))}")
+    return sorted(out, key=lambda i: i[0])
+
+
 def main():
     args = sys.argv[1:]
     src = Path(args[args.index("--from") + 1]) if "--from" in args else None
@@ -594,6 +631,7 @@ def main():
             fit = [[[round(12 + (x - (x0 + x1) / 2) * k, 2), round(12 + (y - (y0 + y1) / 2) * k, 2)] for x, y in s] for s in strokes]
             icons.append([name, words, fit] + (["", measure(fit)] if keep_all else []))
         icons.sort(key=lambda i: i[0])
+    icons = one_word(icons)
     out = assets / ("icons-all.json" if keep_all else "icons.json")
     out.write_text(json.dumps(icons, separators=(",", ":")))
     if not keep_all:

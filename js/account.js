@@ -26,48 +26,12 @@ const PENDING_EMAIL = "runthe.signInEmail";
 
 const $ = (id) => document.getElementById(id);
 
-// Favourites count as one group when their starts are close and their lengths
-// are similar. Routes from one request are always within these limits, so they
-// stay together without storing which request they came from.
-const SAME_AREA_M = 500;
-const SAME_LENGTH_M = 1000;
+// Favourites are listed newest first, one row each. They used to be grouped
+// by area and length, but a new save pulled its whole area, older routes
+// too, up to the top, so the order seemed to change every day (the user,
+// 2026-11-16).
 
-function metresApart([lonA, latA], [lonB, latB]) {
-  const x = (lonA - lonB) * Math.cos((latA * Math.PI) / 180);
-  return Math.hypot(x, latA - latB) * 111320;
-}
-
-// Takes routes newest first. Returns them area by area, most recently used area
-// first, shortest group first within an area, each with a shared `group`.
-function groupRoutes(routes) {
-  const areas = [];
-  for (const r of routes) {
-    const area = areas.find((a) => metresApart(a[0].start, r.start) <= SAME_AREA_M);
-    if (area) area.push(r);
-    else areas.push([r]);
-  }
-  const out = [];
-  for (const area of areas) {
-    const [lon, lat] = area[0].start;
-    const key = `${lat.toFixed(3)},${lon.toFixed(3)}`; // about 100m
-    area.sort((a, b) => a.distance - b.distance);
-    let members = [];
-    const close = () => {
-      const km = Math.round(members.reduce((sum, r) => sum + r.distance, 0) / members.length / 1000);
-      const group = { key, label: `${km} km · ${members.length} route${members.length === 1 ? "" : "s"}` };
-      for (const r of members) out.push({ ...r, group });
-      members = [];
-    };
-    for (const r of area) {
-      if (members.length && r.distance - members[0].distance > SAME_LENGTH_M) close();
-      members.push(r);
-    }
-    close();
-  }
-  return out;
-}
-
-// Area names for group headings, from OpenStreetMap's public Nominatim service.
+// Area names for the favourite rows, from OpenStreetMap's public Nominatim service.
 // Its policy (https://operations.osmfoundation.org/policies/nominatim/) allows
 // light use triggered by a person, so: only look up when favourites are opened,
 // one request at a time at most once a second, and keep every answer on the
@@ -96,12 +60,15 @@ async function lookUpPlace(key) {
   return placeName((await res.json()).address);
 }
 
+// A route's place key: its start rounded to about 100m.
+const placeKey = ([lon, lat]) => `${lat.toFixed(3)},${lon.toFixed(3)}`;
+
 async function namePlaces(routes) {
   const known = JSON.parse(localStorage.getItem(PLACES) ?? "{}");
   const show = (key) => {
-    for (const el of document.querySelectorAll(`.route-group[data-key="${key}"] .rg-place`)) el.textContent = known[key];
+    for (const el of document.querySelectorAll(`.ri-place[data-key="${key}"]`)) el.textContent = known[key];
   };
-  const keys = [...new Set(routes.map((r) => r.group.key))];
+  const keys = [...new Set(routes.map((r) => r.place))];
   keys.filter((k) => known[k]).forEach(show);
 
   const missing = keys.filter((k) => !known[k]);
@@ -336,10 +303,10 @@ export function createAccount({ openFavourites = () => {} } = {}) {
 
   function favouriteRoutes() {
     const newestFirst = [...saved.entries()].sort(([, a], [, b]) => (b.savedAt?.seconds ?? 0) - (a.savedAt?.seconds ?? 0));
-    return groupRoutes(newestFirst.map(([id, f]) => {
+    return newestFirst.map(([id, f]) => {
       const raw = decodeLine(f.line);
-      return { id, line: f.line, distance: f.distance, raw, start: raw[0], info: unpackInfo(f.info) };
-    }));
+      return { id, line: f.line, distance: f.distance, raw, start: raw[0], place: placeKey(raw[0]), info: unpackInfo(f.info) };
+    });
   }
 
   // Keeps the favourites list right after a change, staying on the route on
