@@ -530,8 +530,11 @@ body:not(.signed-in) .modebar .signed-in-only { display: none; }
   }
   body.show-results:not([data-mode="art"]) .map-tools { right: calc(12px + 340px + 12px); }
   .map-tools .locate-btn { position: static; }
-  .map-tools .credits { position: static; flex-direction: row; align-items: center; }
+  .map-tools .credits { position: relative; flex-direction: row; align-items: center; }
   .map-tools .credits-btn { width: 46px; height: 32px; margin: 0; }
+  /* the text opens to the left of the ⓘ without taking room in the column,
+     so the buttons below stay still as it slides and wraps */
+  .map-tools .credits-text { position: absolute; top: 0; right: 54px; width: max-content; }
   /* The heart sits at the end of the Export row: ‹ Export GPX › ♥, with
      New run on its own row below (none in favourites), so no gap beside
      the heart (2026-11-14). GPS art the same: Export GPX ♥, New search. */
