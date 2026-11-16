@@ -119,7 +119,7 @@ export function createIconPicker(onPick) {
   return async function open() {
     if (!icons) {
       try {
-        icons = await (await fetch("./assets/icons.json?v=13")).json(); // bump ?v= when the icons change
+        icons = await (await fetch("./assets/icons.json?v=14")).json(); // bump ?v= when the icons change
         // Icons first (a-z), then the letters A-Z, then words in capitals
         // (YC, RUN), then the numbers 1 to 100. Text icons are made by
         // devtools/texticons in the backend repo.
