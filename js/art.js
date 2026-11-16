@@ -15,6 +15,7 @@
 
 import { API_BASE } from "./api.js";
 import { smoothLine, metresPerPixel } from "./loop.js";
+import { goBack } from "./modes.js";
 import { createIconPicker, createDrawPad, isTextIcon } from "./shapes.js";
 import { $, toast } from "./ui.js";
 
@@ -46,7 +47,7 @@ function thumbnail(shape, text = false) {
 
 /**
  * createArtMode(map, mapReady, opts) wires up the GPS art panel (.art in the
- * deck) and returns { enter, leave } for js/modes.js.
+ * deck) and returns { enter, leave, canGoBack, goBack } for js/modes.js.
  *   padding(): room to leave round a route when fitting it on screen
  *   addArtLayers(map): adds the layers that draw source "art", the route
  *   favourites: { toggle(route), has(route), onChange(fn) } from accounts,
@@ -218,8 +219,15 @@ export function createArtMode(map, mapReady, opts) {
     const r = state.routes[state.index];
     if (r) opts.favourites.toggle(r);
   });
+  // Whether the map has been moved by hand (or to your location) since a
+  // route was framed on it. Only in this mode, and not by the framing.
+  let moved = false;
+  map.on("movestart", (e) => {
+    if (body.dataset.mode === "art" && viewing() && (e.originalEvent || e.byUser)) moved = true;
+  });
   async function show(i) {
     state.index = i;
+    moved = false;
     for (const b of document.querySelectorAll(".art-option")) b.classList.toggle("active", +b.dataset.option === i);
     await ready;
     const r = state.routes[i];
@@ -234,25 +242,29 @@ export function createArtMode(map, mapReady, opts) {
     if (b) show(+b.dataset.option);
   });
   // New search goes back to where the map was for the last search (the
-  // map moves to fit a found route), and Back (or Esc) returns to the
-  // routes found, as they were.
+  // map moves to fit a found route), unless you've moved the map since the
+  // route was framed: then you're looking where you want to search next,
+  // and it stays (the user, 2026-11-16). Back (or Esc, or the phone's back
+  // button, through js/modes.js) returns to the routes found, as they
+  // were, framed again.
   $("art-new").addEventListener("click", () => {
     body.classList.remove("art-results");
     body.classList.add("art-can-back");
     draw();
-    if (state.from) map.easeTo({ ...state.from, duration: 700 });
+    if (state.from && !moved) map.easeTo({ ...state.from, duration: 700 });
   });
+  const canGoBack = () => body.classList.contains("art-can-back") && state.routes.length > 0;
   function backToResults() {
     if (!state.routes.length) return;
     body.classList.remove("art-can-back");
     body.classList.add("art-results");
     show(state.index);
   }
-  $("art-back").addEventListener("click", backToResults);
+  $("art-back").addEventListener("click", goBack);
   addEventListener("keydown", (e) => {
-    if (e.key !== "Escape" || body.dataset.mode !== "art" || !body.classList.contains("art-can-back")) return;
+    if (e.key !== "Escape" || body.dataset.mode !== "art" || !canGoBack()) return;
     if (document.querySelector("dialog[open]") || body.classList.contains("loading")) return;
-    backToResults();
+    goBack();
   });
   $("art-download").addEventListener("click", () => {
     const r = state.routes[state.index];
@@ -288,5 +300,5 @@ export function createArtMode(map, mapReady, opts) {
     ready.then(() => map.getSource("art").setData(EMPTY));
   }
 
-  return { enter, leave };
+  return { enter, leave, canGoBack, goBack: backToResults };
 }

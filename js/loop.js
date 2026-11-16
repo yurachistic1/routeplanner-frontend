@@ -16,6 +16,7 @@
 //   has-info (the route has info to show), has-warnings, info-open
 
 import { API_BASE } from "./api.js";
+import { goBack } from "./modes.js";
 import { $, toast } from "./ui.js";
 
 const API_URL = `${API_BASE}/routes`;
@@ -212,6 +213,10 @@ export function thumbnail(pts, size = 44) {
  */
 export function createLoopMode(map, mapReady, opts) {
   const o = { padding: () => 60, formatIndex: (i) => String(i + 1), ...opts };
+  // A route's number. Favourites count from the oldest, which is 01 at the
+  // bottom of the list, so a new save gets the next number rather than
+  // renumbering the rest (the user, 2026-11-16; names will come later).
+  const number = (i) => o.formatIndex(state.favourites ? state.routes.length - 1 - i : i);
 
   const state = { start: null, routes: [], index: 0, target: 0 };
   let marker = null;
@@ -257,10 +262,15 @@ export function createLoopMode(map, mapReady, opts) {
     input.value = Math.max(1, Math.min(35, Math.round(km * 10) / 10));
     syncChips();
   }
+  // The chips light up for the distance chosen, and − and + switch off at
+  // 1 and 35 km, where they can't go further.
   function syncChips() {
+    const v = parseFloat(input.value);
     for (const c of document.querySelectorAll(".chip[data-km]")) {
-      c.classList.toggle("active", parseFloat(c.dataset.km) === parseFloat(input.value));
+      c.classList.toggle("active", parseFloat(c.dataset.km) === v);
     }
+    $("dec")?.toggleAttribute("disabled", v <= 1);
+    $("inc")?.toggleAttribute("disabled", v >= 35);
   }
   // At most two digits before the point and one after (35 km is the most),
   // so "21.1", "5.5" or "30". Anything more is dropped as it's typed.
@@ -375,7 +385,7 @@ export function createLoopMode(map, mapReady, opts) {
       await shown;
       newRun();
       if (b.start) setStart(b.start);
-      map.easeTo({ ...b.camera, duration: 700 });
+      if (mine()) map.easeTo({ ...b.camera, duration: 700 });
       return;
     }
     state.before = null;
@@ -408,7 +418,7 @@ export function createLoopMode(map, mapReady, opts) {
     const apply = () => {
       leaving = 0;
       const ul = $("route-list");
-      const key = (el) => el.dataset.id ?? `g${el.dataset.key}`;
+      const key = (el) => el.dataset.id;
       const before = new Map([...(ul?.children ?? [])].map((el) => [key(el), el.getBoundingClientRect()]));
       state.routes = routes.map((r, i) => ({ ...r, i }));
       state.index = index;
@@ -459,30 +469,12 @@ export function createLoopMode(map, mapReady, opts) {
     if (state.favourites) await exitFavourites();
     newRun();
   });
-  // The phone's back button does the same as Back while a new run is being
-  // planned and routes from before are there to go back to. While that's
-  // true, one history entry of ours sits on top: the back button pops it,
-  // which brings the routes back. When it stops being true some other way
-  // (Generate, Back, another mode), the entry is popped quietly, so no back
-  // press is ever wasted on it.
+  // Back works while a new run is being planned and routes from before are
+  // there to go back to. The phone's back button does the same: js/modes.js
+  // asks canGoBack() and calls goBack(), and Back and Esc go through it too
+  // (goBack there), so its history entry is used up.
   const canGoBack = () => body.dataset.mode === "loop" && !state.favourites &&
     state.routes.length > 0 && body.classList.contains("has-results") && !viewingRoutes();
-  const ourEntry = () => history.state?.runthe === "plan";
-  let popping = false; // waiting for a quiet pop of our entry
-  function syncHistory() {
-    if (popping) return;
-    const want = canGoBack();
-    if (want && !ourEntry()) history.pushState({ runthe: "plan" }, "");
-    else if (!want && ourEntry()) { popping = true; history.back(); }
-  }
-  addEventListener("popstate", () => {
-    if (popping) popping = false;
-    else if (canGoBack()) backToRoutes();
-    syncHistory();
-  });
-  new MutationObserver(syncHistory).observe(body, { attributes: true, attributeFilter: ["class", "data-mode"] });
-  // Back and Esc go through history when our entry is there, so it's used up.
-  const goBack = () => (ourEntry() && !popping ? history.back() : backToRoutes());
   $("back")?.addEventListener("click", goBack);
 
   // ----- list -----
@@ -492,26 +484,23 @@ export function createLoopMode(map, mapReady, opts) {
   function renderList() {
     const ul = $("route-list");
     if (!ul) return;
-    let group = null;
-    // Place names are looked up later (account.js); keep the ones already
-    // shown, so redrawing the list (a favourite removed) doesn't blank them.
-    const places = new Map([...ul.querySelectorAll(".route-group")].map((g) => [g.dataset.key, g.querySelector(".rg-place")?.textContent ?? ""]));
+    // One row per route: its shape, distance, number, and how far off the
+    // distance asked for (results) or the area it starts in (favourites,
+    // whose routes have a place key). Area names are looked up later
+    // (account.js); keep the ones already shown, so redrawing the list (a
+    // favourite removed) doesn't blank them.
+    const places = new Map([...ul.querySelectorAll(".ri-place")].map((p) => [p.dataset.key, p.textContent]));
     ul.innerHTML = state.routes.map((r) => {
-      const heading = r.group && r.group !== group ? `<li class="route-group" data-key="${r.group.key}"><span class="rg-place"></span><span class="rg-label">${r.group.label}</span></li>` : "";
-      group = r.group;
       const delta = state.target === null ? null : r.distance / 1000 - state.target;
       const sign = delta >= 0 ? "+" : "−";
-      return `${heading}<li class="route-cell" data-id="${r.id ?? r.i}"><button class="route-item" data-i="${r.i}">
-        ${thumbnail(r.raw)}
-        <span class="ri-num">${o.formatIndex(r.i)}${r.info && warnings(r.info).length ? `<i class="ri-dot" role="img" aria-label="has warnings"></i>` : ""}</span>
+      return `<li class="route-cell" data-id="${r.id ?? r.i}"><button class="route-item" data-i="${r.i}">
+        ${thumbnail(r.raw, 48)}
         <span class="ri-dist">${km(r.distance)}<small> km</small></span>
+        <span class="ri-meta"><span class="ri-num">${number(r.i)}</span>${r.info && warnings(r.info).length ? `<i class="ri-dot" role="img" aria-label="has warnings"></i>` : ""}${r.place ? `<span class="ri-place" data-key="${r.place}"></span>` : ""}</span>
         ${delta === null ? "" : `<span class="ri-delta">${sign}${Math.abs(delta).toFixed(2)}</span>`}
       </button>${o.onRouteAction ? HEART(r.i, !!o.isFavourite?.(r)) : ""}</li>`;
     }).join("");
-    for (const g of ul.querySelectorAll(".route-group")) {
-      const name = places.get(g.dataset.key);
-      if (name) g.querySelector(".rg-place").textContent = name;
-    }
+    for (const p of ul.querySelectorAll(".ri-place")) p.textContent = places.get(p.dataset.key) ?? "";
     for (const b of ul.querySelectorAll(".ri-action")) {
       b.addEventListener("click", () => o.onRouteAction(state.routes[+b.dataset.i]));
     }
@@ -540,8 +529,10 @@ export function createLoopMode(map, mapReady, opts) {
   // ----- route info -----
   // A drawer above the route controls, opened from the tab on the panel's
   // top edge: what to know about the route before running it. Warnings are
-  // honest about what the map data can't promise. Favourites keep it too,
-  // except ones saved before 2026-11-08, which show no tab.
+  // honest about what the map data can't promise. Every route has the tab,
+  // favourites too, as it will also hold the elevation profile and the
+  // route's name (the user, 2026-11-16). Favourites saved without path
+  // details (GPS art, and loops saved before 2026-11-08) say so.
   const kmText = (m) => `${(m / 1000).toFixed(1)} km`;
   function warnings(info) {
     const out = [];
@@ -557,10 +548,15 @@ export function createLoopMode(map, mapReady, opts) {
   }
   function renderInfo(r) {
     const list = $("info-list");
-    body.classList.toggle("has-info", !!r.info);
-    if (!r.info || !list) return;
-    const w = warnings(r.info);
+    const w = r.info ? warnings(r.info) : [];
+    body.classList.add("has-info");
     body.classList.toggle("has-warnings", w.length > 0);
+    if (!list) return;
+    if (!r.info) {
+      list.innerHTML = `<li class="none"><span class="info-mark" aria-hidden="true">i</span><div><b>No path details</b><span>They weren't saved with this route, so there's nothing to check.</span></div></li>`;
+      if ($("info-legend")) $("info-legend").innerHTML = "";
+      return;
+    }
     list.innerHTML = w.length
       ? w.map((x) => `<li class="warn"><span class="info-mark" aria-hidden="true">!</span><div><b>${x.title}</b><span>${x.text}</span></div></li>`).join("")
       : `<li class="ok"><span class="info-mark" aria-hidden="true">✓</span><div><b>Nothing to flag</b>${nothingToFlag(r.info)}</div></li>`;
@@ -657,7 +653,9 @@ export function createLoopMode(map, mapReady, opts) {
     if (o.animate) drawProgressively(r, key);
     else { drawRoute(shapeAt(r, key)); shownKey = key; }
 
-    if (target) map.easeTo({ ...target, duration: 700 });
+    // Not once another mode has the map: leaving favourites for GPS art
+    // shows loop's routes again, but art puts its own view back.
+    if (target && mine()) map.easeTo({ ...target, duration: 700 });
 
     markCurrent(scroll);
     o.onShow?.(state.index, r);
@@ -665,7 +663,7 @@ export function createLoopMode(map, mapReady, opts) {
 
   function markCurrent(scroll = true) {
     const r = state.routes[state.index];
-    if ($("route-title")) $("route-title").textContent = o.formatIndex(state.index);
+    if ($("route-title")) $("route-title").textContent = number(state.index);
     if ($("route-distance")) $("route-distance").textContent = km(r.distance);
     renderInfo(r);
     for (const b of document.querySelectorAll(".route-item")) {
@@ -730,5 +728,5 @@ export function createLoopMode(map, mapReady, opts) {
   const enter = () => {};
   const leave = () => {};
 
-  return { map, state, show, showRoutes, updateRoutes, exitFavourites, toggleList, toast, setStart, enter, leave };
+  return { map, state, show, showRoutes, updateRoutes, exitFavourites, toggleList, toast, setStart, enter, leave, canGoBack, goBack: backToRoutes };
 }

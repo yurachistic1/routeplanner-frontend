@@ -261,21 +261,18 @@ dialog.account:not([data-view="account"]) #delete-account { display: none; }
 .list-open .list { opacity: 1; pointer-events: auto; }
 .list-head { display: flex; justify-content: space-between; align-items: center; min-height: 44px; }
 .list-head h2 { margin: 0; font-size: 18px; font-weight: 700; color: var(--text); }
-.route-group {
-  grid-column: 1 / -1; padding: 10px 2px 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px;
-}
-.rg-place { font-size: 16px; font-weight: 600; color: var(--text); }
-.rg-place:empty { display: none; }
-.rg-label { font: 500 13px "JetBrains Mono", monospace; color: var(--dim); }
-.route-group:first-child { padding-top: 0; }
-#route-list { list-style: none; margin: 0; padding: 0; overflow-y: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-/* Route cards: pick one. Selected: lime edge and a tinted fill. */
+#route-list { list-style: none; margin: 0; padding: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+/* Route rows (2026-11-16, were half-width cards): full width and short, so
+   many fit. Shape, distance over number (and area, in favourites), how far
+   off the distance asked for on the right, then the heart. Pick one.
+   Selected: lime edge and a tinted fill. */
 .route-item {
-  position: relative; width: 100%; border: 2px solid transparent; border-radius: 18px; padding: 12px; text-align: left;
-  display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; background: var(--card);
+  position: relative; width: 100%; min-height: 74px; border: 2px solid transparent; border-radius: 18px;
+  padding: 10px 64px 10px 12px; text-align: left;
+  display: grid; grid-template-columns: 48px 1fr auto; align-items: center; gap: 0 14px; background: var(--card);
   transition: transform .12s, background-color .15s; -webkit-tap-highlight-color: transparent;
 }
-.route-item .thumb { grid-column: 1 / 3; width: 100%; height: 72px; color: #7d8899; margin-bottom: 6px; }
+.route-item .thumb { grid-row: 1 / 3; width: 48px; height: 48px; color: #7d8899; }
 .route-item.selected { background: #222c16; border-color: var(--neon); }
 .route-item.selected .thumb { color: var(--neon); filter: drop-shadow(0 0 4px rgba(var(--neon-rgb), .5)); }
 @media (hover: hover) { .route-item:not(.selected):hover { background: var(--float); } }
@@ -286,21 +283,23 @@ dialog.account:not([data-view="account"]) #delete-account { display: none; }
 /* The heart on each card, also in favourites: a filled heart takes the
    route out, with Undo (2026-11-14; it used to be a bin there). */
 .ri-action {
-  position: absolute; top: 6px; right: 6px; width: 36px; height: 36px; padding: 0; border-radius: 50%;
+  position: absolute; top: 50%; right: 10px; margin-top: -22px; width: 44px; height: 44px; padding: 0; border-radius: 50%;
   display: grid; place-items: center; color: var(--text); background: rgba(28, 35, 46, .92);
   transition: transform .12s, background-color .15s; -webkit-tap-highlight-color: transparent;
 }
-.ri-action svg { fill: none; width: 18px; height: 18px; }
+.ri-action svg { fill: none; width: 20px; height: 20px; }
 .ri-action:active { transform: scale(.92); background: var(--tone-press); }
 .ri-heart.on { color: var(--pink); background: #3d1a2b; }
 .ri-heart.on svg { fill: currentColor; }
-.ri-num { font: 500 13px "JetBrains Mono"; color: var(--dim); grid-column: 1; }
+.ri-meta { grid-column: 2; grid-row: 2; font-size: 15px; color: var(--dim); line-height: 1.35; }
+.ri-num { font: 500 14px "JetBrains Mono"; }
 .ri-num::before { content: "#"; }
+.ri-place:not(:empty)::before { content: " · "; }
 /* Same as the route info tab's dot: this route has warnings. */
 .ri-dot { display: inline-block; width: 7px; height: 7px; margin-left: 6px; vertical-align: 1px; border-radius: 50%; background: var(--amber); box-shadow: 0 0 6px rgba(255, 181, 71, .7); }
-.ri-delta { font: 500 13px "JetBrains Mono"; color: var(--dim); grid-column: 2; grid-row: 2; text-align: right; }
-.ri-dist { grid-column: 1 / 3; font: 700 20px "JetBrains Mono"; }
-.ri-dist small { font-size: 12px; color: var(--dim); }
+.ri-delta { font: 500 15px "JetBrains Mono"; color: var(--dim); grid-column: 3; grid-row: 1 / 3; text-align: right; }
+.ri-dist { grid-column: 2; grid-row: 1; font: 700 22px "JetBrains Mono"; line-height: 1.25; }
+.ri-dist small { font-size: 14px; color: var(--dim); }
 /* Route info: a tab on the panel's top edge opens a drawer above the route
    controls. The amber dot says there's something to know. Open, it's lime. */
 .info-tab {
@@ -328,6 +327,7 @@ dialog.account:not([data-view="account"]) #delete-account { display: none; }
 }
 .warn .info-mark { color: var(--bg); background: var(--amber); }
 .ok .info-mark { color: var(--neon); border: 1.5px solid var(--neon); }
+.none .info-mark { color: var(--dim); border: 1.5px solid var(--dim); }
 /* Map key: how the map marks what's listed above (see main.js). */
 .info-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--edge); font-size: 13px; color: var(--dim); }
 .info-legend:empty { display: none; }

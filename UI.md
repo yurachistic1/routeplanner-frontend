@@ -57,8 +57,8 @@ Specs for controls the app will likely need, so they arrive already consistent. 
 | Toggle | `.icon-btn.fav`, `.ri-heart` | Off: neutral fill, outline heart. On: `#3d1a2b` fill, pink filled heart | Favourite on the panel and on every route card, favourites included: tapping a filled heart removes the route (its card fades and shrinks away, the rest slide up, the list doesn't scroll), with Undo |
 | Map button | `.locate-btn`, `.account-btn` | 46px circle, `--float` fill, drop shadow (account 38px, in the top bar) | Satellite (on: `--ltone` with a lime icon) · My location (busy: icon pulses) · Account (signed in: `--ltone`, lime) |
 | Choice chips | `.chip` | 40px pill, `--tone` fill. Selected: solid lime, dark text | Distance presets 5K, 10K, 15K, Half, 30K |
-| Choice cards | `.route-item`, `.art-option`, `.art-shape`, `.icon-tile` | `--card` fill, radius 18. Selected: 2px lime edge, olive fill | Route cards · Short / Medium / Long · the chosen shape · icons in the picker. Icons and Draw are `--tone` tiles that open a picker |
-| Disclosure | `.info-tab` | 30px pill on the panel's top edge, `--float` fill. Open: `--ltone`, lime text | Route info (amber dot: warnings) |
+| Choice cards | `.route-item`, `.art-option`, `.art-shape`, `.icon-tile` | `--card` fill, radius 18. Selected: 2px lime edge, olive fill | Route rows (full width, 74px tall: 48px shape, 22px distance over 15px number and area, ± km, 44px heart; 2026-11-16) · Short / Medium / Long · the chosen shape · icons in the picker. Icons and Draw are `--tone` tiles that open a picker |
+| Disclosure | `.info-tab` | 30px pill on the panel's top edge, `--float` fill. Open: `--ltone`, lime text | Route info, on every route, favourites included (amber dot: warnings) |
 | Field | `.drawer input`, `.sheet-head input`, `.readout input` | `--card` fill, radius 16, 2px lime edge when focused | Email · icon search · the distance |
 | Busy | `.go` + `body.loading` | Stays lime; a spinner and "Scanning…" / "Searching…" | Generate, Find |
 
@@ -81,7 +81,7 @@ Specs for controls the app will likely need, so they arrive already consistent. 
 | Favourite `#fav`, `#art-fav` | routes, GPS art found | Toggle |
 | All routes `#list-toggle` (phones), New run `#edit`, New search `#art-new` | routes, GPS art found | Secondary |
 | Close `#list-close` | route list (phones) | Icon button |
-| Route card `.route-item`, heart `.ri-heart` | route list, favourites | Choice card, toggle |
+| Route row `.route-item`, heart `.ri-heart` | route list, favourites (newest first, no grouping) | Choice card, toggle |
 | Icons / Draw `.art-tool`, chosen shape `.art-shape.active` | GPS art | Tiles; chosen is a selected card. Names wrap to two lines, never cut |
 | Find `#art-find` | GPS art | Primary |
 | Short / Medium / Long `.art-option` | GPS art found | Choice cards |

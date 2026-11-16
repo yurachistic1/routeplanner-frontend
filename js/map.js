@@ -95,7 +95,8 @@ export function addLocate(map) {
         } else {
           dot.setLngLat(ll);
         }
-        map.flyTo({ center: ll, zoom: Math.max(map.getZoom(), 14.5) });
+        // byUser: a move asked for, like dragging (GPS art's New search notes it)
+        map.flyTo({ center: ll, zoom: Math.max(map.getZoom(), 14.5) }, { byUser: true });
       },
       (err) => {
         btn.classList.remove("busy");

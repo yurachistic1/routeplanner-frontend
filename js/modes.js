@@ -16,9 +16,14 @@
 // location and satellite controls live in js/map.js.
 //
 // Modes remember where they were: leaving one keeps its state (routes,
-// start, which route, planning or viewing), so coming back from the shelf
-// finds it exactly as it was. There are no back buttons; the shelf is the
-// way between modes (the user, 2026-11-11).
+// start, which route, planning or viewing) and where the map was, so coming
+// back from the shelf finds it exactly as it was (the map's view since
+// 2026-11-16). Favourites set keepsView: false, as they frame their own
+// routes, and restores: "loop", as leaving them puts loop mode's view back
+// themselves (gliding to it). There
+// are no back buttons between modes; the shelf is the way between them (the
+// user, 2026-11-11). Inside a mode, Back (and the phone's back button, see
+// below) undoes "new run" or "new search".
 
 import { $, toast } from "./ui.js";
 
@@ -46,13 +51,19 @@ export const MODES = [
     '<circle cx="7.5" cy="11.5" r="1.1" fill="currentColor"/><circle cx="10" cy="7.3" r="1.1" fill="currentColor"/><circle cx="15" cy="7.5" r="1.1" fill="currentColor"/>') },
 ];
 
-const handlers = new Map(); // id -> { canEnter, enter, leave, reselect }
+const handlers = new Map(); // id -> { canEnter, enter, leave, reselect, canGoBack, goBack, keepsView, restores }
+const views = new Map(); // id -> the map's view when that mode was left
 let current = null;
+let map = null;
 
 // Plug in a working mode. Modes without one show "coming soon". reselect()
-// runs when the current mode's button is tapped again.
-export function registerMode(id, { canEnter = () => true, enter = () => {}, leave = () => {}, reselect = () => {} } = {}) {
-  handlers.set(id, { canEnter, enter, leave, reselect });
+// runs when the current mode's button is tapped again. canGoBack() says
+// whether the mode's Back is showing, and goBack() does it.
+export function registerMode(id, {
+  canEnter = () => true, enter = () => {}, leave = () => {}, reselect = () => {},
+  canGoBack = () => false, goBack = () => {}, keepsView = true, restores = null,
+} = {}) {
+  handlers.set(id, { canEnter, enter, leave, reselect, canGoBack, goBack, keepsView, restores });
 }
 
 export const currentMode = () => current;
@@ -63,7 +74,9 @@ export function setMode(id) {
   if (!mode) return;
   if (!handlers.has(id)) return toast(`${mode.label} is coming soon`);
   if (!handlers.get(id).canEnter()) return;
-  if (current) handlers.get(current).leave();
+  const from = current && handlers.get(current);
+  if (from?.keepsView && map) views.set(current, { center: map.getCenter(), zoom: map.getZoom() });
+  from?.leave();
   current = id;
   document.body.dataset.mode = id;
   for (const b of document.querySelectorAll("#modebar [data-mode]")) {
@@ -71,11 +84,46 @@ export function setMode(id) {
     b.classList.toggle("active", on);
     b.setAttribute("aria-current", on ? "page" : "false");
   }
+  // Back where this mode's map was, at once. A mode seen for the first time
+  // starts where the map is.
+  const view = views.get(id);
+  if (view && handlers.get(id).keepsView && from?.restores !== id) map.jumpTo(view);
   handlers.get(id).enter();
 }
 
-// Draw the shelf's buttons into #modebar and open the first mode.
-export function createModeBar(first = "loop") {
+// ----- the phone's back button -----
+// It does the same as the current mode's Back. While Back is showing, one
+// history entry of ours sits on top: the back button pops it, which goes
+// back. When Back goes some other way (Generate, Find, Back itself,
+// another mode), the entry is popped quietly, so no back press is ever
+// wasted on it. One entry for every mode, so switching between two modes
+// that both show Back keeps it.
+const ourEntry = () => history.state?.runthe === "back";
+const canGoBack = () => !!current && handlers.get(current).canGoBack();
+let popping = false; // waiting for a quiet pop of our entry
+function syncHistory() {
+  if (popping) return;
+  const want = canGoBack();
+  if (want && !ourEntry()) history.pushState({ runthe: "back" }, "");
+  else if (!want && ourEntry()) { popping = true; history.back(); }
+}
+addEventListener("popstate", () => {
+  if (popping) popping = false;
+  else if (canGoBack()) handlers.get(current).goBack();
+  syncHistory();
+});
+new MutationObserver(syncHistory).observe(document.body, { attributes: true, attributeFilter: ["class", "data-mode"] });
+// The modes' Back buttons and Esc: through history when our entry is
+// there, so it's used up.
+export function goBack() {
+  if (ourEntry() && !popping) history.back();
+  else if (canGoBack()) handlers.get(current).goBack();
+}
+
+// Draw the shelf's buttons into #modebar and open the first mode. map: the
+// shared map, whose view each mode keeps.
+export function createModeBar(first = "loop", sharedMap = null) {
+  map = sharedMap;
   const bar = $("modebar");
   if (!bar) return;
   bar.innerHTML = MODES.map((m) => {
