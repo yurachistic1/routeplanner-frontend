@@ -4,7 +4,7 @@
 import { createAccount } from "./account.js";
 import { createArtMode } from "./art.js";
 import { createLoopMode } from "./loop.js";
-import { createMap, addCredits, addLocate, addSatellite } from "./map.js";
+import { createMap, addCredits, addLocate, addSatellite, placeMapTools } from "./map.js";
 import { buildStyle, ATTRIBUTION } from "./mapstyle.js";
 import { registerMode, createModeBar, setMode, currentMode } from "./modes.js";
 
@@ -46,6 +46,7 @@ const { map, ready } = createMap({
 const credits = addCredits(ATTRIBUTION);
 addLocate(map);
 addSatellite(map, ready, credits, ATTRIBUTION);
+placeMapTools();
 
 // ----- loop mode -----
 const account = createAccount({ openFavourites: () => setMode("favourites") });

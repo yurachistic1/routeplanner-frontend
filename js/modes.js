@@ -94,7 +94,7 @@ export function setMode(id) {
 // ----- the phone's back button -----
 // It does the same as the current mode's Back. While Back is showing, one
 // history entry of ours sits on top: the back button pops it, which goes
-// back. When Back goes some other way (Generate, Find, Back itself,
+// back. When Back goes some other way (Generate in either mode, Back itself,
 // another mode), the entry is popped quietly, so no back press is ever
 // wasted on it. One entry for every mode, so switching between two modes
 // that both show Back keeps it.

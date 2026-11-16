@@ -16,7 +16,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@800&text=RUNTHEFAVOIS&display=swap" rel="stylesheet" />
   <link href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css" rel="stylesheet" />
   <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
-  <link href="./css/styles.css?v=53" rel="stylesheet" />
+  <link href="./css/styles.css?v=58" rel="stylesheet" />
 </head>
 <body>
   <div id="map"></div>
@@ -89,14 +89,33 @@
     <!-- GPS art mode (js/art.js): pick a shape, then choose between the
          routes found round the middle of the map. -->
     <div class="art">
+      <!-- Phones: drag down (or tap) to fold the panel to its shape row,
+           so more of the map shows; up to open it again. -->
+      <button class="deck-grip" id="art-grip" aria-label="Hide search settings" aria-expanded="true" aria-controls="art-more"><i aria-hidden="true"></i></button>
       <div class="art-setup">
-        <div class="tag">Shape</div>
+        <div class="tag art-fold">Shape</div>
         <div class="art-shapes" id="art-shapes"></div>
-        <div class="tag">Where</div>
-        <p class="art-note">Looks for your shape within 15 km of the middle of the map. Move the map to look somewhere else.</p>
+        <!-- Where to look, once a shape is chosen: Default, Custom (a
+             distance and how near the start is, set in a sheet) or Free
+             placement (the shape put on the map by hand). -->
+        <div class="art-where art-fold" id="art-more">
+          <div class="tag">Where</div>
+          <div class="art-modes" id="art-where" role="radiogroup" aria-label="Where to look">
+            <button class="art-shape art-mode" data-where="default" role="radio" aria-checked="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none"/><path d="M12 1.5v3M12 19.5v3M1.5 12h3M19.5 12h3"/></svg>
+              <span>Default</span></button>
+            <button class="art-shape art-mode" data-where="custom" role="radio" aria-checked="false">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2.2"/><circle cx="9" cy="17" r="2.2"/></svg>
+              <span>Custom</span></button>
+            <button class="art-shape art-mode" data-where="free" role="radio" aria-checked="false">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"/></svg>
+              <span>Free placement</span></button>
+          </div>
+          <p class="art-note" id="art-where-note"></p>
+        </div>
         <div class="art-go">
           <button class="btn btn-secondary art-back" id="art-back" aria-label="Back to results"><span class="back-long">Back to results</span><span class="back-short" aria-hidden="true">Back</span><kbd>Esc</kbd></button>
-          <button class="btn btn-primary go" id="art-find"><span class="t1">Find</span><span class="t2"><i class="spin" aria-hidden="true"></i>Searching…</span></button>
+          <button class="btn btn-primary go" id="art-find"><span class="t1">Generate</span><span class="t2"><i class="spin" aria-hidden="true"></i>Searching…</span></button>
         </div>
       </div>
       <div class="art-found">
@@ -188,6 +207,27 @@
       <p class="sheet-note">Simple shapes draw best. Icons by <a href="https://lucide.dev" target="_blank" rel="noopener">Lucide</a> (<a href="./assets/icons-LICENSE.txt" target="_blank">licence</a>). Letters and numbers from <a href="https://fonts.google.com/specimen/Boldonse" target="_blank" rel="noopener">Boldonse</a> (SIL Open Font License).</p>
     </div>
   </dialog>
+  <!-- GPS art's Custom search (js/art.js): the route's length and how near
+       the middle of the map it starts. Sliders as specced in UI.md. -->
+  <dialog id="custom-dialog" class="sheet" aria-label="Custom search">
+    <div class="sheet-card sheet-plain">
+      <div class="sheet-head">
+        <h2>Custom search</h2>
+        <button class="icon-btn close-btn sheet-close" data-close aria-label="Close"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+      </div>
+      <div class="slider-field">
+        <div class="slider-top"><label for="custom-km">Route distance</label><output for="custom-km" id="custom-km-out"></output></div>
+        <input class="slider" id="custom-km" type="range" min="5" max="25" step="1" value="12" />
+      </div>
+      <div class="slider-field">
+        <div class="slider-top"><label for="custom-radius">Start within</label><output for="custom-radius" id="custom-radius-out"></output></div>
+        <input class="slider" id="custom-radius" type="range" min="1" max="15" step="1" value="3" />
+      </div>
+      <p class="sheet-note">The route starts within this distance of the middle of the map. The rest of the shape can reach further.</p>
+      <button class="btn btn-primary" id="custom-use">Use these</button>
+    </div>
+  </dialog>
+
   <dialog id="draw-dialog" class="sheet" aria-label="Draw a shape">
     <div class="sheet-card">
       <div class="sheet-head">
@@ -210,20 +250,20 @@
   <script type="importmap">
   {
     "imports": {
-      "./js/account.js": "./js/account.js?v=34",
-      "./js/api.js": "./js/api.js?v=34",
-      "./js/art.js": "./js/art.js?v=34",
-      "./js/loop.js": "./js/loop.js?v=34",
-      "./js/main.js": "./js/main.js?v=34",
-      "./js/map.js": "./js/map.js?v=34",
-      "./js/mapstyle.js": "./js/mapstyle.js?v=34",
-      "./js/modes.js": "./js/modes.js?v=34",
-      "./js/polyline.js": "./js/polyline.js?v=34",
-      "./js/shapes.js": "./js/shapes.js?v=34",
-      "./js/ui.js": "./js/ui.js?v=34"
+      "./js/account.js": "./js/account.js?v=41",
+      "./js/api.js": "./js/api.js?v=41",
+      "./js/art.js": "./js/art.js?v=41",
+      "./js/loop.js": "./js/loop.js?v=41",
+      "./js/main.js": "./js/main.js?v=41",
+      "./js/map.js": "./js/map.js?v=41",
+      "./js/mapstyle.js": "./js/mapstyle.js?v=41",
+      "./js/modes.js": "./js/modes.js?v=41",
+      "./js/polyline.js": "./js/polyline.js?v=41",
+      "./js/shapes.js": "./js/shapes.js?v=41",
+      "./js/ui.js": "./js/ui.js?v=41"
     }
   }
   </script>
-  <script type="module" src="./js/main.js?v=34"></script>
+  <script type="module" src="./js/main.js?v=41"></script>
 </body>
 </html>

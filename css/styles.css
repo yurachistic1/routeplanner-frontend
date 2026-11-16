@@ -521,6 +521,17 @@ body:not(.signed-in) .modebar .signed-in-only { display: none; }
   }
   .show-results .list { transform: none; }
   #list-toggle, #list-close { display: none; }
+  /* The map's own buttons together at the top right (js/map.js,
+     placeMapTools): the credits' ⓘ above Satellite and My location, its
+     text sliding out to the left. They move aside for the route list. */
+  .map-tools {
+    position: absolute; z-index: 3; top: 12px; right: 12px; display: flex; flex-direction: column; align-items: flex-end; gap: 10px;
+    transition: right .35s cubic-bezier(.2, .8, .2, 1);
+  }
+  body.show-results:not([data-mode="art"]) .map-tools { right: calc(12px + 340px + 12px); }
+  .map-tools .locate-btn { position: static; }
+  .map-tools .credits { position: static; flex-direction: row; align-items: center; }
+  .map-tools .credits-btn { width: 46px; height: 32px; margin: 0; }
   /* The heart sits at the end of the Export row: ‹ Export GPX › ♥, with
      New run on its own row below (none in favourites), so no gap beside
      the heart (2026-11-14). GPS art the same: Export GPX ♥, New search. */
@@ -545,7 +556,9 @@ body:not(.signed-in) .modebar .signed-in-only { display: none; }
 /* A found route's start: loop's pink dot, fixed, so no grab or pulse. */
 .art-start { cursor: default !important; }
 .art-start::before, .art-start::after { animation: none !important; }
-.art-setup { display: grid; gap: 10px; }
+/* A flex column rather than a grid, so a part shrinking away can pull its
+   gap in with a negative margin (js/art.js, smooth). */
+.art-setup { display: flex; flex-direction: column; gap: 10px; }
 .art-setup > .tag { font-size: 14px; font-weight: 600; }
 .art-note { margin: 0 0 4px; font-size: 15px; line-height: 1.5; color: var(--dim); }
 /* Back (after New search) and Find: side by side on phones, Back above on
@@ -593,6 +606,74 @@ body:not(.signed-in) .modebar .signed-in-only { display: none; }
 .art-fit { font-size: 13px; font-weight: 500; color: var(--amber); }
 .art-fit.good { color: var(--dim); }
 .art-row { display: grid; grid-template-columns: 52px 1fr; gap: 10px; }
+/* Where to look (2026-11-16): Default, Custom and Free placement, choice
+   cards like the chosen shape, shown once a shape is chosen. Custom opens a
+   sheet; its tile shows what's set. */
+.art-where { display: none; gap: 10px; }
+.art-has-shape .art-where { display: grid; }
+.art-where > .tag { font-size: 14px; font-weight: 600; }
+.art-modes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.art-mode { transition: transform .12s, background-color .15s; -webkit-tap-highlight-color: transparent; }
+.art-mode svg { width: 28px; height: 28px; margin: 4px 0 2px; }
+/* All three alike: one line of label under a 28px icon, the same size
+   chosen or not. */
+.art-mode, .art-mode.active { flex: none; min-width: 0; max-width: none; padding: 10px 4px; gap: 6px; align-content: center; }
+.art-mode span { white-space: nowrap; overflow: visible; display: block; }
+/* Custom's values, in its note: the line that matters, in full text. */
+.art-sum { display: block; margin-bottom: 2px; font-size: 16px; font-weight: 600; color: var(--text); }
+@media (hover: hover) { .art-mode:not(.active):hover { background: var(--float); } }
+.art-mode:active { transform: scale(.96); }
+/* Free placement: the shape in a selection box over the map, like a
+   picture in a slide deck. Drag the box to move it, a corner to resize it,
+   the round handle on top to turn it. Corners and the handle have 44px
+   targets round their small dots. */
+.place { position: absolute; left: 0; top: 0; z-index: 2; touch-action: none; cursor: move; outline: none; }
+.place[hidden] { display: none; }
+.place-shape { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; fill: none; stroke: var(--neon); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 3px rgba(0, 0, 0, .6)); }
+.place-shape polyline { vector-effect: non-scaling-stroke; }
+.place-frame { position: absolute; inset: -10px; border: 2px dashed rgba(233, 238, 245, .85); border-radius: 4px; pointer-events: none; }
+.place:focus-visible .place-frame { border-color: var(--neon); }
+.place-corner, .place-turn { position: absolute; width: 44px; height: 44px; margin: -22px 0 0 -22px; display: grid; place-items: center; }
+.place-corner::after { content: ""; width: 16px; height: 16px; border-radius: 3px; background: var(--text); border: 2px solid #0b1004; box-shadow: 0 1px 6px rgba(0, 0, 0, .5); }
+.place-corner[data-corner="nw"] { left: -10px; top: -10px; cursor: nwse-resize; }
+.place-corner[data-corner="ne"] { left: calc(100% + 10px); top: -10px; cursor: nesw-resize; }
+.place-corner[data-corner="se"] { left: calc(100% + 10px); top: calc(100% + 10px); cursor: nwse-resize; }
+.place-corner[data-corner="sw"] { left: -10px; top: calc(100% + 10px); cursor: nesw-resize; }
+.place-stem { position: absolute; left: 50%; top: -38px; width: 2px; height: 28px; margin-left: -1px; background: rgba(233, 238, 245, .85); pointer-events: none; }
+.place-turn { left: 50%; top: -50px; cursor: grab; }
+.place-turn svg { width: 30px; height: 30px; padding: 6px; border-radius: 50%; background: var(--neon); color: #0b1004; box-shadow: 0 2px 8px rgba(0, 0, 0, .5); }
+.place.busy .place-turn { cursor: grabbing; }
+/* The panel's grip (phones, GPS art): a pill on the top edge in a 44px
+   tall, full-width target. Tap or drag down folds the panel to its shape
+   row; again, or drag up, opens it. */
+.deck-grip { display: none; }
+
+/* Slider (UI.md): a 6px track, lime up to the thumb (--p, set by the
+   page), a 28px white thumb in a 44px tall target. Value above the right
+   end, label above the left. */
+.slider-field { display: grid; gap: 2px; }
+.slider-top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.slider-top label { font-size: 14px; font-weight: 600; color: var(--dim); }
+.slider-top output { font-size: 15px; font-weight: 600; color: var(--text); }
+.slider-top output span { color: var(--dim); }
+.slider { -webkit-appearance: none; appearance: none; width: 100%; height: 44px; margin: 0; background: none; cursor: pointer; --p: 50%; }
+.slider:focus-visible { outline: none; }
+.slider::-webkit-slider-runnable-track { height: 6px; border-radius: 3px; background: linear-gradient(to right, var(--neon) var(--p), var(--tone) var(--p)); }
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 28px; height: 28px; margin-top: -11px; border-radius: 50%;
+  background: var(--text); box-shadow: 0 2px 8px rgba(0, 0, 0, .45); transition: transform .12s;
+}
+.slider:active::-webkit-slider-thumb { transform: scale(1.143); }
+.slider:focus-visible::-webkit-slider-thumb { outline: 3px solid var(--neon); outline-offset: 3px; }
+.slider::-moz-range-track { height: 6px; border-radius: 3px; background: var(--tone); }
+.slider::-moz-range-progress { height: 6px; border-radius: 3px; background: var(--neon); }
+.slider::-moz-range-thumb { width: 28px; height: 28px; border: 0; border-radius: 50%; background: var(--text); box-shadow: 0 2px 8px rgba(0, 0, 0, .45); transition: transform .12s; }
+.slider:active::-moz-range-thumb { transform: scale(1.143); }
+.slider:focus-visible::-moz-range-thumb { outline: 3px solid var(--neon); outline-offset: 3px; }
+.slider:disabled { cursor: not-allowed; }
+.slider:disabled::-webkit-slider-runnable-track { background: #1a2029; }
+.slider:disabled::-webkit-slider-thumb { background: #566070; }
+.sheet-plain { grid-template-rows: none; gap: 14px; }
 
 /* GPS art's own shapes (js/shapes.js): the dialogs the Icons and Draw tiles
    open. */
@@ -647,4 +728,18 @@ dialog.sheet::backdrop { background: rgba(7, 9, 13, .66); }
   #art-download { grid-column: 1; }
   #art-fav { grid-column: 2; height: 52px; }
   #art-new { grid-column: 1 / -1; }
+}
+
+/* GPS art on phones: the grip folds the panel to its shape row. */
+@media (max-width: 899px) {
+  body[data-mode="art"]:not(.art-results) .deck { padding-top: 28px; }
+  body[data-mode="art"]:not(.art-results) .deck-grip {
+    display: block; position: absolute; top: -14px; left: 0; right: 0; height: 44px; padding: 0;
+    background: none; border: 0; cursor: grab; touch-action: none; -webkit-tap-highlight-color: transparent;
+  }
+  .deck-grip i { display: block; width: 40px; height: 5px; margin: 8px auto 0; border-radius: 3px; background: var(--dim-2); transition: background-color .15s; }
+  .deck-grip:active i { background: var(--text); }
+  .deck-grip:focus-visible { outline: none; }
+  .deck-grip:focus-visible i { outline: 3px solid var(--neon); outline-offset: 3px; }
+  .art-folded .art-fold { display: none !important; }
 }

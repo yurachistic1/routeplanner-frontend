@@ -25,12 +25,13 @@ The app's design system for everything you tap, read or type into: **Tonal**, ch
 
 Specs for controls the app will likely need, so they arrive already consistent. Build them as written; change this section first if something has to differ.
 
-- **Slider** (a range, e.g. hilliness, distance tolerance): a 6px track in `--tone`, the part up to the thumb lime; a 28px white thumb (`--text`) with a soft shadow, inside a 44px-tall touch area. The current value sits as text above the right end, 15px semibold, in `--text` (units in `--dim`). Label above the left end in `--dim`, 14px semibold, sentence case. Pressed: the thumb grows to 32px. Focus: the 3px lime outline round the thumb. Disabled: track `#1a2029`, thumb `#566070`. Arrow keys step it. If there are only a few fixed values, use chips instead.
+- **Slider** (built 2026-11-16 as `.slider` in `.slider-field`, first used in GPS art's Custom sheet) (a range, e.g. hilliness, distance tolerance): a 6px track in `--tone`, the part up to the thumb lime; a 28px white thumb (`--text`) with a soft shadow, inside a 44px-tall touch area. The current value sits as text above the right end, 15px semibold, in `--text` (units in `--dim`). Label above the left end in `--dim`, 14px semibold, sentence case. Pressed: the thumb grows to 32px. Focus: the 3px lime outline round the thumb. Disabled: track `#1a2029`, thumb `#566070`. Arrow keys step it. If there are only a few fixed values, use chips instead.
 - **Switch** (on/off for a setting): a 52×32 pill in `--tone` with a 24px white knob; on, the pill turns lime and the knob dark (`#0b1004`) slides right. The label sits to its left in `--text`, with any explanation below in `--dim`. The whole row is the target. For an action that toggles (favourite, satellite), keep using the toggle icon buttons instead.
 - **Segmented control** (2–4 views of one thing, e.g. Map / Satellite / Hills): a `--card` pill holding equal segments; the chosen one is a lime pill with dark text (no tick needed, the shape shows it). More than 4, or choices that aren't views: chips.
 - **Checkbox and radio** (in forms): 24px, `--tone` fill; checked is lime with the dark tick (`--tick`), or a dark dot for radio. The label is the target too.
 - **Field with label, hint and error**: label above in `--dim` 14px semibold, the field as in Roles, hint below in `--dim` 14px; an error replaces the hint in `#ffd3e4` with a 2px `#ff6a5f` edge on the field. Say what's wrong and how to fix it.
 - **Progress** (a long job with steps): a 6px `--tone` track filling lime, with a sentence in `--dim` saying what's happening. A short wait inside a button uses the button's spinner instead.
+- **Grip** (built 2026-11-16, `.deck-grip`, GPS art on phones): a 40×5 pill in `--dim-2` on the panel's top edge, inside a full-width 44px-tall target. Tap or drag down folds the panel to its first row and its main button (Generate stays). Every fold, and the Where row appearing, animates its height (280 ms, the panel's top edge glides; none with reduced motion); tap again or drag up opens it. Pressed: the pill turns `--text`. Focus: the lime outline round the pill. `aria-expanded` says which.
 - **Panels, sheets and dialogs**: `--panel` fill, radius 24–26px, close is the cross icon button top right, at most one primary at the bottom. Headings 18–22px bold in `--text`.
 - **Messages**: a problem is the pink toast; something undoable is the `#undo` bar with a tertiary action. Badges or counts: `--ltone` with `--lime-ink` text, at least 12px.
 
@@ -49,7 +50,7 @@ Specs for controls the app will likely need, so they arrive already consistent. 
 
 | Role | Class | Look | Used for |
 |---|---|---|---|
-| Primary | `.btn.btn-primary` | 52px lime pill, dark 16px semibold text, soft lime glow | Generate · Find · Export GPX (routes and GPS art; Send to Garmin may take this later) · Use it · Continue with Google · Finish signing in |
+| Primary | `.btn.btn-primary` | 52px lime pill, dark 16px semibold text, soft lime glow | Generate (loops and GPS art, 2026-11-16: GPS art's was Find) · Export GPX (routes and GPS art; Send to Garmin may take this later) · Use it · Continue with Google · Finish signing in |
 | Secondary | `.btn.btn-secondary` | 48px pill, `--ltone` fill, `--lime-ink` text | Back · All routes · New run · New search · Email me a sign-in link · Undo · Clear · Sign out · Keep my account |
 | Tertiary | `.btn.btn-tertiary`, `.drawer-link` | Lime words, no fill (faint lime when pressed) | Undo in the message bar · Privacy · Delete account |
 | Danger | `.btn.btn-danger` | Red `#ff6a5f` pill, dark text | Delete my account |
@@ -60,17 +61,17 @@ Specs for controls the app will likely need, so they arrive already consistent. 
 | Choice cards | `.route-item`, `.art-option`, `.art-shape`, `.icon-tile` | `--card` fill, radius 18. Selected: 2px lime edge, olive fill | Route rows (full width, 74px tall: 48px shape, 22px distance over 15px number and area, ± km, 44px heart; 2026-11-16) · Short / Medium / Long · the chosen shape · icons in the picker. Icons and Draw are `--tone` tiles that open a picker |
 | Disclosure | `.info-tab` | 30px pill on the panel's top edge, `--float` fill. Open: `--ltone`, lime text | Route info, on every route, favourites included (amber dot: warnings) |
 | Field | `.drawer input`, `.sheet-head input`, `.readout input` | `--card` fill, radius 16, 2px lime edge when focused | Email · icon search · the distance |
-| Busy | `.go` + `body.loading` | Stays lime; a spinner and "Scanning…" / "Searching…" | Generate, Find |
+| Busy | `.go` + `body.loading` | Stays lime; a spinner and "Scanning…" / "Searching…" | Generate (both modes) |
 
 ## Every control
 
 | Control | Where | Role |
 |---|---|---|
 | Account `#account` | top bar | Map button |
-| Map credits `.credits-btn` | under the top bar | Small icon (OSM attribution; open on load, closes after 5s) |
-| Satellite `#satellite`, My location `#locate` | over the map, left | Map buttons |
+| Map credits `.credits-btn` | under the top bar on phones; top right above Satellite on laptops, text sliding out to the left | Small icon (OSM attribution; open on load, closes after 5s) |
+| Satellite `#satellite`, My location `#locate` | over the map: above the panel on phones; on laptops together with the ⓘ at the top right of the map, moving aside for the route list (2026-11-16: a tall panel pushed them over the top bar) | Map buttons |
 | Back `#back` | loop planning, when there are routes | Secondary: "Back" on phones, "Back to routes" and the Esc key on laptops |
-| Back `#art-back` | GPS art, after New search | Secondary, the same as loop's: "Back" beside Find on phones, "Back to results" and Esc above it on laptops |
+| Back `#art-back` | GPS art, after New search | Secondary, the same as loop's: "Back" beside Generate on phones, "Back to results" and Esc above it on laptops |
 | Shorter / Longer `#dec`, `#inc` | loop planning | Icon buttons |
 | Distance `#distance` | loop planning | Field: at most two digits before the point and one after ("21.1"), trimmed as typed |
 | Presets `.chip` | loop planning | Choice chips |
@@ -83,8 +84,12 @@ Specs for controls the app will likely need, so they arrive already consistent. 
 | Close `#list-close` | route list (phones) | Icon button |
 | Route row `.route-item`, heart `.ri-heart` | route list, favourites (newest first, no grouping) | Choice card, toggle |
 | Icons / Draw `.art-tool`, chosen shape `.art-shape.active` | GPS art | Tiles; chosen is a selected card. Names wrap to two lines, never cut |
-| Find `#art-find` | GPS art | Primary |
-| Short / Medium / Long `.art-option` | GPS art found | Choice cards |
+| Generate `#art-find` | GPS art | Primary |
+| Short / Medium / Long `.art-option` | GPS art found | Choice cards. A Custom search shows Best / 2nd / 3rd (best fit first, at different places, opening on Best), or one Nearest card marked "Outside settings" in amber with a message saying how it misses. Free placement shows one card, "Your shape", "Exact" |
+| Where: Default / Custom / Free placement `.art-mode` | GPS art, once a shape is chosen | Choice cards, all three identical (icon and one-line label); Custom opens a sheet and its values show in the note below, as a 16px semibold line in `--text` |
+| Route distance, Start within `.slider` | GPS art's Custom sheet | Sliders; Use these is the primary |
+| Selection box `.place` | GPS art free placement, on the map | Like a picture in a slide deck: the shape in lime inside a dashed white frame; drag the box to move, a white square on any corner to resize (ratio kept), the lime round handle on a stem above to turn (settles on 0/90/180/270), pinch to resize on touch screens. Corners and handle have 44px targets. Keyboard: arrows move, + and − resize, [ and ] turn |
+| Grip `#art-grip` | GPS art panel, phones | Grip |
 | Modes `#modebar` | bottom shelf | Tabs |
 | Close `#account-close`, `.sheet-close` | drawer, dialogs | Icon buttons |
 | Continue with Google, Finish signing in | drawer | Primary |

@@ -67,6 +67,28 @@ export function addCredits(html) {
   return { set };
 }
 
+// ----- where the map's own buttons sit -----
+// Phones: the credits (ⓘ) under the top bar, and Satellite and My location
+// just above the bottom panel, moving with it. Laptops: all three together
+// at the top right of the map (2026-11-16): the panel can be tall there (GPS
+// art with everything open), which pushed the buttons up over the top bar.
+// They move between the two when the window is resized.
+export function placeMapTools() {
+  const deck = document.querySelector(".deck"), hud = document.querySelector(".hud-top");
+  const credits = document.querySelector(".credits"), sat = $("satellite"), locate = $("locate");
+  if (!deck || !credits || !sat || !locate) return;
+  const tools = document.createElement("div");
+  tools.className = "map-tools";
+  deck.parentElement.append(tools);
+  const wide = matchMedia("(min-width: 900px)");
+  const place = () => {
+    if (wide.matches) tools.append(credits, sat, locate);
+    else { hud.append(credits); deck.prepend(sat, locate); }
+  };
+  place();
+  wide.addEventListener("change", place);
+}
+
 // ----- my location -----
 // The #locate button centres the map on where you are and shows a dot
 // there; it doesn't move any start point. The browser asks for permission on
