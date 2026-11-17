@@ -24,12 +24,13 @@
     li { margin: 4px 0; }
     .back { display: inline-block; text-decoration: none; }
     .updated { color: #8a96aa; font-size: 14px; }
+    [hidden] { display: none !important; }
   </style>
 </head>
 <body>
   <a class="back" href="../">← Back to Runthe</a>
   <h1>Privacy</h1>
-  <p class="updated">Last updated 6 November 2026</p>
+  <p class="updated"><span class="no-garmin">Last updated 6 November 2026</span><span class="garmin" hidden>Last updated 17 November 2026</span></p>
 
   <p>Runthe is a free personal project that generates running routes. There are no adverts, no analytics and no tracking cookies, and your data is never sold.</p>
 
@@ -40,15 +41,29 @@
   <p>To plan a route, your start point and distance are sent to Runthe's server on Google Cloud. They're used to work out your routes, and neither they nor the routes are saved or logged. The server's request logs record your IP address, your browser type and the time. These logs are kept for 30 days to keep the service running and to spot abuse, and are then deleted.</p>
 
   <h2>If you create an account</h2>
-  <p>An account is only needed to save favourites. Runthe stores:</p>
+  <p class="no-garmin">An account is only needed to save favourites. Runthe stores:</p>
+  <p class="garmin" hidden>An account is only needed to save favourites and to connect Garmin Connect. Runthe stores:</p>
   <ul>
     <li><strong>Sign-in details:</strong> your email address, sign-in dates and a unique ID. If you use Google, also the name and profile picture link Google shares.</li>
     <li><strong>Favourites:</strong> each saved route's line, distance and the time you saved it. The line includes its start point.</li>
   </ul>
   <p>Only you can read your favourites. Runthe keeps this data until you delete it. The maintainer can technically access it to run the service, but doesn't look at it otherwise.</p>
 
+  <section class="garmin" hidden>
+    <h2>If you connect Garmin Connect</h2>
+    <p>You can connect your Garmin Connect account to send routes to it as courses, which Garmin Connect then syncs to your Garmin devices. You choose on Garmin's own page whether to allow this, and which permissions to give.</p>
+    <p><strong>What Runthe sends to Garmin:</strong> only when you tap Send to Garmin Connect, the route's line (including its start point), its distance and a name made of "Runthe", the area name and the distance. Runthe doesn't read your activities, health data or anything else from Garmin Connect. It only asks Garmin for your Garmin user ID and which permissions you gave, to show whether you're connected and can send courses.</p>
+    <p><strong>What Runthe stores:</strong></p>
+    <ul>
+      <li>The sign-in tokens Garmin issues, which let Runthe send courses for you, along with your Garmin user ID, the permissions you gave and when you connected. They're stored with your account in Google Cloud (London) and can't be read from any browser, including yours.</li>
+      <li>While you're on Garmin's page, a temporary record linking a random code to your account. It's deleted as soon as you come back. If you don't come back, it stops working after 15 minutes and is deleted soon after.</li>
+    </ul>
+    <p><strong>Stopping it:</strong> choose Disconnect in the account menu, or delete your account. Either removes Runthe's access at Garmin and deletes the stored tokens straight away. If you remove Runthe in Garmin Connect instead, Runthe notices the next time you open its account menu and deletes the tokens then. A Garmin account can be connected to one Runthe account at a time: connecting it to another deletes the tokens held for the first. Courses you've already sent stay in Garmin Connect until you delete them there.</p>
+    <p>Garmin handles what you send it under its own privacy policy.</p>
+  </section>
+
   <h2>Why this is allowed</h2>
-  <p>Under UK data protection law, account data is used to provide the service you asked for. Logs are kept because Runthe has a legitimate interest in keeping the service secure and working.</p>
+  <p>Under UK data protection law, account data<span class="garmin" hidden>, and your Garmin connection if you make one,</span> is used to provide the service you asked for. Logs are kept because Runthe has a legitimate interest in keeping the service secure and working.</p>
 
   <h2>Who else is involved</h2>
   <p>Like any website, these services receive your IP address when your browser contacts them:</p>
@@ -59,15 +74,16 @@
     <li><strong>UNPKG:</strong> supplies the code that draws the map.</li>
     <li><strong>OpenStreetMap Foundation (Nominatim):</strong> turns start points into area names for your favourites. Start points are rounded to about 100m first, and each area is looked up once per device.</li>
     <li><strong>Porkbun:</strong> forwards email sent to the address above.</li>
+    <li class="garmin" hidden><strong>Garmin:</strong> if you connect Garmin Connect, handles signing in to it and receives the routes you choose to send.</li>
   </ul>
   <p>Some of these companies may handle data outside the UK, including in the United States, under their own legal safeguards.</p>
 
   <h2>Stored on your device</h2>
-  <p>Runthe doesn't set tracking cookies. Your browser stores your signed-in session, a note that you have an account, your email address while a sign-in link is pending, and area names for your favourites. These are needed for the app to work, and the area names are cleared when you sign out.</p>
+  <p>Runthe doesn't set tracking cookies. Your browser stores your signed-in session, a note that you have an account, your email address while a sign-in link is pending, and area names for your favourites. These are needed for the app to work, and the area names are cleared when you sign out.<span class="garmin" hidden> If you connect Garmin Connect from the Export window, the route you were exporting is kept in that browser tab until you come back from Garmin's page, then removed.</span></p>
 
   <h2>Your rights</h2>
   <p>You can ask for a copy of your data, or ask for it to be corrected, deleted or restricted, and you can object to how it's used. Email <a href="mailto:hello@runthe.uk">hello@runthe.uk</a> to do any of these.</p>
-  <p>To delete your account and favourites yourself, open the account menu and choose Delete account. They're removed straight away. Server logs expire within 30 days.</p>
+  <p>To delete your account and favourites yourself, open the account menu and choose Delete account. They're removed straight away<span class="garmin" hidden>, and Garmin Connect is disconnected</span>. Server logs expire within 30 days.</p>
   <p>If you're unhappy with how your data is handled, you can complain to the <a href="https://ico.org.uk/make-a-complaint/">Information Commissioner's Office</a>.</p>
 
   <h2>Children</h2>
@@ -75,5 +91,15 @@
 
   <h2>Changes</h2>
   <p>If this page changes, the date at the top will change too.</p>
+  <!-- The Garmin parts show only where the app offers Garmin (staging and
+       local until Garmin's notice period ends): the same switch as the app.
+       Keep the ?v= in step with index.html's garmin.js. -->
+  <script type="module">
+    import { GARMIN_BASE } from "../js/garmin.js?v=47";
+    if (GARMIN_BASE) {
+      for (const el of document.querySelectorAll(".garmin")) el.hidden = false;
+      for (const el of document.querySelectorAll(".no-garmin")) el.hidden = true;
+    }
+  </script>
 </body>
 </html>
