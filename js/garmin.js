@@ -35,6 +35,7 @@ export function createGarmin({ idToken }) {
   const msg = $("garmin-msg");
   let connected = false;
   let checked = false; // the status has been fetched for this user
+  let holdMsg = false; // keep "how connecting went" for the menu opening on return
 
   // Coming back from Garmin: read and remove ?garmin= at once, so a reload
   // doesn't repeat it.
@@ -67,6 +68,7 @@ export function createGarmin({ idToken }) {
   function show({ connected: on, canSendCourses = true }) {
     connected = on;
     checked = true;
+    say("");
     note.textContent = on ? "Connected" : NOTE;
     note.classList.toggle("on", on);
     connectBtn.hidden = on;
@@ -143,13 +145,18 @@ export function createGarmin({ idToken }) {
       if (!returned) return false;
       if (RESULTS[returned]) say(RESULTS[returned]);
       returned = null;
+      holdMsg = true;
       return true;
     },
 
-    // When the account menu opens, check again if the last check failed,
-    // unless there's a message showing (e.g. how connecting went).
+    // Check again every time the account menu opens, so changes made in
+    // Garmin Connect meanwhile (Courses switched off, Runthe removed) show.
+    // Not on the opening right after coming back from Garmin, which has
+    // just checked and is showing how it went.
     opened() {
-      if (GARMIN_BASE && !checked && !msg.textContent) refresh();
+      if (!GARMIN_BASE) return;
+      if (holdMsg) { holdMsg = false; return; }
+      refresh();
     },
 
     // Before deleting the account: Garmin requires telling them, as with
