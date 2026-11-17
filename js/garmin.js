@@ -61,7 +61,12 @@ export function createGarmin({ idToken }) {
       },
       body: body && JSON.stringify(body),
     });
-    if (!res.ok) throw new Error(`Garmin service: ${res.status}`);
+    if (!res.ok) {
+      const err = new Error(`Garmin service: ${res.status}`);
+      err.status = res.status;
+      err.reason = (await res.json().catch(() => ({}))).reason; // not_connected, courses_off, rate_limited
+      throw err;
+    }
     return res.json();
   }
 

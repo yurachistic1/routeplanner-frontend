@@ -66,7 +66,8 @@ export function createExport({ account }) {
     const ready = signedIn && status.connected && status.canSendCourses;
     $("export-route").textContent = routeLine();
     note.classList.toggle("on", sent);
-    if (sent) note.textContent = "Sent to Garmin Connect. Send it to your watch from there.";
+    // Garmin's Courses API: courses sent this way sync to the watch.
+    if (sent) note.textContent = "Sent to Garmin Connect. It goes to your watch at its next sync.";
     else if (!signedIn) note.textContent = "Sign in to send routes to your watch";
     else if (!status.connected) note.textContent = "Send routes to your watch";
     else if (!status.canSendCourses) note.textContent = "Courses are switched off for Runthe in Garmin Connect";
@@ -110,7 +111,16 @@ export function createExport({ account }) {
       sent = true;
     } catch (err) {
       console.error(err);
-      say("Garmin didn't take the route. Check your connection and try again.");
+      if (err.reason === "not_connected") {
+        status = { connected: false, canSendCourses: false };
+        say("Garmin isn't connected any more. Connect again to send this route.");
+      } else if (err.reason === "courses_off") {
+        status = { connected: true, canSendCourses: false };
+      } else if (err.reason === "rate_limited") {
+        say("Garmin's limit for today is reached. Try again tomorrow, or download the GPX.");
+      } else {
+        say("Garmin didn't take the route. Check your connection and try again.");
+      }
     } finally {
       send.removeAttribute("aria-busy");
       send.textContent = "Send to Garmin Connect";

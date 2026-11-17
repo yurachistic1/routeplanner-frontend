@@ -80,7 +80,7 @@ Specs for controls the app will likely need, so they arrive already consistent. 
 | Route info `#info-tab` | routes | Disclosure |
 | Previous / Next `#prev`, `#next` | routes | Icon buttons (chevrons) |
 | Export GPX `#download`, `#art-download` | routes, GPS art found | Primary. Says "Export" and opens the export dialog where there's a Garmin service (staging, local); otherwise downloads the GPX at once |
-| Export dialog `#export-dialog` | from Export | Sheet: the route line (distance, kind, place), the Garmin Connect connection card, then the buttons. The primary goes to what can be done now: Send to Garmin Connect when connected with Courses allowed (busy "Sending…", then the card's line turns lime "Sent to Garmin Connect…" and the primary becomes Done), otherwise Download GPX; Connect or Sign in sit inside the card. A failed send shows the pink note and keeps Send |
+| Export dialog `#export-dialog` | from Export | Sheet: the route line (distance, kind, place), the Garmin Connect connection card, then the buttons. The primary goes to what can be done now: Send to Garmin Connect when connected with Courses allowed (busy "Sending…", then the card's line turns lime "Sent to Garmin Connect. It goes to your watch at its next sync." and the primary becomes Done), otherwise Download GPX; Connect or Sign in sit inside the card. A failed send shows the pink note and keeps Send |
 | Favourite `#fav`, `#art-fav` | routes, GPS art found | Toggle |
 | All routes `#list-toggle` (phones), New run `#edit`, New search `#art-new` | routes, GPS art found | Secondary |
 | Close `#list-close` | route list (phones) | Icon button |
