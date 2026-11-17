@@ -30,7 +30,7 @@
 <body>
   <a class="back" href="../">← Back to Runthe</a>
   <h1>Privacy</h1>
-  <p class="updated"><span class="no-garmin">Last updated 6 November 2026</span><span class="garmin" hidden>Last updated 17 November 2026</span></p>
+  <p class="updated">Last updated 17 November 2026</p>
 
   <p>Runthe is a free personal project that generates running routes. There are no adverts, no analytics and no tracking cookies, and your data is never sold.</p>
 
@@ -39,6 +39,7 @@
 
   <h2>Planning routes, with no account</h2>
   <p>To plan a route, your start point and distance are sent to Runthe's server on Google Cloud. They're used to work out your routes, and neither they nor the routes are saved or logged. The server's request logs record your IP address, your browser type and the time. These logs are kept for 30 days to keep the service running and to spot abuse, and are then deleted.</p>
+  <p>GPS art works the same way, with one difference. When you search with one of the built-in icons, the search runs from the middle of the 2 km square your map is centred in, and the routes it finds are kept on the server (in London) so anyone searching for that icon in that square gets them straight away. They're deleted after 60 days. They record the square and the icon, not who searched. Shapes you draw yourself aren't kept.</p>
 
   <h2>If you create an account</h2>
   <p class="no-garmin">An account is only needed to save favourites. Runthe stores:</p>
@@ -71,6 +72,7 @@
     <li><strong>Google:</strong> runs the route server (London), accounts and favourites (Firebase, with favourites stored in London), sends sign-in emails and serves the fonts.</li>
     <li><strong>GitHub:</strong> hosts this website.</li>
     <li><strong>OpenFreeMap:</strong> supplies the map, so it can see which areas you view.</li>
+    <li><strong>Esri:</strong> supplies the satellite images when you turn on the satellite view, so it can see which areas you view then.</li>
     <li><strong>UNPKG:</strong> supplies the code that draws the map.</li>
     <li><strong>OpenStreetMap Foundation (Nominatim):</strong> turns start points into area names for your favourites. Start points are rounded to about 100m first, and each area is looked up once per device.</li>
     <li><strong>Porkbun:</strong> forwards email sent to the address above.</li>
