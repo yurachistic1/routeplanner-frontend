@@ -244,10 +244,10 @@ dialog.account[data-view="delete"] .drawer > [data-view="delete"] { display: gri
 .drawer .or { text-align: center; font-size: 14px; color: var(--dim); }
 .drawer-user { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .drawer-user p { min-width: 0; }
-.drawer-user .btn { flex: none; height: 40px; padding: 0 16px; font-size: 15px; }
+.drawer-user .btn { flex: none; height: 44px; padding: 0 16px; font-size: 15px; }
 .drawer-foot { margin-top: auto; padding-top: 18px; display: flex; justify-content: space-between; align-items: center; }
 /* Privacy and Delete account: tertiary, lime words. */
-.drawer-link { padding: 10px 0; font-size: 15px; font-weight: 600; color: var(--neon); text-decoration: none; text-underline-offset: .2em; }
+.drawer-link { min-height: 44px; display: inline-flex; align-items: center; padding: 10px 0; font-size: 15px; font-weight: 600; color: var(--neon); text-decoration: none; text-underline-offset: .2em; }
 .drawer-link:hover { text-decoration: underline; }
 dialog.account:not([data-view="account"]) #delete-account { display: none; }
 .account-close { position: absolute; z-index: 1; top: calc(14px + env(safe-area-inset-top)); right: 12px; }

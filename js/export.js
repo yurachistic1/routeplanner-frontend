@@ -14,6 +14,7 @@ import { GARMIN_BASE } from "./garmin.js";
 const PENDING = "runthe.pendingExport"; // the route, while away connecting Garmin
 const $ = (id) => document.getElementById(id);
 const km = (m) => (m / 1000).toFixed(1);
+const COURSES_OFF = "Turn Courses on in Garmin Connect's settings for Runthe, or disconnect and connect again with Courses on.";
 
 export function downloadGPX({ points, gpxName, fileName }) {
   const pts = points.map(([lat, lon]) => `<trkpt lat="${lat}" lon="${lon}"></trkpt>`).join("");
@@ -53,7 +54,8 @@ export function createExport({ account }) {
   const say = (text) => { msg.textContent = text; };
   const courseName = () => ["Runthe", place || (route.kind === "art" ? route.shape : ""), `${km(route.distance)} km`].filter(Boolean).join(" ");
   function routeLine() {
-    const what = route.kind === "art" ? `${route.shape ?? "GPS art"}, ${km(route.distance)} km` : `${km(route.distance)} km loop`;
+    const shape = route.shape ? route.shape[0].toUpperCase() + route.shape.slice(1) : "GPS art";
+    const what = route.kind === "art" ? `${shape}, ${km(route.distance)} km` : `${km(route.distance)} km loop`;
     return place ? `${what} from ${place}` : what;
   }
 
@@ -73,6 +75,9 @@ export function createExport({ account }) {
     connect.hidden = !signedIn || status.connected;
     send.hidden = !ready || sent;
     done.hidden = !sent;
+    // Courses off: say how to fix it, as the account menu does.
+    if (signedIn && status.connected && !status.canSendCourses && !sent) say(COURSES_OFF);
+    else if (msg.textContent === COURSES_OFF) say(""); // a fresh check found them back on
     const gpxIsMain = !ready && !sent;
     gpx.classList.toggle("btn-primary", gpxIsMain);
     gpx.classList.toggle("btn-secondary", !gpxIsMain);
