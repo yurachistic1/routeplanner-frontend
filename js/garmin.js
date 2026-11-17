@@ -72,7 +72,7 @@ export function createGarmin({ idToken }) {
     connectBtn.hidden = on;
     disconnectBtn.hidden = !on;
     if (on && !canSendCourses) {
-      say("Course uploads weren't allowed. Disconnect, connect again and allow them on Garmin's page.");
+      say("Courses are switched off for Runthe, so routes can't be sent. Turn them on in Garmin Connect's settings for Runthe, or disconnect and connect again with Courses on.");
     }
   }
   const say = (text) => { msg.textContent = text; };

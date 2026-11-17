@@ -233,7 +233,10 @@ dialog.account[data-view="sent"] .drawer > [data-view="sent"],
 dialog.account[data-view="confirm"] .drawer > [data-view="confirm"],
 dialog.account[data-view="account"] .drawer > [data-view="account"],
 dialog.account[data-view="delete"] .drawer > [data-view="delete"] { display: grid; }
-.drawer h2 { margin: 0; font-size: 22px; padding-right: 48px; }
+/* The heading row is as tall as the close button and lines up with it, so
+   what follows (e.g. the email and Sign out) starts below the button rather
+   than beside it (2026-11-17: they nearly touched). */
+.drawer h2 { margin: -8px 0 0; min-height: 44px; display: flex; align-items: center; font-size: 22px; padding-right: 48px; }
 .drawer p { margin: 0; font-size: 15px; line-height: 1.5; color: var(--dim); overflow-wrap: anywhere; }
 .drawer strong { color: var(--text); font-weight: 600; }
 .drawer form { display: grid; gap: 10px; }
