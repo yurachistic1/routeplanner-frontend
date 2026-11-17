@@ -3,6 +3,7 @@
 
 import { createAccount } from "./account.js";
 import { createArtMode } from "./art.js";
+import { createExport } from "./export.js";
 import { createLoopMode } from "./loop.js";
 import { createMap, addCredits, addLocate, addSatellite, placeMapTools } from "./map.js";
 import { buildStyle, ATTRIBUTION } from "./mapstyle.js";
@@ -50,6 +51,7 @@ placeMapTools();
 
 // ----- loop mode -----
 const account = createAccount({ openFavourites: () => setMode("favourites") });
+const exporter = createExport({ account });
 const app = createLoopMode(map, ready, {
   animate: true,
   // Closed from the top bar's back arrow, by signing out or by removing the
@@ -60,6 +62,7 @@ const app = createLoopMode(map, ready, {
   // The hearts in the route list start filled for saved routes (in favourites, all).
   isFavourite: (route) => account.isFavourite(route),
   formatIndex: (i) => String(i + 1).padStart(2, "0"),
+  exportRoute: (r) => exporter.open(r),
   padding: () => {
     const top = document.querySelector(".hud-top").getBoundingClientRect();
     const deck = document.querySelector(".deck").getBoundingClientRect();
@@ -108,6 +111,7 @@ registerMode("favourites", {
 // The route in lime like a loop. Its heart saves to the same favourites.
 registerMode("art", createArtMode(map, ready, {
   favourites: { toggle: (r) => account.toggleFavourite(r), has: (r) => account.isFavourite(r), onChange: (f) => account.onFavouritesChange(f) },
+  exportRoute: (r) => exporter.open(r),
   padding: () => {
     const top = document.querySelector(".hud-top").getBoundingClientRect();
     const deck = document.querySelector(".deck").getBoundingClientRect();

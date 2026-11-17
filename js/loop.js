@@ -707,18 +707,18 @@ export function createLoopMode(map, mapReady, opts) {
     if (e.key === "ArrowRight") show(state.index + 1);
   });
 
-  // ----- GPX -----
+  // ----- export -----
+  // A GPX file, or the Export dialog where Garmin is available (export.js).
   $("download")?.addEventListener("click", () => {
     const r = state.routes[state.index];
     if (!r) return;
-    const pts = r.raw.map(([lon, lat]) => `<trkpt lat="${lat}" lon="${lon}"></trkpt>`).join("");
-    const gpx = `<?xml version="1.0" encoding="UTF-8"?>
-<gpx xmlns="http://www.topografix.com/GPX/1/1" version="1.1" creator="routeplanner"><trk><name>${km(r.distance)} km loop</name><trkseg>${pts}</trkseg></trk></gpx>`;
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(new Blob([gpx], { type: "application/gpx+xml" }));
-    a.download = `${km(r.distance)}km.gpx`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    o.exportRoute?.({
+      kind: "loop",
+      distance: r.distance,
+      points: r.raw.map(([lon, lat]) => [lat, lon]),
+      gpxName: `${km(r.distance)} km loop`,
+      fileName: `${km(r.distance)}km.gpx`,
+    });
   });
 
   // Switching modes. Loop is the only planning mode so far, so there's

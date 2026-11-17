@@ -33,7 +33,7 @@ Specs for controls the app will likely need, so they arrive already consistent. 
 - **Progress** (a long job with steps): a 6px `--tone` track filling lime, with a sentence in `--dim` saying what's happening. A short wait inside a button uses the button's spinner instead.
 - **Grip** (built 2026-11-16, `.deck-grip`, GPS art on phones): a 40×5 pill in `--dim-2` on the panel's top edge, inside a full-width 44px-tall target. Tap or drag down folds the panel to its first row and its main button (Generate stays). Every fold, and the Where row appearing, animates its height (280 ms, the panel's top edge glides; none with reduced motion); tap again or drag up opens it. Pressed: the pill turns `--text`. Focus: the lime outline round the pill. `aria-expanded` says which.
 - **Panels, sheets and dialogs**: `--panel` fill, radius 24–26px, close is the cross icon button top right, at most one primary at the bottom. Headings 18–22px bold in `--text`.
-- **Connection card** (built 2026-11-17 as `.conn`, first used for Garmin Connect in the account menu; later the export dialog): a linked service under a small section label (`.drawer-label`, 14px semibold `--dim`, e.g. "Watch"). A `--card` block, radius 18, 14px padding: the service's official tile at 32px (unaltered, from the service's own brand assets), its name in full in 16px semibold `--text` (never shortened: Garmin's API brand guidelines), and a 14px status line in `--dim` beside it. The action sits underneath at full width so every state keeps the same shape: not connected is a secondary button ("Connect"; busy keeps the secondary look with the spinner, "Opening Garmin…"); connected turns the status line `--lime-ink` with an 8px lime dot ("Connected") and the action becomes tertiary words ("Disconnect", instant, no confirm). A problem shows below the card in `#ffd3e4`, 15px.
+- **Connection card** (built 2026-11-17 as `.conn`, used for Garmin Connect in the account menu and the export dialog): a linked service under a small section label (`.drawer-label`, 14px semibold `--dim`, e.g. "Watch"). A `--card` block, radius 18, 14px padding: the service's official tile at 32px (unaltered, from the service's own brand assets), its name in full in 16px semibold `--text` (never shortened: Garmin's API brand guidelines), and a 14px status line in `--dim` beside it. The action sits underneath at full width so every state keeps the same shape: not connected is a secondary button ("Connect"; busy keeps the secondary look with the spinner, "Opening Garmin…"); connected turns the status line `--lime-ink` with an 8px lime dot ("Connected") and the action becomes tertiary words ("Disconnect", instant, no confirm). A problem shows below the card in `#ffd3e4`, 15px.
 - **Messages**: a problem is the pink toast; something undoable is the `#undo` bar with a tertiary action. Badges or counts: `--ltone` with `--lime-ink` text, at least 12px.
 
 ## Rules
@@ -51,7 +51,7 @@ Specs for controls the app will likely need, so they arrive already consistent. 
 
 | Role | Class | Look | Used for |
 |---|---|---|---|
-| Primary | `.btn.btn-primary` | 52px lime pill, dark 16px semibold text, soft lime glow | Generate (loops and GPS art, 2026-11-16: GPS art's was Find) · Export GPX (routes and GPS art; Send to Garmin may take this later) · Use it · Continue with Google · Finish signing in |
+| Primary | `.btn.btn-primary` | 52px lime pill, dark 16px semibold text, soft lime glow | Generate (loops and GPS art, 2026-11-16: GPS art's was Find) · Export GPX / Export (routes and GPS art) · Send to Garmin Connect and Done (export dialog) · Use it · Continue with Google · Finish signing in |
 | Secondary | `.btn.btn-secondary` | 48px pill, `--ltone` fill, `--lime-ink` text | Back · All routes · New run · New search · Email me a sign-in link · Undo · Clear · Sign out · Keep my account · Connect (Garmin Connect) |
 | Tertiary | `.btn.btn-tertiary`, `.drawer-link` | Lime words, no fill (faint lime when pressed) | Undo in the message bar · Privacy · Delete account · Disconnect (Garmin Connect) |
 | Danger | `.btn.btn-danger` | Red `#ff6a5f` pill, dark text | Delete my account |
@@ -79,7 +79,8 @@ Specs for controls the app will likely need, so they arrive already consistent. 
 | Generate `#generate` | loop planning | Primary |
 | Route info `#info-tab` | routes | Disclosure |
 | Previous / Next `#prev`, `#next` | routes | Icon buttons (chevrons) |
-| Export GPX `#download`, `#art-download` | routes, GPS art found | Primary |
+| Export GPX `#download`, `#art-download` | routes, GPS art found | Primary. Says "Export" and opens the export dialog where there's a Garmin service (staging, local); otherwise downloads the GPX at once |
+| Export dialog `#export-dialog` | from Export | Sheet: the route line (distance, kind, place), the Garmin Connect connection card, then the buttons. The primary goes to what can be done now: Send to Garmin Connect when connected with Courses allowed (busy "Sending…", then the card's line turns lime "Sent to Garmin Connect…" and the primary becomes Done), otherwise Download GPX; Connect or Sign in sit inside the card. A failed send shows the pink note and keeps Send |
 | Favourite `#fav`, `#art-fav` | routes, GPS art found | Toggle |
 | All routes `#list-toggle` (phones), New run `#edit`, New search `#art-new` | routes, GPS art found | Secondary |
 | Close `#list-close` | route list (phones) | Icon button |

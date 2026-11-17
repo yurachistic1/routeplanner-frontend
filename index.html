@@ -16,7 +16,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@800&text=RUNTHEFAVOIS&display=swap" rel="stylesheet" />
   <link href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css" rel="stylesheet" />
   <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
-  <link href="./css/styles.css?v=62" rel="stylesheet" />
+  <link href="./css/styles.css?v=63" rel="stylesheet" />
 </head>
 <body>
   <div id="map"></div>
@@ -222,6 +222,29 @@
   </dialog>
   <!-- GPS art's Custom search (js/art.js): the route's length and how near
        the middle of the map it starts. Sliders as specced in UI.md. -->
+  <dialog id="export-dialog" class="sheet" aria-labelledby="export-title">
+    <div class="sheet-card sheet-plain">
+      <div class="sheet-head">
+        <h2 id="export-title">Export</h2>
+        <button class="icon-btn close-btn sheet-close" id="export-close" aria-label="Close"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+      </div>
+      <p class="sheet-note" id="export-route"></p>
+      <div class="conn">
+        <img class="conn-logo" src="./assets/garmin-connect.png" alt="" width="32" height="32" />
+        <div class="conn-text">
+          <div class="conn-name">Garmin Connect</div>
+          <p class="conn-note" id="export-note"></p>
+        </div>
+        <button class="btn btn-secondary" id="export-connect" hidden>Connect</button>
+        <button class="btn btn-secondary" id="export-signin" hidden>Sign in</button>
+      </div>
+      <p class="conn-msg" id="export-msg" role="status"></p>
+      <button class="btn btn-primary" id="export-send" hidden>Send to Garmin Connect</button>
+      <button class="btn btn-primary" id="export-done" hidden>Done</button>
+      <button class="btn btn-secondary" id="export-gpx">Download GPX</button>
+    </div>
+  </dialog>
+
   <dialog id="custom-dialog" class="sheet" aria-label="Custom search">
     <div class="sheet-card sheet-plain">
       <div class="sheet-head">
@@ -263,21 +286,22 @@
   <script type="importmap">
   {
     "imports": {
-      "./js/account.js": "./js/account.js?v=44",
-      "./js/api.js": "./js/api.js?v=44",
-      "./js/art.js": "./js/art.js?v=44",
-      "./js/garmin.js": "./js/garmin.js?v=44",
-      "./js/loop.js": "./js/loop.js?v=44",
-      "./js/main.js": "./js/main.js?v=44",
-      "./js/map.js": "./js/map.js?v=44",
-      "./js/mapstyle.js": "./js/mapstyle.js?v=44",
-      "./js/modes.js": "./js/modes.js?v=44",
-      "./js/polyline.js": "./js/polyline.js?v=44",
-      "./js/shapes.js": "./js/shapes.js?v=44",
-      "./js/ui.js": "./js/ui.js?v=44"
+      "./js/account.js": "./js/account.js?v=45",
+      "./js/api.js": "./js/api.js?v=45",
+      "./js/art.js": "./js/art.js?v=45",
+      "./js/export.js": "./js/export.js?v=45",
+      "./js/garmin.js": "./js/garmin.js?v=45",
+      "./js/loop.js": "./js/loop.js?v=45",
+      "./js/main.js": "./js/main.js?v=45",
+      "./js/map.js": "./js/map.js?v=45",
+      "./js/mapstyle.js": "./js/mapstyle.js?v=45",
+      "./js/modes.js": "./js/modes.js?v=45",
+      "./js/polyline.js": "./js/polyline.js?v=45",
+      "./js/shapes.js": "./js/shapes.js?v=45",
+      "./js/ui.js": "./js/ui.js?v=45"
     }
   }
   </script>
-  <script type="module" src="./js/main.js?v=44"></script>
+  <script type="module" src="./js/main.js?v=45"></script>
 </body>
 </html>

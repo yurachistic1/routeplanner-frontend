@@ -261,15 +261,20 @@ dialog.account:not([data-view="account"]) #delete-account { display: none; }
 .conn-logo { width: 32px; height: 32px; display: block; align-self: start; margin-top: 2px; }
 .conn-text { min-width: 0; }
 .conn-name { font-size: 16px; font-weight: 600; color: var(--text); }
+.conn-note { margin: 0; font-size: 14px; line-height: 1.35; color: var(--dim); }
 .drawer .conn-note { font-size: 14px; line-height: 1.35; }
-.drawer .conn-note.on { color: var(--lime-ink); }
+.conn-note.on, .drawer .conn-note.on { color: var(--lime-ink); }
 .conn-note.on::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 50%; background: var(--neon); vertical-align: 1px; }
 .conn > .btn { grid-column: 1 / -1; width: 100%; }
 .conn > .btn[hidden] { display: none; }
 .conn > .btn-tertiary { justify-self: start; width: auto; margin-left: -10px; padding: 0 10px; }
 .conn > .btn[aria-busy="true"] { pointer-events: none; cursor: progress; }
+.conn-msg { margin: 0; font-size: 15px; line-height: 1.45; color: #ffd3e4; }
 .drawer .conn-msg { color: #ffd3e4; }
-.drawer .conn-msg:empty { display: none; }
+.conn-msg:empty { display: none; }
+/* Export dialog (export.js): the buttons hide and show as the state changes. */
+#export-dialog .btn[hidden] { display: none; }
+#export-dialog .btn[aria-busy="true"] { pointer-events: none; cursor: progress; }
 #account-error { color: #ffd3e4; }
 #account-error:not(:empty) { margin-top: 12px; }
 

@@ -65,7 +65,11 @@ export function createGarmin({ idToken }) {
     return res.json();
   }
 
+  let last = { connected: false, canSendCourses: false }; // the latest status
+  let returnHandler = null;
+
   function show({ connected: on, canSendCourses = true }) {
+    last = { connected: on, canSendCourses: on && canSendCourses };
     connected = on;
     checked = true;
     say("");
@@ -95,13 +99,18 @@ export function createGarmin({ idToken }) {
     }
   }
 
+  // Off to Garmin's consent page; the service sends them back here.
+  async function beginConnect() {
+    const { url } = await call("POST", "/connect", { returnTo: location.origin + location.pathname });
+    location.assign(url);
+  }
+
   async function connect() {
     if (connectBtn.getAttribute("aria-busy") === "true") return;
     say("");
     setBusy(connectBtn, true, "Opening Garmin…");
     try {
-      const { url } = await call("POST", "/connect", { returnTo: location.origin + location.pathname });
-      location.assign(url);
+      await beginConnect();
     } catch (err) {
       console.error(err);
       setBusy(connectBtn, false, "Connect");
@@ -143,10 +152,32 @@ export function createGarmin({ idToken }) {
       if (!signedIn || !GARMIN_BASE) return false;
       await refresh();
       if (!returned) return false;
-      if (RESULTS[returned]) say(RESULTS[returned]);
+      const result = returned;
       returned = null;
+      // The export dialog takes over if they left from there.
+      if (returnHandler?.(result, RESULTS[result])) return false;
+      if (RESULTS[result]) say(RESULTS[result]);
       holdMsg = true;
       return true;
+    },
+
+    // fn(result, message) is offered the return from Garmin first; it
+    // returns true if it showed it.
+    onReturn(fn) { returnHandler = fn; },
+
+    beginConnect,
+
+    // The status as last checked, and a fresh check (which also updates the
+    // account menu). A failed check counts as not connected.
+    lastStatus: () => last,
+    async check() {
+      await refresh();
+      return last;
+    },
+
+    // Uploads a route as a course: { name, distance (m), points: [[lat, lon], ...] }.
+    async sendCourse(course) {
+      return call("POST", "/courses", course);
     },
 
     // Check again every time the account menu opens, so changes made in

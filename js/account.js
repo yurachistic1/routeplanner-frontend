@@ -92,6 +92,35 @@ async function namePlaces(routes) {
   }
 }
 
+// A single place name for a point ([lat, lon]), for the Export dialog: the
+// cached one at once, or "" (knownPlace), or looked up (placeOf, "" if that
+// fails). Same rules as the favourites' names: one lookup a person asked
+// for, rounded to about 100m, kept on the device.
+function knownPlace([lat, lon]) {
+  try {
+    return JSON.parse(localStorage.getItem(PLACES) ?? "{}")[placeKey([lon, lat])] ?? "";
+  } catch {
+    return "";
+  }
+}
+async function placeOf(point) {
+  const cached = knownPlace(point);
+  if (cached) return cached;
+  const key = placeKey([point[1], point[0]]);
+  try {
+    const name = await lookUpPlace(key);
+    if (name) {
+      const known = JSON.parse(localStorage.getItem(PLACES) ?? "{}");
+      known[key] = name;
+      localStorage.setItem(PLACES, JSON.stringify(known));
+    }
+    return name;
+  } catch (err) {
+    console.warn(err);
+    return "";
+  }
+}
+
 export function createAccount({ openFavourites = () => {} } = {}) {
   const dialog = $("account-dialog");
   const heart = $("fav");
@@ -447,6 +476,16 @@ export function createAccount({ openFavourites = () => {} } = {}) {
 
   return {
     attach(a) { app = a; start(); },
+    garmin,
+    signedIn: () => !!user,
+    // Opens sign-in, then runs then() once signed in (Google; an email link
+    // leaves the page, so it's lost).
+    signIn(then) {
+      afterSignIn = then;
+      open("signin");
+    },
+    knownPlace,
+    placeOf,
     routeShown(r) { route = r; syncHeart(); },
     toggleFavourite,
     // For other modes' hearts: r is { raw: [[lon, lat], ...], distance }.
