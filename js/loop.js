@@ -505,7 +505,7 @@ export function createLoopMode(map, mapReady, opts) {
         ${delta === null ? "" : `<span class="ri-delta">${sign}${Math.abs(delta).toFixed(2)}</span>`}
       </button>${o.onRouteAction ? HEART(r.i, !!o.isFavourite?.(r)) : ""}</li>`;
     }).join("");
-    for (const p of ul.querySelectorAll(".ri-place")) p.textContent = places.get(p.dataset.key) ?? "";
+    for (const p of ul.querySelectorAll(".ri-place")) p.textContent = p.title = places.get(p.dataset.key) ?? "";
     for (const b of ul.querySelectorAll(".ri-action")) {
       b.addEventListener("click", () => o.onRouteAction(state.routes[+b.dataset.i]));
     }

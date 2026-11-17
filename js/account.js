@@ -67,7 +67,7 @@ const placeKey = ([lon, lat]) => `${lat.toFixed(3)},${lon.toFixed(3)}`;
 async function namePlaces(routes) {
   const known = JSON.parse(localStorage.getItem(PLACES) ?? "{}");
   const show = (key) => {
-    for (const el of document.querySelectorAll(`.ri-place[data-key="${key}"]`)) el.textContent = known[key];
+    for (const el of document.querySelectorAll(`.ri-place[data-key="${key}"]`)) el.textContent = el.title = known[key];
   };
   const keys = [...new Set(routes.map((r) => r.place))];
   keys.filter((k) => known[k]).forEach(show);

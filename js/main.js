@@ -66,7 +66,7 @@ const app = createLoopMode(map, ready, {
   padding: () => {
     const top = document.querySelector(".hud-top").getBoundingClientRect();
     const deck = document.querySelector(".deck").getBoundingClientRect();
-    if (desktop.matches) return { top: 60, bottom: 60, left: deck.right + 40, right: 380 };
+    if (desktop.matches) return { top: 60, bottom: 60, left: deck.right + 40, right: document.querySelector(".list").offsetWidth + 40 }; // clear of the route list (offsetWidth ignores its slide-in)
     return { top: top.bottom + 30, left: 30, right: 30, bottom: innerHeight - deck.top + 30 };
   },
   // Uncertain (countryside) paths, which route info warns about, are dashed (see
