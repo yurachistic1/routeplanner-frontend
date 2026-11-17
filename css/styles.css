@@ -319,14 +319,14 @@ dialog.account:not([data-view="account"]) #delete-account { display: none; }
 .ri-heart.on { color: var(--pink); background: #3d1a2b; }
 .ri-heart.on svg { fill: currentColor; }
 /* One line always, so every row is the same height (2026-11-17): the
-   number and GPS art shape stay whole, the area name shortens with "…"
-   (its full name is the row's tooltip). */
+   number stays whole, the area name shortens with "…" (its full name is
+   the tooltip). */
 .ri-meta { grid-column: 2; grid-row: 2; display: flex; align-items: baseline; min-width: 0; white-space: nowrap; font-size: 15px; color: var(--dim); line-height: 1.35; }
 .ri-meta > * { flex: none; }
 .ri-meta > .ri-place { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .ri-num { font: 500 14px "JetBrains Mono"; }
 .ri-num::before { content: "#"; }
-.ri-place:not(:empty)::before, .ri-shape::before { content: " · "; white-space: pre; }
+.ri-place:not(:empty)::before { content: " · "; white-space: pre; }
 /* Same as the route info tab's dot: this route has warnings. */
 .ri-dot { display: inline-block; width: 7px; height: 7px; margin-left: 6px; vertical-align: 1px; border-radius: 50%; background: var(--amber); box-shadow: 0 0 6px rgba(255, 181, 71, .7); }
 .ri-delta { font: 500 15px "JetBrains Mono"; color: var(--dim); grid-column: 3; grid-row: 1 / 3; text-align: right; }

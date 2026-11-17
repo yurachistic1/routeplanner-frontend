@@ -211,10 +211,10 @@ export function thumbnail(pts, size = 44) {
  * Returns the mode's controls, used by accounts (js/account.js) too, plus
  * enter() and leave() for js/modes.js.
  */
-// A GPS art shape's name as shown: icons are named in lower case ("heart"),
-// text icons in capitals ("RUN"), drawings "My shape".
+// A GPS art shape's name for Garmin courses and the export dialog (the
+// route list shows the shape itself, so not its name): icons are named in
+// lower case ("heart"), text icons in capitals ("RUN"), drawings "My shape".
 export const shapeLabel = (name) => name[0].toUpperCase() + name.slice(1);
-const escapeHTML = (s) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
 export function createLoopMode(map, mapReady, opts) {
   const o = { padding: () => 60, formatIndex: (i) => String(i + 1), ...opts };
@@ -501,7 +501,7 @@ export function createLoopMode(map, mapReady, opts) {
       return `<li class="route-cell" data-id="${r.id ?? r.i}"><button class="route-item" data-i="${r.i}">
         ${thumbnail(r.raw, 48)}
         <span class="ri-dist">${km(r.distance)}<small> km</small></span>
-        <span class="ri-meta"><span class="ri-num">${number(r.i)}</span>${r.info && warnings(r.info).length ? `<i class="ri-dot" role="img" aria-label="has warnings"></i>` : ""}${r.shape ? `<span class="ri-shape">${escapeHTML(shapeLabel(r.shape))}</span>` : ""}${r.place ? `<span class="ri-place" data-key="${r.place}"></span>` : ""}</span>
+        <span class="ri-meta"><span class="ri-num">${number(r.i)}</span>${r.info && warnings(r.info).length ? `<i class="ri-dot" role="img" aria-label="has warnings"></i>` : ""}${r.place ? `<span class="ri-place" data-key="${r.place}"></span>` : ""}</span>
         ${delta === null ? "" : `<span class="ri-delta">${sign}${Math.abs(delta).toFixed(2)}</span>`}
       </button>${o.onRouteAction ? HEART(r.i, !!o.isFavourite?.(r)) : ""}</li>`;
     }).join("");
