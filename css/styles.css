@@ -248,6 +248,25 @@ dialog.account[data-view="delete"] .drawer > [data-view="delete"] { display: gri
 .drawer-link:hover { text-decoration: underline; }
 dialog.account:not([data-view="account"]) #delete-account { display: none; }
 .account-close { position: absolute; z-index: 1; top: calc(14px + env(safe-area-inset-top)); right: 12px; }
+/* Connection card (UI.md): a linked service in the account menu, Garmin
+   Connect first. Its official tile at 32px, the name in full, a status line,
+   and the action underneath so every state keeps one shape. */
+.drawer .drawer-label { margin: 6px 0 -4px; font-size: 14px; font-weight: 600; color: var(--dim); }
+.garmin { display: grid; gap: 12px; }
+.garmin[hidden] { display: none; }
+.conn { display: grid; grid-template-columns: 32px 1fr; align-items: center; gap: 12px; padding: 14px; background: var(--card); border-radius: 18px; }
+.conn-logo { width: 32px; height: 32px; display: block; align-self: start; margin-top: 2px; }
+.conn-text { min-width: 0; }
+.conn-name { font-size: 16px; font-weight: 600; color: var(--text); }
+.drawer .conn-note { font-size: 14px; line-height: 1.35; }
+.drawer .conn-note.on { color: var(--lime-ink); }
+.conn-note.on::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 50%; background: var(--neon); vertical-align: 1px; }
+.conn > .btn { grid-column: 1 / -1; width: 100%; }
+.conn > .btn[hidden] { display: none; }
+.conn > .btn-tertiary { justify-self: start; width: auto; margin-left: -10px; padding: 0 10px; }
+.conn > .btn[aria-busy="true"] { pointer-events: none; cursor: progress; }
+.drawer .conn-msg { color: #ffd3e4; }
+.drawer .conn-msg:empty { display: none; }
 #account-error { color: #ffd3e4; }
 #account-error:not(:empty) { margin-top: 12px; }
 

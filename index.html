@@ -16,7 +16,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@800&text=RUNTHEFAVOIS&display=swap" rel="stylesheet" />
   <link href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css" rel="stylesheet" />
   <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
-  <link href="./css/styles.css?v=59" rel="stylesheet" />
+  <link href="./css/styles.css?v=60" rel="stylesheet" />
 </head>
 <body>
   <div id="map"></div>
@@ -148,7 +148,7 @@
 
       <div data-view="signin">
         <h2>Sign in</h2>
-        <p>Save the routes you love. Planning routes never needs an account.</p>
+        <p id="signin-text">Save the routes you love. Planning routes never needs an account.</p>
         <button class="btn btn-primary" id="google-signin">Continue with Google</button>
         <div class="or">or</div>
         <form id="email-form">
@@ -177,6 +177,19 @@
           <p id="account-email"></p>
           <button class="btn btn-secondary" id="sign-out">Sign out</button>
         </div>
+        <section class="garmin" id="garmin" aria-labelledby="garmin-label" hidden>
+          <h3 class="drawer-label" id="garmin-label">Watch</h3>
+          <div class="conn">
+            <img class="conn-logo" src="./assets/garmin-connect.png" alt="" width="32" height="32" />
+            <div class="conn-text">
+              <div class="conn-name">Garmin Connect</div>
+              <p class="conn-note" id="garmin-note">Send routes to your watch</p>
+            </div>
+            <button class="btn btn-secondary" id="garmin-connect">Connect</button>
+            <button class="btn btn-tertiary" id="garmin-disconnect" hidden>Disconnect</button>
+          </div>
+          <p class="conn-msg" id="garmin-msg" role="status"></p>
+        </section>
       </div>
 
       <div data-view="delete">
@@ -250,20 +263,21 @@
   <script type="importmap">
   {
     "imports": {
-      "./js/account.js": "./js/account.js?v=41",
-      "./js/api.js": "./js/api.js?v=41",
-      "./js/art.js": "./js/art.js?v=41",
-      "./js/loop.js": "./js/loop.js?v=41",
-      "./js/main.js": "./js/main.js?v=41",
-      "./js/map.js": "./js/map.js?v=41",
-      "./js/mapstyle.js": "./js/mapstyle.js?v=41",
-      "./js/modes.js": "./js/modes.js?v=41",
-      "./js/polyline.js": "./js/polyline.js?v=41",
-      "./js/shapes.js": "./js/shapes.js?v=41",
-      "./js/ui.js": "./js/ui.js?v=41"
+      "./js/account.js": "./js/account.js?v=42",
+      "./js/api.js": "./js/api.js?v=42",
+      "./js/art.js": "./js/art.js?v=42",
+      "./js/garmin.js": "./js/garmin.js?v=42",
+      "./js/loop.js": "./js/loop.js?v=42",
+      "./js/main.js": "./js/main.js?v=42",
+      "./js/map.js": "./js/map.js?v=42",
+      "./js/mapstyle.js": "./js/mapstyle.js?v=42",
+      "./js/modes.js": "./js/modes.js?v=42",
+      "./js/polyline.js": "./js/polyline.js?v=42",
+      "./js/shapes.js": "./js/shapes.js?v=42",
+      "./js/ui.js": "./js/ui.js?v=42"
     }
   }
   </script>
-  <script type="module" src="./js/main.js?v=41"></script>
+  <script type="module" src="./js/main.js?v=42"></script>
 </body>
 </html>

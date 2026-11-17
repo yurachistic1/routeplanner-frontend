@@ -6,9 +6,10 @@
 // Page elements: #account, #account-dialog (the side menu) and its [data-view]
 // sections, #fav, #undo, #undo-btn. Favourites are a mode on the shelf
 // (see main.js), shown only when signed in; openFavourites switches to it.
-// Body class: signed-in.
+// Body class: signed-in. The Garmin Connect card in the menu is garmin.js.
 
 import { encodeLine, decodeLine, lineId } from "./polyline.js";
+import { createGarmin } from "./garmin.js";
 
 const SDK = "https://www.gstatic.com/firebasejs/13.2.0";
 // These identify the project and are safe to publish. firestore.rules is what
@@ -105,6 +106,7 @@ export function createAccount({ openFavourites = () => {} } = {}) {
   let undoTimer;
 
   const toast = (msg) => app?.toast(msg);
+  const garmin = createGarmin({ idToken: () => user.getIdToken() });
   const favouritesPath = () => `users/${user.uid}/favourites`;
 
   function load() {
@@ -134,6 +136,8 @@ export function createAccount({ openFavourites = () => {} } = {}) {
     else localStorage.removeItem(HAS_ACCOUNT);
     $("account-email").textContent = user?.email ?? "";
     if (user && dialog.open) setView("account");
+    // Back from Garmin's page: open the menu to show how connecting went.
+    garmin.userChanged(!!user).then((back) => { if (back && user) open("account"); });
     if (!user) {
       hideUndo();
       app?.exitFavourites(); // don't leave saved routes on screen
@@ -170,6 +174,7 @@ export function createAccount({ openFavourites = () => {} } = {}) {
   }
   function open(view) {
     setView(view);
+    if (view === "account") garmin.opened();
     if (!dialog.open) dialog.showModal();
     load().catch(() => showError("Couldn't load sign-in. Check your connection."));
   }
@@ -249,6 +254,12 @@ export function createAccount({ openFavourites = () => {} } = {}) {
     button.disabled = true;
     try {
       if (!(await confirmIdentity())) return;
+      try {
+        await garmin.beforeDelete();
+      } catch (err) {
+        console.error(err);
+        return showError("Couldn't disconnect Garmin, so nothing was deleted. Try again.");
+      }
       const { auth, store, db } = await load();
       const snap = await store.getDocs(store.collection(db, favouritesPath()));
       await Promise.all(snap.docs.map((d) => store.deleteDoc(d.ref)));
