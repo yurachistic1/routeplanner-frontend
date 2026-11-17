@@ -345,7 +345,7 @@ export function createAccount({ openFavourites = () => {} } = {}) {
     const newestFirst = [...saved.entries()].sort(([, a], [, b]) => (b.savedAt?.seconds ?? 0) - (a.savedAt?.seconds ?? 0));
     return newestFirst.map(([id, f]) => {
       const raw = decodeLine(f.line);
-      return { id, line: f.line, distance: f.distance, raw, start: raw[0], place: placeKey(raw[0]), info: unpackInfo(f.info) };
+      return { id, line: f.line, distance: f.distance, raw, start: raw[0], place: placeKey(raw[0]), info: unpackInfo(f.info), ...(f.shape && { shape: f.shape }) };
     });
   }
 
@@ -374,7 +374,7 @@ export function createAccount({ openFavourites = () => {} } = {}) {
       syncHeart();
       refreshFavourites();
     };
-    const fav = { line: r.line, distance: r.distance, ...(r.info && { info: packInfo(r.info) }) };
+    const fav = { line: r.line, distance: r.distance, ...(r.info && { info: packInfo(r.info) }), ...(r.shape && { shape: r.shape.slice(0, 60) }) };
     const wasInFavourites = app.state.favourites;
     change(before ? null : { ...fav, savedAt: savedAt ?? { seconds: Date.now() / 1000 } });
     const write = (async () => {

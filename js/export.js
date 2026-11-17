@@ -10,6 +10,7 @@
 // #export-dialog and its #export-* parts.
 
 import { GARMIN_BASE } from "./garmin.js";
+import { shapeLabel } from "./loop.js";
 
 const PENDING = "runthe.pendingExport"; // the route, while away connecting Garmin
 const $ = (id) => document.getElementById(id);
@@ -52,9 +53,14 @@ export function createExport({ account }) {
   }
 
   const say = (text) => { msg.textContent = text; };
-  const courseName = () => ["Runthe", place || (route.kind === "art" ? route.shape : ""), `${km(route.distance)} km`].filter(Boolean).join(" ");
+  // "Runthe Paddington 10.2 km"; GPS art adds its shape: "Runthe Heart, Paddington 29.0 km".
+  function courseName() {
+    const shape = route.kind === "art" && route.shape ? shapeLabel(route.shape) : "";
+    const where = shape && place ? `${shape}, ${place}` : shape || place;
+    return ["Runthe", where, `${km(route.distance)} km`].filter(Boolean).join(" ");
+  }
   function routeLine() {
-    const shape = route.shape ? route.shape[0].toUpperCase() + route.shape.slice(1) : "GPS art";
+    const shape = route.shape ? shapeLabel(route.shape) : "GPS art";
     const what = route.kind === "art" ? `${shape}, ${km(route.distance)} km` : `${km(route.distance)} km loop`;
     return place ? `${what} from ${place}` : what;
   }

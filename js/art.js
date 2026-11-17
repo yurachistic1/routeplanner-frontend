@@ -246,7 +246,9 @@ export function createArtMode(map, mapReady, opts) {
   opts.favourites.onChange(syncHeart);
   $("art-fav").addEventListener("click", () => {
     const r = state.routes[state.index];
-    if (r) opts.favourites.toggle(r);
+    if (!r) return;
+    r.shape ??= state.shape?.name; // saved with the favourite, so it's known later
+    opts.favourites.toggle(r);
   });
   // Whether the map has been moved by hand (or to your location) since a
   // route was framed on it. Only in this mode, and not by the framing.

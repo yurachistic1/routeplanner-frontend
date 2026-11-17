@@ -211,6 +211,11 @@ export function thumbnail(pts, size = 44) {
  * Returns the mode's controls, used by accounts (js/account.js) too, plus
  * enter() and leave() for js/modes.js.
  */
+// A GPS art shape's name as shown: icons are named in lower case ("heart"),
+// text icons in capitals ("RUN"), drawings "My shape".
+export const shapeLabel = (name) => name[0].toUpperCase() + name.slice(1);
+const escapeHTML = (s) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+
 export function createLoopMode(map, mapReady, opts) {
   const o = { padding: () => 60, formatIndex: (i) => String(i + 1), ...opts };
   // A route's number. Favourites count from the oldest, which is 01 at the
@@ -496,7 +501,7 @@ export function createLoopMode(map, mapReady, opts) {
       return `<li class="route-cell" data-id="${r.id ?? r.i}"><button class="route-item" data-i="${r.i}">
         ${thumbnail(r.raw, 48)}
         <span class="ri-dist">${km(r.distance)}<small> km</small></span>
-        <span class="ri-meta"><span class="ri-num">${number(r.i)}</span>${r.info && warnings(r.info).length ? `<i class="ri-dot" role="img" aria-label="has warnings"></i>` : ""}${r.place ? `<span class="ri-place" data-key="${r.place}"></span>` : ""}</span>
+        <span class="ri-meta"><span class="ri-num">${number(r.i)}</span>${r.info && warnings(r.info).length ? `<i class="ri-dot" role="img" aria-label="has warnings"></i>` : ""}${r.shape ? `<span class="ri-shape">${escapeHTML(shapeLabel(r.shape))}</span>` : ""}${r.place ? `<span class="ri-place" data-key="${r.place}"></span>` : ""}</span>
         ${delta === null ? "" : `<span class="ri-delta">${sign}${Math.abs(delta).toFixed(2)}</span>`}
       </button>${o.onRouteAction ? HEART(r.i, !!o.isFavourite?.(r)) : ""}</li>`;
     }).join("");
@@ -712,12 +717,15 @@ export function createLoopMode(map, mapReady, opts) {
   $("download")?.addEventListener("click", () => {
     const r = state.routes[state.index];
     if (!r) return;
+    // A GPS art favourite remembers its shape (saved since 2026-11-17).
+    const name = r.shape ? `${r.shape} ${(r.distance / 1000).toFixed(1)} km` : `${km(r.distance)} km loop`;
     o.exportRoute?.({
-      kind: "loop",
+      kind: r.shape ? "art" : "loop",
+      shape: r.shape,
       distance: r.distance,
       points: r.raw.map(([lon, lat]) => [lat, lon]),
-      gpxName: `${km(r.distance)} km loop`,
-      fileName: `${km(r.distance)}km.gpx`,
+      gpxName: name,
+      fileName: r.shape ? `${name.replaceAll(" ", "-")}.gpx` : `${km(r.distance)}km.gpx`,
     });
   });
 
