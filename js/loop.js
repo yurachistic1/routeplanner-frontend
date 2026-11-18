@@ -17,7 +17,7 @@
 
 import { API_BASE } from "./api.js";
 import { goBack } from "./modes.js";
-import { renderProfile, sharedScale } from "./profile.js";
+import { heightsAt, renderProfile, sharedScale } from "./profile.js";
 import { $, toast } from "./ui.js";
 
 const API_URL = `${API_BASE}/routes`;
@@ -781,11 +781,14 @@ export function createLoopMode(map, mapReady, opts) {
     if (!r) return;
     // A GPS art favourite remembers its shape (saved since 2026-11-17).
     const name = r.shape ? `${r.shape} ${(r.distance / 1000).toFixed(1)} km` : `${km(r.distance)} km loop`;
+    const points = r.raw.map(([lon, lat]) => [lat, lon]);
     o.exportRoute?.({
       kind: r.shape ? "art" : "loop",
       shape: r.shape,
       distance: r.distance,
-      points: r.raw.map(([lon, lat]) => [lat, lon]),
+      points,
+      // heights for <ele> and Garmin courses, where the route has them
+      ...(r.elevation && { heights: heightsAt(r, points), climb: r.climb }),
       gpxName: name,
       fileName: r.shape ? `${name.replaceAll(" ", "-")}.gpx` : `${km(r.distance)}km.gpx`,
     });

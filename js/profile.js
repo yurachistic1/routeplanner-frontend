@@ -59,6 +59,25 @@ function drawn(r) {
   return r._drawn;
 }
 
+// The height at each of points ([lat, lon], the route's line from start to
+// finish), read off route r's profile by how far round the line each is:
+// for <ele> in GPX files and Garmin courses. Null if r has no heights.
+export function heightsAt(r, points) {
+  if (!hasProfile(r) || points.length < 2) return null;
+  const along = [0];
+  for (let i = 1; i < points.length; i++) {
+    const [a, b] = [points[i - 1], points[i]];
+    const dy = (b[0] - a[0]) * 111320, dx = (b[1] - a[1]) * 111320 * Math.cos((a[0] * Math.PI) / 180);
+    along.push(along[i - 1] + Math.hypot(dx, dy));
+  }
+  const total = along.at(-1) || 1;
+  const hs = r.elevation, n = hs.length - 1;
+  return along.map((d) => {
+    const at = (d / total) * n, k = Math.min(Math.floor(at), n - 1);
+    return Math.round((hs[k] + (at - k) * (hs[k + 1] - hs[k])) * 10) / 10;
+  });
+}
+
 // The scale routes found together share: distances up to target (km) or
 // the longest route, heights from the lowest to the highest.
 export function sharedScale(routes, target) {
