@@ -290,6 +290,17 @@ dialog.account:not([data-view="account"]) #delete-account { display: none; }
 .list-open .list { opacity: 1; pointer-events: auto; }
 .list-head { display: flex; justify-content: space-between; align-items: center; min-height: 44px; }
 .list-head h2 { margin: 0; font-size: 18px; font-weight: 700; color: var(--text); }
+/* Sort by climb (UI.md): the title, then the button and, when sorted, what
+   order it is, on the left, well away from the close button on phones. */
+.list-head-main { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.sort-btn { width: 44px; height: 44px; flex: none; }
+.sort-btn[hidden] { display: none; }
+.sort-btn[aria-pressed="true"] { background: var(--ltone); color: var(--lime-ink); }
+@media (hover: hover) { .sort-btn[aria-pressed="true"]:hover { background: var(--ltone-2); } }
+.sort-btn[aria-pressed="true"]:active { background: var(--ltone-press); }
+.sort-note { font-size: 14px; color: var(--dim); white-space: nowrap; }
+.sort-note:empty { display: none; }
+
 #route-list { list-style: none; margin: 0; padding: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
 /* Route rows (2026-11-16, were half-width cards): full width and short, so
    many fit. Shape, distance over number (and area, in favourites), how far
