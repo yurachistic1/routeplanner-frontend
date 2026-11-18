@@ -573,11 +573,13 @@ export function createLoopMode(map, mapReady, opts) {
     btn.title = SORTS[state.sort].label;
     if ($("list-sort-note")) $("list-sort-note").textContent = can ? SORTS[state.sort].note : "";
   }
+  // Each tap selects the list's new first route (the flattest, the
+  // hilliest, or the router's first), 2026-11-18, the user.
   $("list-sort")?.addEventListener("click", () => {
     state.sort = state.sort === 0 ? 1 : state.sort === 1 ? -1 : 0;
     renderList();
-    markCurrent(false);
     $("route-list")?.scrollTo({ top: 0, behavior: calm() ? "auto" : "smooth" });
+    show(order()[0], false);
   });
   // The next or previous route in the list's order.
   function step(by) {
