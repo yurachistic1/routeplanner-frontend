@@ -44,9 +44,12 @@ const { map, ready } = createMap({
   style,
   ...(desktop.matches ? {} : { view: PHONE_VIEW, openFrom: installed && !calm ? ICON_VIEW : null }),
 });
-const credits = addCredits(ATTRIBUTION);
+// The map's credits, and the heights' (their full statements are on the
+// privacy page).
+const CREDITS = `${ATTRIBUTION} · Heights: <a href="./privacy/#data" target="_blank" rel="noopener">Copernicus, Environment Agency</a>`;
+const credits = addCredits(CREDITS);
 addLocate(map);
-addSatellite(map, ready, credits, ATTRIBUTION);
+addSatellite(map, ready, credits, CREDITS);
 placeMapTools();
 
 // ----- loop mode -----

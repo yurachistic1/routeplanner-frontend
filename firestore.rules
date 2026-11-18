@@ -23,16 +23,26 @@ service cloud.firestore {
           && (!('back' in i) || i.back is bool)
           && (!('noPavementSpans' in i) || (i.noPavementSpans is list && i.noPavementSpans.size() <= 4000));
       }
+      // Heights (2026-11-18), optional: the climb in metres, and the height
+      // profile, evenly spaced elevationStep metres apart (about 200
+      // numbers). Favourites saved before, and GPS art, don't have them.
+      function isValidHeights(d) {
+        return (!('climb' in d) || (d.climb is number && d.climb >= 0 && d.climb <= 20000))
+          && (!('elevation' in d) || (d.elevation is list && d.elevation.size() >= 2 && d.elevation.size() <= 400))
+          && (!('elevationStep' in d) || (d.elevationStep is number && d.elevationStep > 0 && d.elevationStep <= 2000))
+          && (('elevation' in d) == ('elevationStep' in d));
+      }
       function isValid() {
         let d = request.resource.data;
-        return d.keys().hasOnly(['line', 'distance', 'savedAt', 'info', 'shape'])
+        return d.keys().hasOnly(['line', 'distance', 'savedAt', 'info', 'shape', 'climb', 'elevation', 'elevationStep'])
           && d.keys().hasAll(['line', 'distance', 'savedAt'])
           && d.line is string && d.line.size() > 0 && d.line.size() <= 200000
           && d.distance is number && d.distance > 0 && d.distance <= 60000
           && d.savedAt is timestamp && d.savedAt <= request.time
           && (!('info' in d) || isValidInfo(d.info))
           // GPS art: the shape's name (an icon's, or "My shape"), from 2026-11-17.
-          && (!('shape' in d) || (d.shape is string && d.shape.size() > 0 && d.shape.size() <= 60));
+          && (!('shape' in d) || (d.shape is string && d.shape.size() > 0 && d.shape.size() <= 60))
+          && isValidHeights(d);
       }
       allow read, delete: if isOwner();
       allow create: if isOwner() && isValid();

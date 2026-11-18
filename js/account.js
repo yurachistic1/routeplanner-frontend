@@ -315,6 +315,11 @@ export function createAccount({ openFavourites = () => {} } = {}) {
     for (let i = 0; i + 1 < (list?.length ?? 0); i += 2) out.push([list[i], list[i + 1]]);
     return out;
   }
+  // The climb and height profile (js/profile.js), kept since 2026-11-18;
+  // favourites saved before, and GPS art, have none.
+  const heightsOf = (r) => Array.isArray(r.elevation) && r.elevation.length > 1 && r.elevationStep > 0
+    ? { climb: Math.max(0, Math.round(r.climb ?? 0)), elevation: [...r.elevation], elevationStep: r.elevationStep }
+    : {};
   const packInfo = (i) => ({ countryPaths: i.countryPaths, countryPathSpans: flat(i.countryPathSpans) });
   const unpackInfo = (s) => s && { countryPaths: s.countryPaths ?? 0, countryPathSpans: pairs(s.countryPathSpans) };
 
@@ -345,7 +350,7 @@ export function createAccount({ openFavourites = () => {} } = {}) {
     const newestFirst = [...saved.entries()].sort(([, a], [, b]) => (b.savedAt?.seconds ?? 0) - (a.savedAt?.seconds ?? 0));
     return newestFirst.map(([id, f]) => {
       const raw = decodeLine(f.line);
-      return { id, line: f.line, distance: f.distance, raw, start: raw[0], place: placeKey(raw[0]), info: unpackInfo(f.info), ...(f.shape && { shape: f.shape }) };
+      return { id, line: f.line, distance: f.distance, raw, start: raw[0], place: placeKey(raw[0]), info: unpackInfo(f.info), ...(f.shape && { shape: f.shape }), ...heightsOf(f) };
     });
   }
 
@@ -374,7 +379,7 @@ export function createAccount({ openFavourites = () => {} } = {}) {
       syncHeart();
       refreshFavourites();
     };
-    const fav = { line: r.line, distance: r.distance, ...(r.info && { info: packInfo(r.info) }), ...(r.shape && { shape: r.shape.slice(0, 60) }) };
+    const fav = { line: r.line, distance: r.distance, ...(r.info && { info: packInfo(r.info) }), ...(r.shape && { shape: r.shape.slice(0, 60) }), ...heightsOf(r) };
     const wasInFavourites = app.state.favourites;
     change(before ? null : { ...fav, savedAt: savedAt ?? { seconds: Date.now() / 1000 } });
     const write = (async () => {

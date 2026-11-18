@@ -30,7 +30,7 @@
 <body>
   <a class="back" href="../">← Back to Runthe</a>
   <h1>Privacy</h1>
-  <p class="updated">Last updated 17 November 2026</p>
+  <p class="updated">Last updated 18 November 2026</p>
 
   <p>Runthe is a free personal project that generates running routes. There are no adverts, no analytics and no tracking cookies, and your data is never sold.</p>
 
@@ -46,7 +46,7 @@
   <p class="garmin" hidden>An account is only needed to save favourites and to connect Garmin Connect. Runthe stores:</p>
   <ul>
     <li><strong>Sign-in details:</strong> your email address, sign-in dates and a unique ID. If you use Google, also the name and profile picture link Google shares.</li>
-    <li><strong>Favourites:</strong> each saved route's line, distance and the time you saved it. The line includes its start point.</li>
+    <li><strong>Favourites:</strong> each saved route's line, distance, the notes shown in Route info (uncertain paths, its climb and height profile) and the time you saved it. The line includes its start point.</li>
   </ul>
   <p>Only you can read your favourites. Runthe keeps this data until you delete it. The maintainer can technically access it to run the service, but doesn't look at it otherwise.</p>
 
@@ -91,13 +91,18 @@
   <h2>Children</h2>
   <p>Accounts are not intended for anyone under 13.</p>
 
+  <h2 id="data">Map and height data</h2>
+  <p>Routes and maps use <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> data, © OpenStreetMap contributors, available under the Open Database Licence, with map tiles from <a href="https://openfreemap.org">OpenFreeMap</a>.</p>
+  <p>Heights come from the Copernicus DEM, produced using Copernicus WorldDEM-30 © DLR e.V. 2010-2014 and © Airbus Defence and Space GmbH 2014-2018, provided under COPERNICUS by the European Union and ESA; all rights reserved. Runthe takes out buildings and woods using OpenStreetMap.</p>
+  <p>In and around London, heights come from the Environment Agency's LIDAR Composite DTM: © Environment Agency copyright and/or database right 2022. All rights reserved. Used under the <a href="https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/">Open Government Licence v3.0</a>.</p>
+
   <h2>Changes</h2>
   <p>If this page changes, the date at the top will change too.</p>
   <!-- The Garmin parts show only where the app offers Garmin (staging and
        local until Garmin's notice period ends): the same switch as the app.
        Keep the ?v= in step with index.html's garmin.js. -->
   <script type="module">
-    import { GARMIN_BASE } from "../js/garmin.js?v=56";
+    import { GARMIN_BASE } from "../js/garmin.js?v=57";
     if (GARMIN_BASE) {
       for (const el of document.querySelectorAll(".garmin")) el.hidden = false;
       for (const el of document.querySelectorAll(".no-garmin")) el.hidden = true;
