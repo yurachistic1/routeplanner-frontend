@@ -17,8 +17,10 @@ const $ = (id) => document.getElementById(id);
 const km = (m) => (m / 1000).toFixed(1);
 const COURSES_OFF = "Turn Courses on in Garmin Connect's settings for Runthe, or disconnect and connect again with Courses on.";
 
-export function downloadGPX({ points, gpxName, fileName }) {
-  const pts = points.map(([lat, lon]) => `<trkpt lat="${lat}" lon="${lon}"></trkpt>`).join("");
+// heights: one per point, in metres (see heightsAt in profile.js), or none.
+export function downloadGPX({ points, heights, gpxName, fileName }) {
+  const ele = (i) => (heights ? `<ele>${heights[i]}</ele>` : "");
+  const pts = points.map(([lat, lon], i) => `<trkpt lat="${lat}" lon="${lon}">${ele(i)}</trkpt>`).join("");
   const gpx = `<?xml version="1.0" encoding="UTF-8"?>
 <gpx xmlns="http://www.topografix.com/GPX/1/1" version="1.1" creator="runthe"><trk><name>${gpxName}</name><trkseg>${pts}</trkseg></trk></gpx>`;
   const a = document.createElement("a");
@@ -40,7 +42,7 @@ export function createExport({ account }) {
   const connect = $("export-connect");
   const signIn = $("export-signin");
   const garmin = account.garmin;
-  let route = null; // { points: [[lat, lon]...], distance, kind, shape?, gpxName, fileName }
+  let route = null; // { points: [[lat, lon]...], heights?, climb?, distance, kind, shape?, gpxName, fileName }
   let place = "";
   let status = { connected: false, canSendCourses: false };
   let sent = false;
@@ -113,7 +115,10 @@ export function createExport({ account }) {
     send.setAttribute("aria-busy", "true");
     send.innerHTML = `<span class="spin" aria-hidden="true"></span>Sending…`;
     try {
-      await garmin.sendCourse({ name: courseName(), distance: route.distance, points: route.points });
+      await garmin.sendCourse({
+        name: courseName(), distance: route.distance, points: route.points,
+        ...(route.heights && { heights: route.heights, climb: route.climb ?? 0 }),
+      });
       sent = true;
     } catch (err) {
       console.error(err);
