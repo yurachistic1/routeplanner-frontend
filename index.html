@@ -16,7 +16,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@800&text=RUNTHEFAVOIS&display=swap" rel="stylesheet" />
   <link href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css" rel="stylesheet" />
   <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
-  <link href="./css/styles.css?v=68" rel="stylesheet" />
+  <link href="./css/styles.css?v=73" rel="stylesheet" />
 </head>
 <body>
   <div id="map"></div>
@@ -69,6 +69,10 @@
         <span class="info-dot" aria-hidden="true"></span>Route info
       </button>
       <section class="route-info" id="route-info" aria-label="Route info">
+        <div class="profile" id="profile" hidden>
+          <div class="profile-head"><span class="profile-label">Elevation</span><span class="profile-value" aria-live="polite"></span></div>
+          <div class="profile-chart" tabindex="0" role="slider"></div>
+        </div>
         <ul class="info-list" id="info-list"></ul>
         <div class="info-legend" id="info-legend" aria-label="Map key"></div>
       </section>
@@ -286,22 +290,23 @@
   <script type="importmap">
   {
     "imports": {
-      "./js/account.js": "./js/account.js?v=51",
-      "./js/api.js": "./js/api.js?v=51",
-      "./js/art.js": "./js/art.js?v=51",
-      "./js/export.js": "./js/export.js?v=51",
-      "./js/garmin.js": "./js/garmin.js?v=51",
-      "./js/loop.js": "./js/loop.js?v=51",
-      "./js/main.js": "./js/main.js?v=51",
-      "./js/map.js": "./js/map.js?v=51",
-      "./js/mapstyle.js": "./js/mapstyle.js?v=51",
-      "./js/modes.js": "./js/modes.js?v=51",
-      "./js/polyline.js": "./js/polyline.js?v=51",
-      "./js/shapes.js": "./js/shapes.js?v=51",
-      "./js/ui.js": "./js/ui.js?v=51"
+      "./js/account.js": "./js/account.js?v=56",
+      "./js/api.js": "./js/api.js?v=56",
+      "./js/art.js": "./js/art.js?v=56",
+      "./js/export.js": "./js/export.js?v=56",
+      "./js/garmin.js": "./js/garmin.js?v=56",
+      "./js/loop.js": "./js/loop.js?v=56",
+      "./js/main.js": "./js/main.js?v=56",
+      "./js/map.js": "./js/map.js?v=56",
+      "./js/mapstyle.js": "./js/mapstyle.js?v=56",
+      "./js/modes.js": "./js/modes.js?v=56",
+      "./js/polyline.js": "./js/polyline.js?v=56",
+      "./js/profile.js": "./js/profile.js?v=56",
+      "./js/shapes.js": "./js/shapes.js?v=56",
+      "./js/ui.js": "./js/ui.js?v=56"
     }
   }
   </script>
-  <script type="module" src="./js/main.js?v=51"></script>
+  <script type="module" src="./js/main.js?v=56"></script>
 </body>
 </html>

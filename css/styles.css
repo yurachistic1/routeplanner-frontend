@@ -148,7 +148,9 @@ button:focus-visible { outline: 3px solid var(--neon); outline-offset: 3px; }
 /* The route info tab sits on the panel's top edge: the panel leaves room
    under it, so it never touches Export GPX. */
 body:not([data-mode="art"]).show-results.has-info .deck { padding-top: 26px; }
-.show-results .results { display: grid; gap: 12px; }
+/* minmax(0, …): the column is the panel's width, whatever is inside (the
+   profile chart is drawn to it, so mustn't widen it, 2026-11-18) */
+.show-results .results { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
 
 .dial { display: flex; align-items: center; justify-content: space-between; }
 .readout { text-align: center; }
@@ -329,7 +331,11 @@ dialog.account:not([data-view="account"]) #delete-account { display: none; }
 .ri-place:not(:empty)::before { content: " · "; white-space: pre; }
 /* Same as the route info tab's dot: this route has warnings. */
 .ri-dot { display: inline-block; width: 7px; height: 7px; margin-left: 6px; vertical-align: 1px; border-radius: 50%; background: var(--amber); box-shadow: 0 0 6px rgba(255, 181, 71, .7); }
-.ri-delta { font: 500 15px "JetBrains Mono"; color: var(--dim); grid-column: 3; grid-row: 1 / 3; text-align: right; }
+/* The route's climb (2026-11-18; it was how far off the distance asked
+   for), with a hill: in favourites saved without heights, nothing. */
+.ri-climb { font: 500 15px "JetBrains Mono"; color: var(--dim); grid-column: 3; grid-row: 1 / 3; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.ri-climb svg { flex: none; color: var(--dim-2); }
+.ri-climb small { font-size: 13px; color: var(--dim-2); }
 .ri-dist { grid-column: 2; grid-row: 1; font: 700 22px "JetBrains Mono"; line-height: 1.25; }
 .ri-dist small { font-size: 14px; color: var(--dim); }
 /* Route info: a tab on the panel's top edge opens a drawer above the route
@@ -349,6 +355,41 @@ dialog.account:not([data-view="account"]) #delete-account { display: none; }
 .route-info { display: none; }
 .info-open.has-info .route-info { display: block; animation: info-in .2s ease-out; }
 @keyframes info-in { from { opacity: 0; transform: translateY(6px); } }
+/* Elevation profile (js/profile.js, UI.md): a header line, label and
+   climb (or, while reading along it, distance and height), over a small
+   chart: lime line and fill like the route, round gridlines labelled in
+   metres, km along the bottom, the start pink as on the map. Drag, hover
+   or arrow keys read it out and put a dot on the route. */
+/* min-width 0 and overflow hidden: the chart is drawn to its box's
+   width, so it must never hold the box open itself (a narrower screen
+   would otherwise keep the old, wider chart and scroll sideways) */
+.profile { padding-top: 6px; margin-bottom: 10px; min-width: 0; }
+.profile[hidden] { display: none; }
+.profile-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 4px; }
+.profile-label { font-size: 14px; font-weight: 600; color: var(--dim); }
+.profile-value { font-size: 15px; color: var(--dim); white-space: nowrap; }
+.profile-value b { font: 600 15px "JetBrains Mono"; color: var(--text); }
+.profile-chart { position: relative; height: 112px; min-width: 0; overflow: hidden; border-radius: 10px; touch-action: none; cursor: crosshair; -webkit-tap-highlight-color: transparent; }
+.profile-chart:focus-visible { outline: 3px solid var(--neon); outline-offset: 3px; }
+/* short screens: a shorter chart, so the map keeps some room above the
+   panel with route info open */
+@media (max-height: 720px) { .profile-chart { height: 84px; } }
+.profile-chart svg { display: block; overflow: visible; max-width: none; }
+.pf-grid { stroke: rgba(255, 255, 255, .09); stroke-width: 1; }
+.pf-base { stroke: rgba(255, 255, 255, .22); stroke-width: 1; }
+.pf-y, .pf-x { font: 500 13px "JetBrains Mono", monospace; fill: var(--dim); }
+.pf-y { text-anchor: end; dominant-baseline: middle; }
+.pf-area { fill: url(#pf-fill); }
+.pf-line { fill: none; stroke: var(--neon); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.pf-start { fill: var(--pink); stroke: var(--panel); stroke-width: 2; }
+/* the distance asked for: routes found together share the scale, so a
+   short one's line stops before this and a long one's runs past */
+.pf-target { stroke: var(--dim-2); stroke-width: 1.5; stroke-dasharray: 4 3; }
+.pf-cursor-line { stroke: var(--text); stroke-width: 1; stroke-dasharray: 3 3; opacity: .7; }
+.pf-cursor-dot { fill: var(--neon); stroke: var(--panel); stroke-width: 2; }
+/* where you are on the profile, on the route */
+.profile-dot { width: 14px; height: 14px; border-radius: 50%; background: var(--neon); border: 3px solid #0b1004; box-shadow: 0 0 10px rgba(var(--neon-rgb), .8); pointer-events: none; }
+.profile:not([hidden]) + .info-list { padding-top: 10px; border-top: 1px solid var(--edge); }
 .info-list { list-style: none; margin: 0; padding: 6px 0 0; display: grid; gap: 10px; }
 .info-list li { display: grid; grid-template-columns: 20px 1fr; gap: 10px; align-items: start; }
 .info-list b { display: block; font-size: 15px; font-weight: 600; color: var(--text); }
@@ -442,6 +483,10 @@ body:not(.show-results):not(.loading) .start-marker::before { animation: pulse 2
   transition: transform .12s, background-color .15s; -webkit-tap-highlight-color: transparent;
 }
 .locate-btn[hidden] { display: none; }
+/* No room above the panel (a short phone with a tall panel: js/map.js
+   fit): they fade out rather than sit on the top bar. */
+.locate-btn { transition: transform .12s, background-color .15s, opacity .18s, visibility .18s; }
+.no-sat-btn .sat-btn, .no-locate-btn #locate { opacity: 0; visibility: hidden; pointer-events: none; }
 /* Satellite toggle: the same round button, stacked above the location one. */
 .sat-btn { bottom: calc(100% + 64px); }
 .sat-btn[aria-pressed="true"] { color: var(--neon); background: var(--ltone); }
@@ -575,7 +620,7 @@ body:not(.signed-in) .modebar .signed-in-only { display: none; }
   /* The heart sits at the end of the Export row: ‹ Export GPX › ♥, with
      New run on its own row below (none in favourites), so no gap beside
      the heart (2026-11-14). GPS art the same: Export GPX ♥, New search. */
-  .show-results .results { grid-template-columns: 52px 1fr 52px 52px; }
+  .show-results .results { grid-template-columns: 52px minmax(0, 1fr) 52px 52px; }
   .results > * { grid-column: 1 / -1; }
   .results .nav, .results .row2 { display: contents; }
   .nav > *, .row2 > * { grid-column: auto; }

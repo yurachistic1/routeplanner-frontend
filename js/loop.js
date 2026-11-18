@@ -8,7 +8,7 @@
 //   #distance (number input), .chip[data-km], #dec, #inc, #generate,
 //   #route-list, #list-toggle, #prev, #next, #download, #edit, #back,
 //   #route-title, #route-distance, #route-count, #list-title, #back-label,
-//   #info-tab, #info-list, #info-legend
+//   #info-tab, #info-list, #info-legend, #profile (see js/profile.js)
 // The route layers draw from the "route" source, whose lines have a "part"
 // property: "all" (the whole route), "plain" and "country".
 // And these body classes, which the CSS reacts to:
@@ -17,6 +17,7 @@
 
 import { API_BASE } from "./api.js";
 import { goBack } from "./modes.js";
+import { renderProfile, sharedScale } from "./profile.js";
 import { $, toast } from "./ui.js";
 
 const API_URL = `${API_BASE}/routes`;
@@ -322,6 +323,8 @@ export function createLoopMode(map, mapReady, opts) {
         routes.map((r) => ({
           distance: r.distance, raw: r.path.map(([lat, lon]) => [lon, lat]),
           info: { countryPaths: r.countryPaths || 0, countryPathSpans: r.countryPathSpans ?? [] },
+          // heights (see js/profile.js); missing where the map has none
+          ...(r.elevation && { climb: r.climb, elevation: r.elevation, elevationStep: r.elevationStep }),
         })),
         { target: km, start: state.start },
       );
@@ -486,23 +489,24 @@ export function createLoopMode(map, mapReady, opts) {
   const icon = (path) => `<svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${path}"/></svg>`;
   const HEART = (i, on) => `<button class="ri-action ri-heart${on ? " on" : ""}" data-i="${i}" aria-label="Favourite this route" aria-pressed="${on}">${icon("M12 20.5S3 15 3 8.8A4.8 4.8 0 0 1 12 6.5a4.8 4.8 0 0 1 9 2.3C21 15 12 20.5 12 20.5z")}</button>`;
   const km = (m) => (m / 1000).toFixed(2);
+  // A hill, for the climb on each row.
+  const CLIMB_ICON = `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 19 6.5-11 4 6.5 2.5-3.5 5 8z"/></svg>`;
   function renderList() {
     const ul = $("route-list");
     if (!ul) return;
-    // One row per route: its shape, distance, number, and how far off the
-    // distance asked for (results) or the area it starts in (favourites,
+    // One row per route: its shape, distance, number, and its climb (since
+    // 2026-11-18: how far off the distance asked for, shown before, told
+    // little, as all routes are close) or the area it starts in (favourites,
     // whose routes have a place key). Area names are looked up later
     // (account.js); keep the ones already shown, so redrawing the list (a
     // favourite removed) doesn't blank them.
     const places = new Map([...ul.querySelectorAll(".ri-place")].map((p) => [p.dataset.key, p.textContent]));
     ul.innerHTML = state.routes.map((r) => {
-      const delta = state.target === null ? null : r.distance / 1000 - state.target;
-      const sign = delta >= 0 ? "+" : "−";
       return `<li class="route-cell" data-id="${r.id ?? r.i}"><button class="route-item" data-i="${r.i}">
         ${thumbnail(r.raw, 48)}
         <span class="ri-dist">${km(r.distance)}<small> km</small></span>
         <span class="ri-meta"><span class="ri-num">${number(r.i)}</span>${r.info && warnings(r.info).length ? `<i class="ri-dot" role="img" aria-label="has warnings"></i>` : ""}${r.place ? `<span class="ri-place" data-key="${r.place}"></span>` : ""}</span>
-        ${delta === null ? "" : `<span class="ri-delta">${sign}${Math.abs(delta).toFixed(2)}</span>`}
+        ${r.climb == null ? "" : `<span class="ri-climb" aria-label="${Math.round(r.climb)} metres of climb">${CLIMB_ICON}${Math.round(r.climb)}<small> m</small></span>`}
       </button>${o.onRouteAction ? HEART(r.i, !!o.isFavourite?.(r)) : ""}</li>`;
     }).join("");
     for (const p of ul.querySelectorAll(".ri-place")) p.textContent = p.title = places.get(p.dataset.key) ?? "";
@@ -555,6 +559,8 @@ export function createLoopMode(map, mapReady, opts) {
     const list = $("info-list");
     const w = r.info ? warnings(r.info) : [];
     body.classList.add("has-info");
+    profileRoute = r;
+    drawProfile();
     body.classList.toggle("has-warnings", w.length > 0);
     if (!list) return;
     if (!r.info) {
@@ -572,6 +578,62 @@ export function createLoopMode(map, mapReady, opts) {
         .map(([kind]) => `<span class="key key-${kind}"><i aria-hidden="true"></i>${MARK_NAMES[kind]}</span>`).join("");
     }
   }
+  // The elevation profile: drawn to the drawer's width, so again when that
+  // changes (it's 0 while the drawer is shut); dragging along it puts a dot
+  // on the route where you are.
+  let profileRoute = null, profileWidth = "", pointMarker = null; // profileWidth: the size drawn at
+  if ($("profile") && "ResizeObserver" in window) {
+    new ResizeObserver(([e]) => {
+      const size = `${Math.round(e.contentRect.width)}x${Math.round(e.contentRect.height)}`;
+      if (e.contentRect.width > 0 && size !== profileWidth && profileRoute) {
+        profileWidth = size;
+        drawProfile();
+      }
+    }).observe($("profile").querySelector(".profile-chart"));
+  }
+  // Routes found together share a scale (see profile.js); favourites,
+  // from all over, each have their own.
+  let scaleOf = null, scale = null;
+  function drawProfile() {
+    if (state.target === null) scale = null;
+    else if (scaleOf !== state.routes) {
+      scaleOf = state.routes;
+      scale = sharedScale(state.routes, state.target);
+    }
+    renderProfile($("profile"), profileRoute, { onPoint: markPoint, scale: state.target === null ? null : scale });
+  }
+  // The point a fraction f of the way round route r's line.
+  function pointAlong(raw, f) {
+    const d = (a, b) => Math.hypot((b[0] - a[0]) * mLon(a[1]), (b[1] - a[1]) * M_LAT);
+    let total = 0;
+    for (let i = 1; i < raw.length; i++) total += d(raw[i - 1], raw[i]);
+    let want = f * total;
+    for (let i = 1; i < raw.length; i++) {
+      const s = d(raw[i - 1], raw[i]);
+      if (want <= s && s > 0) {
+        const t = want / s;
+        return [raw[i - 1][0] + t * (raw[i][0] - raw[i - 1][0]), raw[i - 1][1] + t * (raw[i][1] - raw[i - 1][1])];
+      }
+      want -= s;
+    }
+    return raw.at(-1);
+  }
+  function markPoint(f) {
+    if (f === null || !profileRoute) {
+      pointMarker?.remove();
+      pointMarker = null;
+      return;
+    }
+    const at = pointAlong(profileRoute.raw, f);
+    if (!pointMarker) {
+      const el = document.createElement("div");
+      el.className = "profile-dot";
+      pointMarker = new maplibregl.Marker({ element: el }).setLngLat(at).addTo(map);
+    } else {
+      pointMarker.setLngLat(at);
+    }
+  }
+
   // Opening it makes the panel taller, so frame the route again above it.
   function refit() {
     const r = state.routes[state.index];
