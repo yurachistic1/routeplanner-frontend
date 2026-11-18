@@ -645,7 +645,12 @@ export function createLoopMode(map, mapReady, opts) {
   if ($("profile") && "ResizeObserver" in window) {
     new ResizeObserver(([e]) => {
       const size = `${Math.round(e.contentRect.width)}x${Math.round(e.contentRect.height)}`;
-      if (e.contentRect.width > 0 && size !== profileWidth && profileRoute) {
+      // Shut (0 wide), whatever was drawn meanwhile was drawn blind, so the
+      // next time it shows it's drawn again, at whatever size it is then.
+      // (It once kept the old size and so a chart drawn while shut, too
+      // narrow and too tall for short screens: 2026-11-18.)
+      if (e.contentRect.width === 0) profileWidth = "";
+      else if (size !== profileWidth && profileRoute) {
         profileWidth = size;
         drawProfile();
       }
