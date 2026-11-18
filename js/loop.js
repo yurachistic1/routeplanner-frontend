@@ -8,7 +8,8 @@
 //   #distance (number input), .chip[data-km], #dec, #inc, #generate,
 //   #route-list, #list-toggle, #prev, #next, #download, #edit, #back,
 //   #route-title, #route-distance, #route-count, #list-title, #back-label,
-//   #info-tab, #info-list, #info-legend, #profile (see js/profile.js)
+//   #info-tab, #info-list, #info-legend, #profile (see js/profile.js),
+//   #list-sort, #list-sort-note
 // The route layers draw from the "route" source, whose lines have a "part"
 // property: "all" (the whole route), "plain" and "country".
 // And these body classes, which the CSS reacts to:
@@ -224,7 +225,7 @@ export function createLoopMode(map, mapReady, opts) {
   // renumbering the rest (the user, 2026-11-16; names will come later).
   const number = (i) => o.formatIndex(state.favourites ? state.routes.length - 1 - i : i);
 
-  const state = { start: null, routes: [], index: 0, target: 0 };
+  const state = { start: null, routes: [], index: 0, target: 0, sort: 0 }; // sort: 0 the router's order, 1 lowest climb first, -1 highest
   let marker = null;
   let anim = 0;
 
@@ -342,10 +343,10 @@ export function createLoopMode(map, mapReady, opts) {
   // have no target distance. Opening favourites remembers exactly where loop
   // mode was (its routes, which one, and whether you were looking at them or
   // planning a new run), so exitFavourites can put it all back.
-  async function showRoutes(routes, { target = null, start, index = 0, favourites = false }) {
+  async function showRoutes(routes, { target = null, start, index = 0, favourites = false, sort = 0 }) {
     if (favourites && !state.favourites) {
       state.before = {
-        routes: state.routes, index: state.index, target: state.target, routeStart: state.routeStart,
+        routes: state.routes, index: state.index, target: state.target, routeStart: state.routeStart, sort: state.sort,
         start: state.start, camera: { center: map.getCenter(), zoom: map.getZoom() },
         viewing: viewingRoutes(), listOpen: body.classList.contains("list-open"),
       };
@@ -366,6 +367,7 @@ export function createLoopMode(map, mapReady, opts) {
     state.routeStart = state.start;
     state.routes = routes.map((r, i) => ({ ...r, i }));
     state.index = index;
+    state.sort = favourites ? 0 : sort; // fresh results come in the router's order
     renderList();
     body.classList.add("has-results", "show-results");
     if (favourites && (left?.listOpen ?? true) && matchMedia("(max-width: 899px)").matches) body.classList.add("list-open");
@@ -384,7 +386,7 @@ export function createLoopMode(map, mapReady, opts) {
     state.favouritesLeft = { id: state.routes[state.index]?.id, listOpen: body.classList.contains("list-open") };
     body.classList.remove("list-open");
     if (b.routes.length) {
-      const shown = showRoutes(b.routes, { target: b.target, start: b.routeStart, index: b.index });
+      const shown = showRoutes(b.routes, { target: b.target, start: b.routeStart, index: b.index, sort: b.sort ?? 0 });
       o.onExitFavourites?.();
       if (b.viewing) {
         if (b.listOpen) body.classList.add("list-open");
@@ -501,7 +503,7 @@ export function createLoopMode(map, mapReady, opts) {
     // (account.js); keep the ones already shown, so redrawing the list (a
     // favourite removed) doesn't blank them.
     const places = new Map([...ul.querySelectorAll(".ri-place")].map((p) => [p.dataset.key, p.textContent]));
-    ul.innerHTML = state.routes.map((r) => {
+    ul.innerHTML = order().map((i) => state.routes[i]).map((r) => {
       return `<li class="route-cell" data-id="${r.id ?? r.i}"><button class="route-item" data-i="${r.i}">
         ${thumbnail(r.raw, 48)}
         <span class="ri-dist">${km(r.distance)}<small> km</small></span>
@@ -520,12 +522,70 @@ export function createLoopMode(map, mapReady, opts) {
       });
     }
     if ($("route-count")) $("route-count").textContent = state.routes.length;
+    renderSort();
     const name = state.favourites ? "favourites" : "routes";
     if ($("list-title")) $("list-title").textContent = state.favourites ? `${state.routes.length} saved` : "Routes";
     if ($("list-toggle")) $("list-toggle").textContent = `All ${name}`;
     // Phones show just "Back", so the full label is also the button's name.
     if ($("back-label")) $("back-label").textContent = `Back to ${name}`;
     $("back")?.setAttribute("aria-label", `Back to ${name}`);
+  }
+
+  // ----- sorting by climb -----
+  // The button in the list's heading (2026-11-18, the user): the router's
+  // order, then lowest climb first, then highest first, then back. The list
+  // and previous/next follow it; each route keeps its number. Results only:
+  // favourites come newest first.
+  const SORTS = {
+    0: { label: "Sort by climb", note: "" },
+    1: { label: "Sorted by climb, lowest first. Sort highest first", note: "Lowest climb first" },
+    [-1]: { label: "Sorted by climb, highest first. Back to the usual order", note: "Highest climb first" },
+  };
+  const BARS = {
+    0: ["M17.5 6h4", "M17.5 11.5h4", "M17.5 17h4"],
+    1: ["M19.5 6h2", "M18 11.5h3.5", "M16 17h5.5"],
+    [-1]: ["M16 6h5.5", "M18 11.5h3.5", "M19.5 17h2"],
+  };
+  // The routes' indices in the order shown.
+  function order() {
+    const idx = state.routes.map((_, i) => i);
+    if (!state.sort || state.favourites) return idx;
+    const climb = (i) => state.routes[i].climb;
+    return idx.sort((a, b) => {
+      const ca = climb(a), cb = climb(b);
+      if (ca == null || cb == null) return (ca == null) - (cb == null) || a - b; // none last
+      return state.sort * (ca - cb) || a - b;
+    });
+  }
+  function renderSort() {
+    const btn = $("list-sort");
+    if (!btn) return;
+    const can = !state.favourites && state.routes.some((r) => r.climb != null);
+    btn.hidden = !can;
+    if (!can) state.sort = 0;
+    btn.dataset.sort = state.sort === 1 ? "asc" : state.sort === -1 ? "desc" : "none";
+    // the bars beside the hill: equal unsorted, growing for lowest first,
+    // shrinking for highest first (set here, as Safari can't style a path)
+    const bars = BARS[state.sort];
+    btn.querySelectorAll(".sort-bar").forEach((p, k) => p.setAttribute("d", bars[k]));
+    btn.setAttribute("aria-pressed", String(!!state.sort));
+    btn.setAttribute("aria-label", SORTS[state.sort].label);
+    btn.title = SORTS[state.sort].label;
+    if ($("list-sort-note")) $("list-sort-note").textContent = can ? SORTS[state.sort].note : "";
+  }
+  // Each tap selects the list's new first route (the flattest, the
+  // hilliest, or the router's first), 2026-11-18, the user.
+  $("list-sort")?.addEventListener("click", () => {
+    state.sort = state.sort === 0 ? 1 : state.sort === 1 ? -1 : 0;
+    renderList();
+    $("route-list")?.scrollTo({ top: 0, behavior: calm() ? "auto" : "smooth" });
+    show(order()[0], false);
+  });
+  // The next or previous route in the list's order.
+  function step(by) {
+    const o = order();
+    const at = o.indexOf(state.index);
+    show(o[(at + by + o.length) % o.length]);
   }
 
   $("list-toggle")?.addEventListener("click", () => body.classList.toggle("list-open"));
@@ -585,7 +645,12 @@ export function createLoopMode(map, mapReady, opts) {
   if ($("profile") && "ResizeObserver" in window) {
     new ResizeObserver(([e]) => {
       const size = `${Math.round(e.contentRect.width)}x${Math.round(e.contentRect.height)}`;
-      if (e.contentRect.width > 0 && size !== profileWidth && profileRoute) {
+      // Shut (0 wide), whatever was drawn meanwhile was drawn blind, so the
+      // next time it shows it's drawn again, at whatever size it is then.
+      // (It once kept the old size and so a chart drawn while shut, too
+      // narrow and too tall for short screens: 2026-11-18.)
+      if (e.contentRect.width === 0) profileWidth = "";
+      else if (size !== profileWidth && profileRoute) {
         profileWidth = size;
         drawProfile();
       }
@@ -759,8 +824,8 @@ export function createLoopMode(map, mapReady, opts) {
     anim = requestAnimationFrame(step);
   }
 
-  $("prev")?.addEventListener("click", () => show(state.index - 1));
-  $("next")?.addEventListener("click", () => show(state.index + 1));
+  $("prev")?.addEventListener("click", () => step(-1));
+  $("next")?.addEventListener("click", () => step(1));
   addEventListener("keydown", (e) => {
     if (!mine() || !state.routes.length || document.querySelector("dialog[open]")) return;
     if (e.key === "Escape") {
@@ -770,8 +835,8 @@ export function createLoopMode(map, mapReady, opts) {
       return;
     }
     if (!viewingRoutes() || e.target.tagName === "INPUT") return;
-    if (e.key === "ArrowLeft") show(state.index - 1);
-    if (e.key === "ArrowRight") show(state.index + 1);
+    if (e.key === "ArrowLeft") step(-1);
+    if (e.key === "ArrowRight") step(1);
   });
 
   // ----- export -----

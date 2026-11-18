@@ -16,7 +16,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@800&text=RUNTHEFAVOIS&display=swap" rel="stylesheet" />
   <link href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css" rel="stylesheet" />
   <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
-  <link href="./css/styles.css?v=73" rel="stylesheet" />
+  <link href="./css/styles.css?v=74" rel="stylesheet" />
 </head>
 <body>
   <div id="map"></div>
@@ -140,7 +140,18 @@
 
   <aside class="list">
     <div class="list-head">
-      <h2 id="list-title">Routes</h2>
+      <div class="list-head-main">
+        <h2 id="list-title">Routes</h2>
+        <button class="icon-btn sort-btn" id="list-sort" data-sort="none" aria-pressed="false" aria-label="Sort by climb" title="Sort by climb" hidden>
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="m2 19 5-8.5 3 4.5 2-3 3.5 7z"/>
+            <path class="sort-bar sort-bar-1" d="M17.5 6h4"/>
+            <path class="sort-bar sort-bar-2" d="M17.5 11.5h4"/>
+            <path class="sort-bar sort-bar-3" d="M17.5 17h4"/>
+          </svg>
+        </button>
+        <span class="sort-note" id="list-sort-note" aria-live="polite"></span>
+      </div>
       <button class="icon-btn close-btn" id="list-close" aria-label="Close"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
     </div>
     <ul id="route-list"></ul>
@@ -290,23 +301,23 @@
   <script type="importmap">
   {
     "imports": {
-      "./js/account.js": "./js/account.js?v=58",
-      "./js/api.js": "./js/api.js?v=58",
-      "./js/art.js": "./js/art.js?v=58",
-      "./js/export.js": "./js/export.js?v=58",
-      "./js/garmin.js": "./js/garmin.js?v=58",
-      "./js/loop.js": "./js/loop.js?v=58",
-      "./js/main.js": "./js/main.js?v=58",
-      "./js/map.js": "./js/map.js?v=58",
-      "./js/mapstyle.js": "./js/mapstyle.js?v=58",
-      "./js/modes.js": "./js/modes.js?v=58",
-      "./js/polyline.js": "./js/polyline.js?v=58",
-      "./js/profile.js": "./js/profile.js?v=58",
-      "./js/shapes.js": "./js/shapes.js?v=58",
-      "./js/ui.js": "./js/ui.js?v=58"
+      "./js/account.js": "./js/account.js?v=61",
+      "./js/api.js": "./js/api.js?v=61",
+      "./js/art.js": "./js/art.js?v=61",
+      "./js/export.js": "./js/export.js?v=61",
+      "./js/garmin.js": "./js/garmin.js?v=61",
+      "./js/loop.js": "./js/loop.js?v=61",
+      "./js/main.js": "./js/main.js?v=61",
+      "./js/map.js": "./js/map.js?v=61",
+      "./js/mapstyle.js": "./js/mapstyle.js?v=61",
+      "./js/modes.js": "./js/modes.js?v=61",
+      "./js/polyline.js": "./js/polyline.js?v=61",
+      "./js/profile.js": "./js/profile.js?v=61",
+      "./js/shapes.js": "./js/shapes.js?v=61",
+      "./js/ui.js": "./js/ui.js?v=61"
     }
   }
   </script>
-  <script type="module" src="./js/main.js?v=58"></script>
+  <script type="module" src="./js/main.js?v=61"></script>
 </body>
 </html>
