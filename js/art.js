@@ -246,7 +246,9 @@ export function createArtMode(map, mapReady, opts) {
   opts.favourites.onChange(syncHeart);
   $("art-fav").addEventListener("click", () => {
     const r = state.routes[state.index];
-    if (r) opts.favourites.toggle(r);
+    if (!r) return;
+    r.shape ??= state.shape?.name; // saved with the favourite, so it's known later
+    opts.favourites.toggle(r);
   });
   // Whether the map has been moved by hand (or to your location) since a
   // route was framed on it. Only in this mode, and not by the framing.
@@ -300,15 +302,15 @@ export function createArtMode(map, mapReady, opts) {
   $("art-download").addEventListener("click", () => {
     const r = state.routes[state.index];
     if (!r) return;
-    const pts = r.path.map(([lat, lon]) => `<trkpt lat="${lat}" lon="${lon}"></trkpt>`).join("");
     const name = `${state.shape?.name ?? "art"} ${km(r.distance)} km`;
-    const gpx = `<?xml version="1.0" encoding="UTF-8"?>
-<gpx xmlns="http://www.topografix.com/GPX/1/1" version="1.1" creator="runthe"><trk><name>${name}</name><trkseg>${pts}</trkseg></trk></gpx>`;
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(new Blob([gpx], { type: "application/gpx+xml" }));
-    a.download = `${name.replaceAll(" ", "-")}.gpx`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    opts.exportRoute?.({
+      kind: "art",
+      shape: state.shape?.name,
+      distance: r.distance,
+      points: r.path,
+      gpxName: name,
+      fileName: `${name.replaceAll(" ", "-")}.gpx`,
+    });
   });
 
   // ----- where to look -----

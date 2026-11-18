@@ -6,9 +6,10 @@
 // Page elements: #account, #account-dialog (the side menu) and its [data-view]
 // sections, #fav, #undo, #undo-btn. Favourites are a mode on the shelf
 // (see main.js), shown only when signed in; openFavourites switches to it.
-// Body class: signed-in.
+// Body class: signed-in. The Garmin Connect card in the menu is garmin.js.
 
 import { encodeLine, decodeLine, lineId } from "./polyline.js";
+import { createGarmin } from "./garmin.js";
 
 const SDK = "https://www.gstatic.com/firebasejs/13.2.0";
 // These identify the project and are safe to publish. firestore.rules is what
@@ -66,7 +67,7 @@ const placeKey = ([lon, lat]) => `${lat.toFixed(3)},${lon.toFixed(3)}`;
 async function namePlaces(routes) {
   const known = JSON.parse(localStorage.getItem(PLACES) ?? "{}");
   const show = (key) => {
-    for (const el of document.querySelectorAll(`.ri-place[data-key="${key}"]`)) el.textContent = known[key];
+    for (const el of document.querySelectorAll(`.ri-place[data-key="${key}"]`)) el.textContent = el.title = known[key];
   };
   const keys = [...new Set(routes.map((r) => r.place))];
   keys.filter((k) => known[k]).forEach(show);
@@ -91,6 +92,35 @@ async function namePlaces(routes) {
   }
 }
 
+// A single place name for a point ([lat, lon]), for the Export dialog: the
+// cached one at once, or "" (knownPlace), or looked up (placeOf, "" if that
+// fails). Same rules as the favourites' names: one lookup a person asked
+// for, rounded to about 100m, kept on the device.
+function knownPlace([lat, lon]) {
+  try {
+    return JSON.parse(localStorage.getItem(PLACES) ?? "{}")[placeKey([lon, lat])] ?? "";
+  } catch {
+    return "";
+  }
+}
+async function placeOf(point) {
+  const cached = knownPlace(point);
+  if (cached) return cached;
+  const key = placeKey([point[1], point[0]]);
+  try {
+    const name = await lookUpPlace(key);
+    if (name) {
+      const known = JSON.parse(localStorage.getItem(PLACES) ?? "{}");
+      known[key] = name;
+      localStorage.setItem(PLACES, JSON.stringify(known));
+    }
+    return name;
+  } catch (err) {
+    console.warn(err);
+    return "";
+  }
+}
+
 export function createAccount({ openFavourites = () => {} } = {}) {
   const dialog = $("account-dialog");
   const heart = $("fav");
@@ -105,6 +135,7 @@ export function createAccount({ openFavourites = () => {} } = {}) {
   let undoTimer;
 
   const toast = (msg) => app?.toast(msg);
+  const garmin = createGarmin({ idToken: () => user.getIdToken() });
   const favouritesPath = () => `users/${user.uid}/favourites`;
 
   function load() {
@@ -134,6 +165,8 @@ export function createAccount({ openFavourites = () => {} } = {}) {
     else localStorage.removeItem(HAS_ACCOUNT);
     $("account-email").textContent = user?.email ?? "";
     if (user && dialog.open) setView("account");
+    // Back from Garmin's page: open the menu to show how connecting went.
+    garmin.userChanged(!!user).then((back) => { if (back && user) open("account"); });
     if (!user) {
       hideUndo();
       app?.exitFavourites(); // don't leave saved routes on screen
@@ -170,6 +203,7 @@ export function createAccount({ openFavourites = () => {} } = {}) {
   }
   function open(view) {
     setView(view);
+    if (view === "account") garmin.opened();
     if (!dialog.open) dialog.showModal();
     load().catch(() => showError("Couldn't load sign-in. Check your connection."));
   }
@@ -249,6 +283,12 @@ export function createAccount({ openFavourites = () => {} } = {}) {
     button.disabled = true;
     try {
       if (!(await confirmIdentity())) return;
+      try {
+        await garmin.beforeDelete();
+      } catch (err) {
+        console.error(err);
+        return showError("Couldn't disconnect Garmin, so nothing was deleted. Try again.");
+      }
       const { auth, store, db } = await load();
       const snap = await store.getDocs(store.collection(db, favouritesPath()));
       await Promise.all(snap.docs.map((d) => store.deleteDoc(d.ref)));
@@ -275,6 +315,11 @@ export function createAccount({ openFavourites = () => {} } = {}) {
     for (let i = 0; i + 1 < (list?.length ?? 0); i += 2) out.push([list[i], list[i + 1]]);
     return out;
   }
+  // The climb and height profile (js/profile.js), kept since 2026-11-18;
+  // favourites saved before, and GPS art, have none.
+  const heightsOf = (r) => Array.isArray(r.elevation) && r.elevation.length > 1 && r.elevationStep > 0
+    ? { climb: Math.max(0, Math.round(r.climb ?? 0)), elevation: [...r.elevation], elevationStep: r.elevationStep }
+    : {};
   const packInfo = (i) => ({ countryPaths: i.countryPaths, countryPathSpans: flat(i.countryPathSpans) });
   const unpackInfo = (s) => s && { countryPaths: s.countryPaths ?? 0, countryPathSpans: pairs(s.countryPathSpans) };
 
@@ -305,7 +350,7 @@ export function createAccount({ openFavourites = () => {} } = {}) {
     const newestFirst = [...saved.entries()].sort(([, a], [, b]) => (b.savedAt?.seconds ?? 0) - (a.savedAt?.seconds ?? 0));
     return newestFirst.map(([id, f]) => {
       const raw = decodeLine(f.line);
-      return { id, line: f.line, distance: f.distance, raw, start: raw[0], place: placeKey(raw[0]), info: unpackInfo(f.info) };
+      return { id, line: f.line, distance: f.distance, raw, start: raw[0], place: placeKey(raw[0]), info: unpackInfo(f.info), ...(f.shape && { shape: f.shape }), ...heightsOf(f) };
     });
   }
 
@@ -334,7 +379,7 @@ export function createAccount({ openFavourites = () => {} } = {}) {
       syncHeart();
       refreshFavourites();
     };
-    const fav = { line: r.line, distance: r.distance, ...(r.info && { info: packInfo(r.info) }) };
+    const fav = { line: r.line, distance: r.distance, ...(r.info && { info: packInfo(r.info) }), ...(r.shape && { shape: r.shape.slice(0, 60) }), ...heightsOf(r) };
     const wasInFavourites = app.state.favourites;
     change(before ? null : { ...fav, savedAt: savedAt ?? { seconds: Date.now() / 1000 } });
     const write = (async () => {
@@ -436,6 +481,16 @@ export function createAccount({ openFavourites = () => {} } = {}) {
 
   return {
     attach(a) { app = a; start(); },
+    garmin,
+    signedIn: () => !!user,
+    // Opens sign-in, then runs then() once signed in (Google; an email link
+    // leaves the page, so it's lost).
+    signIn(then) {
+      afterSignIn = then;
+      open("signin");
+    },
+    knownPlace,
+    placeOf,
     routeShown(r) { route = r; syncHeart(); },
     toggleFavourite,
     // For other modes' hearts: r is { raw: [[lon, lat], ...], distance }.

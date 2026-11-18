@@ -84,9 +84,31 @@ export function placeMapTools() {
   const place = () => {
     if (wide.matches) tools.append(credits, sat, locate);
     else { hud.append(credits); deck.prepend(sat, locate); }
+    fit();
+  };
+  // On phones the two buttons stand above the panel, so a tall panel on a
+  // short screen (route info open with warnings) pushes them up into the
+  // top bar. Then there's hardly any map to use them on anyway, so they
+  // hide (2026-11-18, the user): Satellite first, My location only if even
+  // it doesn't fit. They come back as the panel shrinks.
+  const GAP = 8; // px clear of the top bar and the credits
+  const fit = () => {
+    let noSat = false, noLocate = false;
+    if (!wide.matches) {
+      // hidden, they keep their place (visibility), so where they'd be is
+      // where they are
+      const btn = credits.querySelector(".credits-btn") ?? credits;
+      const ceiling = Math.max(hud.getBoundingClientRect().bottom, btn.getBoundingClientRect().bottom) + GAP;
+      noSat = sat.getBoundingClientRect().top < ceiling;
+      noLocate = locate.getBoundingClientRect().top < ceiling;
+    }
+    document.body.classList.toggle("no-sat-btn", noSat);
+    document.body.classList.toggle("no-locate-btn", noLocate);
   };
   place();
   wide.addEventListener("change", place);
+  addEventListener("resize", fit);
+  if ("ResizeObserver" in window) new ResizeObserver(fit).observe(deck);
 }
 
 // ----- my location -----

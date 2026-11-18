@@ -3,6 +3,7 @@
 
 import { createAccount } from "./account.js";
 import { createArtMode } from "./art.js";
+import { createExport } from "./export.js";
 import { createLoopMode } from "./loop.js";
 import { createMap, addCredits, addLocate, addSatellite, placeMapTools } from "./map.js";
 import { buildStyle, ATTRIBUTION } from "./mapstyle.js";
@@ -43,13 +44,17 @@ const { map, ready } = createMap({
   style,
   ...(desktop.matches ? {} : { view: PHONE_VIEW, openFrom: installed && !calm ? ICON_VIEW : null }),
 });
-const credits = addCredits(ATTRIBUTION);
+// The map's credits, and the heights' (their full statements are on the
+// privacy page).
+const CREDITS = `${ATTRIBUTION} · Heights: <a href="./privacy/#data" target="_blank" rel="noopener">Copernicus, Environment Agency</a>`;
+const credits = addCredits(CREDITS);
 addLocate(map);
-addSatellite(map, ready, credits, ATTRIBUTION);
+addSatellite(map, ready, credits, CREDITS);
 placeMapTools();
 
 // ----- loop mode -----
 const account = createAccount({ openFavourites: () => setMode("favourites") });
+const exporter = createExport({ account });
 const app = createLoopMode(map, ready, {
   animate: true,
   // Closed from the top bar's back arrow, by signing out or by removing the
@@ -60,10 +65,11 @@ const app = createLoopMode(map, ready, {
   // The hearts in the route list start filled for saved routes (in favourites, all).
   isFavourite: (route) => account.isFavourite(route),
   formatIndex: (i) => String(i + 1).padStart(2, "0"),
+  exportRoute: (r) => exporter.open(r),
   padding: () => {
     const top = document.querySelector(".hud-top").getBoundingClientRect();
     const deck = document.querySelector(".deck").getBoundingClientRect();
-    if (desktop.matches) return { top: 60, bottom: 60, left: deck.right + 40, right: 380 };
+    if (desktop.matches) return { top: 60, bottom: 60, left: deck.right + 40, right: document.querySelector(".list").offsetWidth + 40 }; // clear of the route list (offsetWidth ignores its slide-in)
     return { top: top.bottom + 30, left: 30, right: 30, bottom: innerHeight - deck.top + 30 };
   },
   // Uncertain (countryside) paths, which route info warns about, are dashed (see
@@ -108,6 +114,7 @@ registerMode("favourites", {
 // The route in lime like a loop. Its heart saves to the same favourites.
 registerMode("art", createArtMode(map, ready, {
   favourites: { toggle: (r) => account.toggleFavourite(r), has: (r) => account.isFavourite(r), onChange: (f) => account.onFavouritesChange(f) },
+  exportRoute: (r) => exporter.open(r),
   padding: () => {
     const top = document.querySelector(".hud-top").getBoundingClientRect();
     const deck = document.querySelector(".deck").getBoundingClientRect();
