@@ -53,13 +53,14 @@
   <section class="garmin" hidden>
     <h2>If you connect Garmin Connect</h2>
     <p>You can connect your Garmin Connect account to send routes to it as courses, which Garmin Connect then syncs to your Garmin devices. You choose on Garmin's own page whether to allow this, and which permissions to give.</p>
-    <p><strong>What Runthe sends to Garmin:</strong> only when you tap Send to Garmin Connect, the route's line (including its start point), its distance and a name made of "Runthe", the area name and the distance. Runthe doesn't read your activities, health data or anything else from Garmin Connect. It only asks Garmin for your Garmin user ID and which permissions you gave, to show whether you're connected and can send courses.</p>
+    <p><strong>What Runthe sends to Garmin:</strong> only when you tap Send to Garmin Connect, the route's line (including its start point), its distance and a name made of "Runthe", the area name and the distance. Runthe doesn't read your activities, health data or anything else from Garmin Connect. It only asks Garmin for your Garmin user ID and which permissions you gave, to show whether you're connected and can send courses, and, when you export a route you've sent before, that course's name, to show it's already there.</p>
     <p><strong>What Runthe stores:</strong></p>
     <ul>
       <li>The sign-in tokens Garmin issues, which let Runthe send courses for you, along with your Garmin user ID, the permissions you gave and when you connected. They're stored with your account in Google Cloud (London) and can't be read from any browser, including yours.</li>
+      <li>For each route you send, a short code worked out from its line (the line can't be recovered from it) and the course's number at Garmin, so Runthe can tell you a route is already in Garmin Connect rather than send it twice.</li>
       <li>While you're on Garmin's page, a temporary record linking a random code to your account. It's deleted as soon as you come back. If you don't come back, it stops working after 15 minutes and is deleted soon after.</li>
     </ul>
-    <p><strong>Stopping it:</strong> choose Disconnect in the account menu, or delete your account. Either removes Runthe's access at Garmin and deletes the stored tokens straight away. If you remove Runthe in Garmin Connect instead, Runthe notices the next time you open its account menu and deletes the tokens then. A Garmin account can be connected to one Runthe account at a time: connecting it to another deletes the tokens held for the first. Courses you've already sent stay in Garmin Connect until you delete them there.</p>
+    <p><strong>Stopping it:</strong> choose Disconnect in the account menu, or delete your account. Either removes Runthe's access at Garmin and deletes the stored tokens and the record of courses sent straight away. If you remove Runthe in Garmin Connect instead, Runthe notices the next time you open its account menu and deletes them then. A Garmin account can be connected to one Runthe account at a time: connecting it to another deletes the tokens held for the first. Courses you've already sent stay in Garmin Connect until you delete them there.</p>
     <p>Garmin handles what you send it under its own privacy policy.</p>
   </section>
 
@@ -102,7 +103,7 @@
        local until Garmin's notice period ends): the same switch as the app.
        Keep the ?v= in step with index.html's garmin.js. -->
   <script type="module">
-    import { GARMIN_BASE } from "../js/garmin.js?v=61";
+    import { GARMIN_BASE } from "../js/garmin.js?v=62";
     if (GARMIN_BASE) {
       for (const el of document.querySelectorAll(".garmin")) el.hidden = false;
       for (const el of document.querySelectorAll(".no-garmin")) el.hidden = true;

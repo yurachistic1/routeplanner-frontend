@@ -180,9 +180,16 @@ export function createGarmin({ idToken }) {
       return last;
     },
 
-    // Uploads a route as a course: { name, distance (m), points: [[lat, lon], ...] }.
+    // Uploads a route as a course: { name, distance (m), points: [[lat, lon], ...],
+    // line (its line id, so it's remembered as sent) }.
     async sendCourse(course) {
       return call("POST", "/courses", course);
+    },
+
+    // Whether the route with this line id was sent before and is still in
+    // Garmin Connect: { sent, name }.
+    async sentCourse(line) {
+      return call("GET", `/courses/sent?line=${line}`);
     },
 
     // Check again every time the account menu opens, so changes made in
