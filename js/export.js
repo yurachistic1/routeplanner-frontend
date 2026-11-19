@@ -55,7 +55,7 @@ export function createExport({ account }) {
   let already = null;
   let line = ""; // the route's line id, the same one favourites use
   let lookup = null; // the check for an earlier send, while it runs
-  const sentHere = new Map(); // line id → course name, known this visit
+  const sentHere = new Map(); // line id → course name, shown until the check on opening answers
 
   if (GARMIN_BASE) {
     for (const id of ["download", "art-download"]) {
@@ -118,16 +118,18 @@ export function createExport({ account }) {
     // Fill in what wasn't known yet: the place name and a fresh status.
     account.placeOf(r.points[0]).then((p) => { if (route === r && p && p !== place) { place = p; render(); } });
     if (account.signedIn()) {
-      // Sent from another visit or device? Asked alongside the status.
-      if (!already) {
-        const l = line;
-        lookup = garmin.sentCourse(l).then((s) => (s.sent ? s.name : null)).catch(() => null);
-        lookup.then((name) => {
-          if (!name) return;
-          sentHere.set(l, name);
-          if (route === r) { already = name; render(); }
-        });
-      }
+      // Sent before, from here or elsewhere, and still in Garmin Connect?
+      // Asked on every opening, alongside the status, so a course deleted
+      // or renamed in Garmin Connect meanwhile shows. A failed check
+      // (undefined) leaves things as they were.
+      const l = line;
+      lookup = garmin.sentCourse(l).then((s) => (s.sent ? s.name : null)).catch(() => undefined);
+      lookup.then((name) => {
+        if (name === undefined) return;
+        if (name) sentHere.set(l, name);
+        else sentHere.delete(l);
+        if (route === r && !sent) { already = name; render(); }
+      });
       status = await garmin.check();
       if (route === r) render();
     }
