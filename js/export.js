@@ -11,6 +11,7 @@
 
 import { GARMIN_BASE } from "./garmin.js";
 import { shapeLabel } from "./loop.js";
+import { encodeLine, lineId } from "./polyline.js";
 
 const PENDING = "runthe.pendingExport"; // the route, while away connecting Garmin
 const $ = (id) => document.getElementById(id);
@@ -46,6 +47,15 @@ export function createExport({ account }) {
   let place = "";
   let status = { connected: false, canSendCourses: false };
   let sent = false;
+  // Sent before: the course's name in Garmin Connect now (they may have
+  // renamed it there), so Send gives way to a note instead of making a
+  // second course. Garmin can't take a course off a watch, nor update one
+  // there (an update arrives as a second course: tested 2026-11-19), so
+  // not sending twice is the only way to avoid duplicates.
+  let already = null;
+  let line = ""; // the route's line id, the same one favourites use
+  let lookup = null; // the check for an earlier send, while it runs
+  const sentHere = new Map(); // line id → course name, shown until the check on opening answers
 
   if (GARMIN_BASE) {
     for (const id of ["download", "art-download"]) {
@@ -73,21 +83,22 @@ export function createExport({ account }) {
     const signedIn = account.signedIn();
     const ready = signedIn && status.connected && status.canSendCourses;
     $("export-route").textContent = routeLine();
-    note.classList.toggle("on", sent);
+    note.classList.toggle("on", sent || !!already);
     // Garmin's Courses API: courses sent this way sync to the watch.
     if (sent) note.textContent = "Sent to Garmin Connect. It goes to your watch at its next sync.";
+    else if (already) note.textContent = `Already in Garmin Connect as “${already}”`;
     else if (!signedIn) note.textContent = "Sign in to send routes to your watch";
     else if (!status.connected) note.textContent = "Send routes to your watch";
     else if (!status.canSendCourses) note.textContent = "Courses are switched off for Runthe in Garmin Connect";
     else note.textContent = `Saves as a course called “${courseName()}”`;
     signIn.hidden = signedIn;
     connect.hidden = !signedIn || status.connected;
-    send.hidden = !ready || sent;
-    done.hidden = !sent;
+    send.hidden = !ready || sent || !!already;
+    done.hidden = !sent && !already;
     // Courses off: say how to fix it, as the account menu does.
-    if (signedIn && status.connected && !status.canSendCourses && !sent) say(COURSES_OFF);
+    if (signedIn && status.connected && !status.canSendCourses && !sent && !already) say(COURSES_OFF);
     else if (msg.textContent === COURSES_OFF) say(""); // a fresh check found them back on
-    const gpxIsMain = !ready && !sent;
+    const gpxIsMain = !ready && !sent && !already;
     gpx.classList.toggle("btn-primary", gpxIsMain);
     gpx.classList.toggle("btn-secondary", !gpxIsMain);
   }
@@ -96,6 +107,9 @@ export function createExport({ account }) {
     if (!GARMIN_BASE) return downloadGPX(r);
     route = r;
     sent = false;
+    line = lineId(encodeLine(r.points.map(([lat, lon]) => [lon, lat])));
+    already = sentHere.get(line) ?? null;
+    lookup = null;
     say("");
     place = account.knownPlace(r.points[0]);
     status = garmin.lastStatus();
@@ -104,6 +118,18 @@ export function createExport({ account }) {
     // Fill in what wasn't known yet: the place name and a fresh status.
     account.placeOf(r.points[0]).then((p) => { if (route === r && p && p !== place) { place = p; render(); } });
     if (account.signedIn()) {
+      // Sent before, from here or elsewhere, and still in Garmin Connect?
+      // Asked on every opening, alongside the status, so a course deleted
+      // or renamed in Garmin Connect meanwhile shows. A failed check
+      // (undefined) leaves things as they were.
+      const l = line;
+      lookup = garmin.sentCourse(l).then((s) => (s.sent ? s.name : null)).catch(() => undefined);
+      lookup.then((name) => {
+        if (name === undefined) return;
+        if (name) sentHere.set(l, name);
+        else sentHere.delete(l);
+        if (route === r && !sent) { already = name; render(); }
+      });
       status = await garmin.check();
       if (route === r) render();
     }
@@ -115,10 +141,14 @@ export function createExport({ account }) {
     send.setAttribute("aria-busy", "true");
     send.innerHTML = `<span class="spin" aria-hidden="true"></span>Sending…`;
     try {
+      // Tapped before the check for an earlier send came back: wait for it.
+      if (lookup && await lookup) return;
+      const name = courseName();
       await garmin.sendCourse({
-        name: courseName(), distance: route.distance, points: route.points,
+        name, distance: route.distance, points: route.points, line,
         ...(route.heights && { heights: route.heights, climb: route.climb ?? 0 }),
       });
+      sentHere.set(line, name);
       sent = true;
     } catch (err) {
       console.error(err);
