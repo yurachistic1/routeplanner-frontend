@@ -13,6 +13,15 @@ export const API_BASE = isLocal
     ? "https://routes-staging-1068090158958.europe-west2.run.app"
     : "https://routes-1068090158958.europe-west2.run.app";
 
+// The leg service, for A to B (a Cloud Run service of its own, so legs
+// never wait behind a loop or GPS art search). Locally the one backend
+// serves legs too. Live has none until A to B goes live.
+export const LEGS_BASE = isLocal
+  ? `http://${host}:8080`
+  : host === "staging.runthe.uk"
+    ? "https://legs-staging-1068090158958.europe-west2.run.app"
+    : "https://legs-1068090158958.europe-west2.run.app";
+
 // Wake the server while the user chooses their route. If this fails, the
 // route request will show the error.
 fetch(`${API_BASE}/warm`).catch(() => {});

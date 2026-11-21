@@ -67,6 +67,14 @@ export function addCredits(html) {
   return { set };
 }
 
+// Shows or hides every layer that draws from source: a mode hides another
+// mode's route while it's on screen, and shows it again when it leaves.
+export function setSourceVisible(map, source, visible) {
+  for (const l of map.getStyle().layers) {
+    if (l.source === source) map.setLayoutProperty(l.id, "visibility", visible ? "visible" : "none");
+  }
+}
+
 // ----- where the map's own buttons sit -----
 // Phones: the credits (ⓘ) under the top bar, and Satellite and My location
 // just above the bottom panel, moving with it. Laptops: all three together
