@@ -17,7 +17,8 @@
 //   has-info (the route has info to show), has-warnings, info-open
 
 import { API_BASE } from "./api.js";
-import { M_LAT, mLon, simplify, keptIndices, roundCorners, metresPerPixel, CORNER_PX, pointAlong } from "./geometry.js";
+import { M_LAT, mLon, simplify, keptIndices, roundCorners, metresPerPixel, CORNER_PX, pointAlong, endsMeet } from "./geometry.js";
+import { finishMarker } from "./map.js";
 import { goBack } from "./modes.js";
 import { heightsAt, renderProfile, sharedScale } from "./profile.js";
 import { $, toast } from "./ui.js";
@@ -230,6 +231,7 @@ export function createLoopMode(map, mapReady, opts) {
       if (!routes.length) throw new UserError("No routes found from here. Try another start point.");
       await showRoutes(
         routes.map((r) => ({
+          kind: "loop", // saved with a favourite, so it's known later
           distance: r.distance, raw: r.path.map(([lat, lon]) => [lon, lat]),
           info: { countryPaths: r.countryPaths || 0, countryPathSpans: r.countryPathSpans ?? [] },
           // heights (see js/profile.js); missing where the map has none
@@ -668,6 +670,7 @@ export function createLoopMode(map, mapReady, opts) {
     state.index = (i + state.routes.length) % state.routes.length;
     const r = state.routes[state.index];
     if (r.start) setStart(r.start); // saved routes each have their own start
+    finish?.remove(); // back once the route has drawn in to it
     renderInfo(r); // first: it changes the panel's height, which framing allows for
 
     const target = map.cameraForBounds(bounds(r.raw), { padding: o.padding(), maxZoom: 16 });
@@ -675,7 +678,7 @@ export function createLoopMode(map, mapReady, opts) {
 
     cancelAnimationFrame(anim);
     if (o.animate) drawProgressively(r, key);
-    else { drawRoute(shapeAt(r, key)); shownKey = key; }
+    else { drawRoute(shapeAt(r, key)); shownKey = key; placeFinish(r); }
 
     // Not once another mode has the map: leaving favourites for GPS art
     // shows loop's routes again, but art puts its own view back.
@@ -683,6 +686,18 @@ export function createLoopMode(map, mapReady, opts) {
 
     markCurrent(scroll);
     o.onShow?.(state.index, r);
+  }
+
+  // A route that ends away from its start (A to B or GPS art favourites)
+  // shows its finish there, once the line has drawn in to it; one that
+  // ends at its start has the start marker for both. Hidden by CSS once
+  // the routes leave the screen.
+  let finish = null;
+  function placeFinish(r) {
+    if (endsMeet(r.raw)) return finish?.remove();
+    finish ??= finishMarker("loop-finish");
+    finish.setLngLat(r.raw.at(-1)).addTo(map);
+    marker?.addTo(map); // the start on top, where the two are close
   }
 
   function markCurrent(scroll = true) {
@@ -712,6 +727,7 @@ export function createLoopMode(map, mapReady, opts) {
       drawing = false;
       shownKey = zoomKey();
       drawRoute(shapeAt(r, shownKey));
+      placeFinish(r);
     };
     anim = requestAnimationFrame(step);
   }
@@ -736,18 +752,23 @@ export function createLoopMode(map, mapReady, opts) {
   $("download")?.addEventListener("click", () => {
     const r = state.routes[state.index];
     if (!r) return;
-    // A GPS art favourite remembers its shape (saved since 2026-11-17).
-    const name = r.shape ? `${r.shape} ${(r.distance / 1000).toFixed(1)} km` : `${km(r.distance)} km loop`;
+    // Favourites can be any mode's, named as that mode names them, or just
+    // a route where it isn't known (kind, see account.js); a GPS art
+    // favourite remembers its shape (since 2026-11-17).
+    const kind = r.kind;
+    const name = kind === "art" ? `${r.shape ?? "GPS art"} ${(r.distance / 1000).toFixed(1)} km`
+      : kind === "p2p" ? `A to B ${km(r.distance)} km`
+      : `${km(r.distance)} km ${kind === "loop" ? "loop" : "route"}`;
     const points = r.raw.map(([lon, lat]) => [lat, lon]);
     o.exportRoute?.({
-      kind: r.shape ? "art" : "loop",
+      kind,
       shape: r.shape,
       distance: r.distance,
       points,
       // heights for <ele> and Garmin courses, where the route has them
       ...(r.elevation && { heights: heightsAt(r, points), climb: r.climb }),
       gpxName: name,
-      fileName: r.shape ? `${name.replaceAll(" ", "-")}.gpx` : `${km(r.distance)}km.gpx`,
+      fileName: kind === "art" || kind === "p2p" ? `${name.replaceAll(" ", "-")}.gpx` : `${km(r.distance)}km.gpx`,
     });
   });
 

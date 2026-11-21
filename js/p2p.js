@@ -31,7 +31,7 @@
 // p2p-can-undo, p2p-folded, p2p-warnings, p2p-no-details.
 
 import { LEGS_BASE } from "./api.js";
-import { lineLength, metresPerPixel, pointAlong, segLength } from "./geometry.js";
+import { lineLength, M_LAT, metresPerPixel, mLon, pointAlong, segLength } from "./geometry.js";
 import { routeFeatures, routePieces, samePoint } from "./lanes.js";
 import { setSourceVisible } from "./map.js";
 import { attachGrip, createSmoother } from "./panel.js";
@@ -47,6 +47,8 @@ const COUNTRY_WARN_M = 100; // as loop.js: uncertain paths are worth a warning f
 const SNAP_WAYPOINT_PX = 22; // a tap this close to a waypoint lands on it
 const SNAP_LAST_PX = 6; // but on the last one only this close: a second tap on the same spot
 const SNAP_ROUTE_PX = 12; // and this close to the route, on the route
+const LAP_NEAR_M = 5; // the route ends on an earlier pass when it's this close to it
+const LAP_MIN_M = 50; // and the lap since then is at least this long
 // A routed leg that ends this near where it set off, though the tap was
 // further, got nowhere: no path comes nearer the tap (see tapAt).
 const NOWHERE_M = 10;
@@ -56,7 +58,7 @@ const NOWHERE_M = 10;
 // nowhere to walk, would jump to some other path nearby. In metres, kept
 // between 15 and 300 (as the server keeps it).
 const TAP_PX = 24;
-const MAX_SAVED_M = 60000; // the longest route favourites take (firestore.rules)
+const MAX_SAVED_M = 250000; // the longest route favourites take (firestore.rules; 60 km until 2026-11-21)
 const PROFILE_POINTS = 600; // at most this many heights in the profile
 const HEIGHT_STEP_M = 5; // the route's heights are worked on this far apart, as the backend's
 // A leg is at most this long in a straight line (the user, 2026-11-20), so
@@ -82,7 +84,11 @@ export function createP2PMode(map, mapReady, opts) {
   // the map has them, or null), country ([[i, j]] spans of uncertain path,
   // by point) }.
   const state = { points: [], legs: [], routing: "pleasant", minimiseClimb: false };
-  const undos = []; // earlier { points, legs }, newest last
+  const undos = []; // earlier { points, legs, session }, newest last
+  // The route being made, from the first point until Clear: once hearted,
+  // it is that favourite, saved as it changes (link: the favourite's id).
+  // Undo after Clear brings back the route and its link with it.
+  let session = { link: null };
   let queue = Promise.resolve(); // taps are routed one at a time, in order
   let taps = 0; // taps made, to number them
   const waiting = []; // the numbers of taps not placed yet, oldest first
@@ -208,12 +214,96 @@ export function createP2PMode(map, mapReady, opts) {
       toast("Couldn't add that point. Try again?");
     });
   }
-  // Every change goes through here, so Undo can take it back.
-  function commit(points, legs) {
+  // ----- laps -----
+  // Where the route ends on a spot it came through before (a tap on a
+  // waypoint or on the line), Lap adds the lap since then again: from
+  // that earlier pass, the same way round, back to here (the user,
+  // 2026-11-21). Copied from the legs, so no asking the server.
+
+  // The earlier pass the route's end is on: walking back from the end,
+  // past the way in, the first stretch that comes back within LAP_NEAR_M
+  // of it (the most recent pass, so the shortest lap). { leg, seg, t,
+  // from }: the leg, the segment of its points and how far along it
+  // (0-1), and metres from the start; null if there's none.
+  function lapAt() {
+    const { legs, points } = state;
+    if (!legs.length) return null;
+    const end = points.at(-1), mx = mLon(end[1]);
+    const xy = ([lon, lat]) => [(lon - end[0]) * mx, (lat - end[1]) * M_LAT];
+    let start = legs.reduce((sum, leg) => sum + lineLength(leg.points), 0); // where the leg being walked starts
+    let left = false, best = null;
+    for (let i = legs.length - 1; i >= 0; i--) {
+      const pts = legs[i].points;
+      start -= lineLength(pts);
+      for (let j = pts.length - 2; j >= 0; j--) {
+        const [ax, ay] = xy(pts[j]), [bx, by] = xy(pts[j + 1]), dx = bx - ax, dy = by - ay;
+        const t = Math.max(0, Math.min(1, -(ax * dx + ay * dy) / (dx * dx + dy * dy || 1)));
+        const d = Math.hypot(ax + t * dx, ay + t * dy);
+        if (d > LAP_NEAR_M) {
+          if (best) return best; // past the nearest point of that pass
+          left = true;
+        } else if (left && (!best || d < best.d)) {
+          best = { leg: i, seg: j, t, d, from: start + lineLength(pts.slice(0, j + 1)) + t * segLength(pts[j], pts[j + 1]) };
+        }
+      }
+    }
+    return best;
+  }
+  // The lap as legs: the leg the earlier pass is on, from there to its
+  // end (starting exactly here), then copies of every leg after it.
+  function lapLegs(lap) {
+    const { legs, points } = state;
+    const leg = legs[lap.leg], pts = leg.points;
+    const rest = [points.at(-1), ...pts.slice(lap.seg + 1)];
+    const out = lineLength(rest) > 1 ? [{ ...leg, points: rest, elevation: cutHeights(leg, lap), country: cutSpans(leg.country, lap.seg) }] : [];
+    return [...out, ...legs.slice(lap.leg + 1).map((l) => ({ ...l }))];
+  }
+  // The heights from the pass to the leg's end, evenly spaced over that
+  // part as a leg's are over the whole of it.
+  function cutHeights({ points: pts, elevation: hs }, { seg, t }) {
+    if (!hs) return null;
+    const length = lineLength(pts), d0 = lineLength(pts.slice(0, seg + 1)) + t * segLength(pts[seg], pts[seg + 1]);
+    const n = Math.max(2, Math.round((length - d0) / HEIGHT_STEP_M) + 1);
+    return Array.from({ length: n }, (_, k) => {
+      const f = ((d0 + (k / (n - 1)) * (length - d0)) / (length || 1)) * (hs.length - 1);
+      const i = Math.min(Math.floor(f), hs.length - 2);
+      return hs[i] + (f - i) * (hs[i + 1] - hs[i]);
+    });
+  }
+  // Uncertain stretches ([from, to] point indices) after point seg, for
+  // the leg's points from seg on, the first being here.
+  const cutSpans = (spans, seg) => (spans ?? [])
+    .filter(([, e]) => e > seg)
+    .map(([s, e]) => [Math.max(0, s - seg), e - seg]);
+
+  // Lap goes in the queue with the taps, so it comes after any still
+  // being routed, and Undo can take it back before it's placed.
+  function addLap() {
+    const id = ++taps;
+    waiting.push(id);
+    queue = queue.then(() => {
+      const lap = dropped.has(id) ? null : lapAt();
+      if (!lap) return;
+      const legs = lapLegs(lap);
+      commit([...state.points, ...legs.map((l) => l.points.at(-1))], [...state.legs, ...legs]);
+    }).finally(() => {
+      waiting.splice(waiting.indexOf(id), 1);
+      dropped.delete(id);
+    }).catch((err) => {
+      console.error(err);
+      toast("Couldn't add the lap. Try again?");
+    });
+  }
+
+  // Every change goes through here, so Undo can take it back. next: the
+  // session it starts (Clear), the route before it saved first.
+  function commit(points, legs, next = session) {
     refuse(null);
-    undos.push({ points: state.points, legs: state.legs });
+    if (next !== session) flushSave();
+    undos.push({ points: state.points, legs: state.legs, session });
     state.points = points;
     state.legs = legs;
+    session = next;
     render();
   }
   // A tap still waiting to be placed goes first, as if it never was.
@@ -223,14 +313,17 @@ export function createP2PMode(map, mapReady, opts) {
     if (pending.length) return dropped.add(pending.at(-1));
     const last = undos.pop();
     if (!last) return;
+    if (last.session !== session) flushSave();
     state.points = last.points;
     state.legs = last.legs;
+    session = last.session;
     render();
   }
-  // Clear empties the route; Undo brings it back.
+  // Clear empties the route and starts a new one, not saved until hearted;
+  // Undo brings the old one back.
   function clear() {
     for (const id of waiting) dropped.add(id);
-    if (state.points.length) commit([], []);
+    if (state.points.length) commit([], [], { link: null });
   }
 
   // Where a tap lands: on a waypoint if it's close to one (the start first,
@@ -371,7 +464,8 @@ export function createP2PMode(map, mapReady, opts) {
       if (i === 0) return;
       const last = i === pts.length - 1;
       const k = `${ll[0].toFixed(6)},${ll[1].toFixed(6)}`;
-      if (samePoint(ll, pts[0]) || (!last && seen.has(k))) return;
+      // a via where the route finishes is under the finish (after a lap, say)
+      if (samePoint(ll, pts[0]) || (!last && (seen.has(k) || samePoint(ll, pts.at(-1))))) return;
       seen.add(k);
       add(ll, last ? "wp-fin" : "wp-via", last ? "Finish" : `Via point ${i}`);
     });
@@ -429,7 +523,13 @@ export function createP2PMode(map, mapReady, opts) {
     body.classList.toggle("p2p-can-undo", undos.length > 0);
     $("p2p-undo").disabled = !undos.length;
     $("p2p-clear").hidden = !n;
+    // Lap, while the route ends on a spot it came through before (so
+    // still there after a lap), with how long the lap is
+    const lap = lapAt(), lapLength = lap ? route.distance - lap.from : 0;
+    $("p2p-lap").hidden = lapLength < LAP_MIN_M;
+    if (lapLength >= LAP_MIN_M) $("p2p-lap-km").textContent = `${km(lapLength)} km`;
     syncHeart();
+    scheduleSave(); // a hearted route's favourite follows it
     placeMarkers();
     drawLine();
     showRoute();
@@ -572,6 +672,7 @@ export function createP2PMode(map, mapReady, opts) {
 
   // ----- Undo, Clear, Export, favourite -----
   $("p2p-undo").addEventListener("click", undo);
+  $("p2p-lap").addEventListener("click", addLap);
   $("p2p-clear").addEventListener("click", clear);
   const mac = /Mac|iPhone|iPad/.test(navigator.platform);
   $("p2p-undo").querySelector("kbd").textContent = mac ? "⌘Z" : "Ctrl Z";
@@ -587,25 +688,71 @@ export function createP2PMode(map, mapReady, opts) {
   // The chart's heights are too many to keep (up to 600: firestore.rules
   // takes 400), so they're saved cut down to about 200, as loops' come;
   // the climb was counted on all of them.
+  // ----- favourite -----
+  // A route you make is more like a document than a found loop: once
+  // hearted, the route on screen is that favourite, and every change
+  // (a point, Undo, Lap) is saved to it a moment later, so the heart stays
+  // filled (the user, 2026-11-21). Unhearting removes it; Clear starts a
+  // new route, not saved until hearted. Its id is its own, not its line's,
+  // as the line changes.
   const favouriteOf = (r) => ({
-    raw: r.raw, distance: r.distance, info: r.info,
+    kind: "p2p", raw: r.raw, distance: r.distance, info: r.info,
     ...(r.elevation && { ...shrinkProfile(r.elevation, r.elevationStep), climb: r.climb }),
+    ...(session.link && { id: session.link }),
   });
-  let favourite = null; // what the heart saved, so its id stays put
+  const newId = () => [...crypto.getRandomValues(new Uint8Array(8))].map((b) => b.toString(16).padStart(2, "0")).join("");
+  // Saved: hearted, and still in favourites (it may have been removed in
+  // the favourites list since; then it isn't brought back).
+  const isSaved = () => !!route && !!session.link && opts.favourites.has(favouriteOf(route));
   function syncHeart() {
-    favourite = route ? favouriteOf(route) : null;
-    const on = !!favourite && opts.favourites.has(favourite);
+    const on = isSaved();
     $("p2p-fav").classList.toggle("on", on);
     $("p2p-fav").setAttribute("aria-pressed", on);
   }
   opts.favourites.onChange(syncHeart);
   $("p2p-fav").addEventListener("click", () => {
-    if (!favourite) return;
-    // favourites hold routes up to 60 km (firestore.rules); A to B can go further
-    if (favourite.distance > MAX_SAVED_M && !opts.favourites.has(favourite)) {
-      return toast(`Favourites hold routes up to ${MAX_SAVED_M / 1000} km for now. Export it as a GPX instead?`);
+    if (!route) return;
+    if (isSaved()) {
+      clearTimeout(saveTimer);
+      saveTimer = 0;
+      const fav = favouriteOf(route);
+      session.link = null;
+      return opts.favourites.toggle(fav); // removes it
     }
-    opts.favourites.toggle(favourite);
+    // favourites hold routes up to 250 km (firestore.rules); A to B can go further
+    if (route.distance > MAX_SAVED_M) return toast(TOO_LONG);
+    session.link = newId();
+    tooLongSaid = false;
+    opts.favourites.toggle(favouriteOf(route));
+  });
+  const TOO_LONG = `Favourites hold routes up to ${MAX_SAVED_M / 1000} km for now. Export it as a GPX instead?`;
+
+  // Changes reach the favourite SAVE_AFTER_MS after the last, so quick taps
+  // make one write; before Clear, leaving the mode or the page, at once.
+  const SAVE_AFTER_MS = 1500;
+  let saveTimer = 0;
+  let tooLongSaid = false; // said once that a change made it too long to save
+  function scheduleSave() {
+    clearTimeout(saveTimer);
+    saveTimer = isSaved() ? setTimeout(saveNow, SAVE_AFTER_MS) : 0;
+  }
+  function flushSave() {
+    if (saveTimer) saveNow();
+  }
+  function saveNow() {
+    clearTimeout(saveTimer);
+    saveTimer = 0;
+    if (!isSaved()) return;
+    if (route.distance > MAX_SAVED_M) {
+      if (!tooLongSaid) toast(`Favourites hold routes up to ${MAX_SAVED_M / 1000} km, so yours stays as it was. Export this one as a GPX?`);
+      tooLongSaid = true;
+      return;
+    }
+    tooLongSaid = false;
+    opts.favourites.update(favouriteOf(route));
+  }
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") flushSave();
   });
 
   $("p2p-export").addEventListener("click", () => {
@@ -630,6 +777,7 @@ export function createP2PMode(map, mapReady, opts) {
     render();
   }
   function leave() {
+    flushSave();
     ready.then(() => {
       setSourceVisible(map, "route", true);
       map.getSource("p2p").setData(EMPTY);

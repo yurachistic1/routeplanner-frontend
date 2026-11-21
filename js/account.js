@@ -9,7 +9,9 @@
 // Body class: signed-in. The Garmin Connect card in the menu is garmin.js.
 
 import { encodeLine, decodeLine, lineId } from "./polyline.js";
+import { endsMeet } from "./geometry.js";
 import { createGarmin } from "./garmin.js";
+import { swipeAway } from "./ui.js";
 
 const SDK = "https://www.gstatic.com/firebasejs/13.2.0";
 // These identify the project and are safe to publish. firestore.rules is what
@@ -349,8 +351,21 @@ export function createAccount({ openFavourites = () => {} } = {}) {
   function favouriteRoutes() {
     const newestFirst = [...saved.entries()].sort(([, a], [, b]) => (b.savedAt?.seconds ?? 0) - (a.savedAt?.seconds ?? 0));
     return newestFirst.map(([id, f]) => {
-      const raw = decodeLine(f.line);
-      return { id, line: f.line, distance: f.distance, raw, start: raw[0], place: placeKey(raw[0]), info: unpackInfo(f.info), ...(f.shape && { shape: f.shape }), ...heightsOf(f) };
+      const raw = decodeLine(f.line), heights = heightsOf(f);
+      // The mode that made it (loop, art or p2p), saved since 2026-11-21;
+      // before, only GPS art said so (its shape), and the rest stay unknown.
+      const kind = f.kind ?? (f.shape ? "art" : undefined);
+      // The chart wraps round only where the route ends at its start, and
+      // never for A to B (as in its own mode); one that ends elsewhere shows
+      // its finish there, as the map does.
+      const open = !endsMeet(raw);
+      const chartEnd = heights.elevation ? heights.elevationStep * (heights.elevation.length - 1) : f.distance;
+      return {
+        id, line: f.line, distance: f.distance, raw, start: raw[0], place: placeKey(raw[0]), info: unpackInfo(f.info),
+        ...(kind && { kind }), ...(f.shape && { shape: f.shape }), ...heights,
+        ...((open || kind === "p2p") && { closed: false }),
+        ...(open && { marks: [{ m: chartEnd, kind: "finish" }] }),
+      };
     });
   }
 
@@ -379,7 +394,7 @@ export function createAccount({ openFavourites = () => {} } = {}) {
       syncHeart();
       refreshFavourites();
     };
-    const fav = { line: r.line, distance: r.distance, ...(r.info && { info: packInfo(r.info) }), ...(r.shape && { shape: r.shape.slice(0, 60) }), ...heightsOf(r) };
+    const fav = favouriteData(r);
     const wasInFavourites = app.state.favourites;
     change(before ? null : { ...fav, savedAt: savedAt ?? { seconds: Date.now() / 1000 } });
     const write = (async () => {
@@ -397,6 +412,36 @@ export function createAccount({ openFavourites = () => {} } = {}) {
       hideUndo();
       change(before);
       toast("Couldn't update your favourites. Try again?");
+    }
+  }
+
+  // What a favourite holds of route r (firestore.rules says what it may).
+  const favouriteData = (r) => ({
+    line: r.line, distance: r.distance, ...(r.info && { info: packInfo(r.info) }), ...(r.shape && { shape: r.shape.slice(0, 60) }),
+    ...(r.kind && { kind: r.kind }), ...heightsOf(r),
+  });
+  const OPTIONAL = ["info", "shape", "kind", "climb", "elevation", "elevationStep"];
+
+  // An A to B favourite follows its route as it changes (js/p2p.js): the
+  // same favourite (r.id) overwritten, keeping when it was first saved, so
+  // its place and number in the list stay. Only while it's still saved:
+  // one removed meanwhile isn't brought back.
+  async function updateFavourite(r) {
+    const id = r.id, before = saved.get(id);
+    if (!user || !before) return;
+    r.line = encodeLine(r.raw); // the route's line now
+    const fav = favouriteData(r);
+    saved.set(id, { ...fav, savedAt: before.savedAt });
+    syncHeart();
+    refreshFavourites();
+    try {
+      const { store, db } = await load();
+      // savedAt is left as it is; fields the route no longer has go
+      const gone = Object.fromEntries(OPTIONAL.filter((k) => !(k in fav)).map((k) => [k, store.deleteField()]));
+      await store.updateDoc(store.doc(db, favouritesPath(), id), { ...fav, ...gone });
+    } catch (err) {
+      console.error(err);
+      toast("Couldn't save the changes to your favourite. They'll go with the next one.");
     }
   }
 
@@ -420,6 +465,13 @@ export function createAccount({ openFavourites = () => {} } = {}) {
     undoAction = null;
     undoBar.classList.remove("show");
   }
+  // Swiped away (touch screens), the removal stands, as when it times out.
+  swipeAway(undoBar, {
+    edge: "bottom",
+    onStart: () => clearTimeout(undoTimer),
+    onBack: () => { undoTimer = setTimeout(hideUndo, 2500); },
+    onGone: hideUndo,
+  });
 
   // Whether there's anything to show, saying so if not.
   function hasFavourites() {
@@ -493,6 +545,7 @@ export function createAccount({ openFavourites = () => {} } = {}) {
     placeOf,
     routeShown(r) { route = r; syncHeart(); },
     toggleFavourite,
+    updateFavourite,
     // For other modes' hearts: r is { raw: [[lon, lat], ...], distance }.
     isFavourite: (r) => saved.has(idOf(r)),
     onFavouritesChange(tell) { watchers.push(tell); },

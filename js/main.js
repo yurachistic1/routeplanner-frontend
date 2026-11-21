@@ -132,7 +132,10 @@ registerMode("favourites", {
 });
 
 // Hearts in the other modes save to the same favourites.
-const favourites = { toggle: (r) => account.toggleFavourite(r), has: (r) => account.isFavourite(r), onChange: (f) => account.onFavouritesChange(f) };
+const favourites = {
+  toggle: (r) => account.toggleFavourite(r), has: (r) => account.isFavourite(r), onChange: (f) => account.onFavouritesChange(f),
+  update: (r) => account.updateFavourite(r), // A to B's, which follow their route
+};
 
 // ----- GPS art mode -----
 // The route in lime like a loop. Its heart saves to the same favourites.

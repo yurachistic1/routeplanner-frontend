@@ -21,8 +21,8 @@
 // remembers where it was when you come back from the shelf.
 
 import { API_BASE } from "./api.js";
-import { smoothLine, metresPerPixel } from "./geometry.js";
-import { setSourceVisible } from "./map.js";
+import { smoothLine, metresPerPixel, endsMeet } from "./geometry.js";
+import { setSourceVisible, finishMarker } from "./map.js";
 import { goBack } from "./modes.js";
 import { createSmoother, attachGrip } from "./panel.js";
 import { createIconPicker, createDrawPad, isTextIcon } from "./shapes.js";
@@ -210,6 +210,7 @@ export function createArtMode(map, mapReady, opts) {
       drawing = false;
       shownKey = half(map.getZoom());
       setLine(lineAt(r, shownKey));
+      placeFinish(r);
     };
     anim = requestAnimationFrame(step);
   }
@@ -228,9 +229,21 @@ export function createArtMode(map, mapReady, opts) {
     shownKey = r ? half(map.getZoom()) : null;
     setLine(r ? lineAt(r, shownKey) : null);
     placeStart(r);
+    placeFinish(r); // drawn at once here, so the finish too
     syncHeart();
   }
+  // The start, and the finish where the drawing ends away from it (most
+  // do), which comes once the line has drawn in to it; one that ends at
+  // its start has the start marker for both.
+  let finish = null;
+  function placeFinish(r) {
+    if (!r || endsMeet(r.raw)) return finish?.remove();
+    finish ??= finishMarker("art-finish");
+    finish.setLngLat(r.raw.at(-1)).addTo(map);
+    start?.addTo(map); // the start on top, where the two are close
+  }
   function placeStart(r) {
+    finish?.remove(); // placeFinish puts it back
     if (r) {
       if (!start) {
         const el = document.createElement("div");
@@ -253,6 +266,7 @@ export function createArtMode(map, mapReady, opts) {
     const r = state.routes[state.index];
     if (!r) return;
     r.shape ??= state.shape?.name; // saved with the favourite, so it's known later
+    r.kind = "art";
     opts.favourites.toggle(r);
   });
   // Whether the map has been moved by hand (or to your location) since a
@@ -569,6 +583,7 @@ export function createArtMode(map, mapReady, opts) {
     others(true);
     stopDrawing();
     start?.remove();
+    finish?.remove();
     hidePlace();
     ready.then(() => map.getSource("art").setData(EMPTY));
   }

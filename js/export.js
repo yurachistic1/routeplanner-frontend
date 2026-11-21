@@ -43,7 +43,7 @@ export function createExport({ account }) {
   const connect = $("export-connect");
   const signIn = $("export-signin");
   const garmin = account.garmin;
-  let route = null; // { points: [[lat, lon]...], heights?, climb?, distance, kind (loop, art, p2p), shape?, gpxName, fileName }
+  let route = null; // { points: [[lat, lon]...], heights?, climb?, distance, kind? (loop, art, p2p; none on older favourites), shape?, gpxName, fileName }
   let place = "";
   let status = { connected: false, canSendCourses: false };
   let sent = false;
@@ -74,7 +74,7 @@ export function createExport({ account }) {
   function routeLine() {
     const shape = route.shape ? shapeLabel(route.shape) : "GPS art";
     const what = route.kind === "art" ? `${shape}, ${km(route.distance)} km`
-      : route.kind === "p2p" ? `${km(route.distance)} km route` : `${km(route.distance)} km loop`;
+      : `${km(route.distance)} km ${route.kind === "loop" ? "loop" : "route"}`; // A to B, or not known
     return place ? `${what} from ${place}` : what;
   }
 

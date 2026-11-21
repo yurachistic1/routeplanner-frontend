@@ -104,6 +104,10 @@ export function lineLength(pts) {
 }
 export const segLength = (a, b) => Math.hypot((b[0] - a[0]) * mLon(a[1]), (b[1] - a[1]) * M_LAT);
 
+// Whether a line ([lon, lat] points) ends where it starts, within a few
+// metres: then its start marker stands for its finish too.
+export const endsMeet = (pts) => pts.length < 2 || segLength(pts[0], pts.at(-1)) < 5;
+
 // The point a fraction f of the way along the line.
 export function pointAlong(pts, f) {
   let want = f * lineLength(pts);
