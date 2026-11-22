@@ -147,7 +147,7 @@ button:focus-visible { outline: 3px solid var(--neon); outline-offset: 3px; }
 .show-results .setup { display: none; }
 /* The route info tab sits on the panel's top edge: the panel leaves room
    under it, so it never touches Export GPX. */
-body:not([data-mode="art"]).show-results.has-info .deck { padding-top: 26px; }
+body:not([data-mode="art"]):not([data-mode="p2p"]).show-results.has-info .deck { padding-top: 26px; }
 /* minmax(0, …): the column is the panel's width, whatever is inside (the
    profile chart is drawn to it, so mustn't widen it, 2026-11-18) */
 .show-results .results { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
@@ -396,6 +396,10 @@ dialog.account:not([data-view="account"]) #delete-account { display: none; }
 /* the distance asked for: routes found together share the scale, so a
    short one's line stops before this and a long one's runs past */
 .pf-target { stroke: var(--dim-2); stroke-width: 1.5; stroke-dasharray: 4 3; }
+/* waypoints on the chart (A to B): like the via and finish markers on the map */
+.pf-via { stroke: rgba(233, 238, 245, .25); stroke-width: 1; stroke-dasharray: 3 3; }
+.pf-vdot { fill: #0b1004; stroke: #fff; stroke-width: 2; }
+.pf-fin { fill: #fff; stroke: #0b1004; stroke-width: 2.5; }
 .pf-cursor-line { stroke: var(--text); stroke-width: 1; stroke-dasharray: 3 3; opacity: .7; }
 .pf-cursor-dot { fill: var(--neon); stroke: var(--panel); stroke-width: 2; }
 /* where you are on the profile, on the route */
@@ -456,6 +460,13 @@ body:not(.show-results):not(.loading) .start-marker::before { animation: pulse 2
 }
 #undo.show { opacity: 1; visibility: visible; transform: none; animation: undo-in .22s cubic-bezier(.2, .8, .2, 1); }
 @keyframes undo-in { from { opacity: 0; transform: translateY(10px); } }
+/* Swiped away on touch screens (js/ui.js swipeAway): the toast takes
+   touches while it shows (elsewhere taps go through it to the map), and
+   the browser leaves the swipe to them. */
+@media (hover: none) {
+  #toast.show { pointer-events: auto; }
+  #toast, #undo { touch-action: none; -webkit-user-select: none; user-select: none; }
+}
 
 /* Map credits: the ⓘ sits just under the top bar on the left, clear of the
    bottom panel and its route info tab. The text slides out to its right. */
@@ -621,7 +632,7 @@ body:not(.signed-in) .modebar .signed-in-only { display: none; }
     position: absolute; z-index: 3; top: 12px; right: 12px; display: flex; flex-direction: column; align-items: flex-end; gap: 10px;
     transition: right .35s cubic-bezier(.2, .8, .2, 1);
   }
-  body.show-results:not([data-mode="art"]) .map-tools { right: calc(12px + var(--list-w) + 12px); }
+  body.show-results:not([data-mode="art"]):not([data-mode="p2p"]) .map-tools { right: calc(12px + var(--list-w) + 12px); }
   .map-tools .locate-btn { position: static; }
   .map-tools .credits { position: relative; flex-direction: row; align-items: center; }
   .map-tools .credits-btn { width: 46px; height: 32px; margin: 0; }
@@ -826,10 +837,11 @@ dialog.sheet::backdrop { background: rgba(7, 9, 13, .66); }
   #art-new { grid-column: 1 / -1; }
 }
 
-/* GPS art on phones: the grip folds the panel to its shape row. */
+/* Phones: the grip folds the panel (GPS art to its shape row, A to B to its
+   routing and Export; js/panel.js). */
 @media (max-width: 899px) {
   body[data-mode="art"]:not(.art-results) .deck { padding-top: 28px; }
-  body[data-mode="art"]:not(.art-results) .deck-grip {
+  body[data-mode="art"]:not(.art-results) #art-grip, body[data-mode="p2p"].p2p-has-leg #p2p-grip {
     display: block; position: absolute; top: -14px; left: 0; right: 0; height: 44px; padding: 0;
     background: none; border: 0; cursor: grab; touch-action: none; -webkit-tap-highlight-color: transparent;
   }
@@ -838,4 +850,206 @@ dialog.sheet::backdrop { background: rgba(7, 9, 13, .66); }
   .deck-grip:focus-visible { outline: none; }
   .deck-grip:focus-visible i { outline: 3px solid var(--neon); outline-offset: 3px; }
   .art-folded .art-fold { display: none !important; }
+}
+
+/* ----- Switch (UI.md; first used 2026-11-20 for Minimise climb) -----
+   On or off for a setting: a 52x32 pill with a white knob; on, the pill
+   goes lime and the knob dark, slid right. The label sits to its left and
+   the whole row is the target (role="switch", aria-checked). */
+.switch-row {
+  display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0;
+  font-size: 15px; font-weight: 500; color: var(--text); text-align: left; -webkit-tap-highlight-color: transparent;
+}
+.switch { position: relative; flex: none; width: 52px; height: 32px; border-radius: 999px; background: var(--tone); transition: background-color .15s, transform .12s; }
+.switch::after {
+  content: ""; position: absolute; top: 4px; left: 4px; width: 24px; height: 24px; border-radius: 50%;
+  background: var(--text); transition: transform .15s, background-color .15s;
+}
+.switch-row[aria-checked="true"] .switch { background: var(--neon); }
+.switch-row[aria-checked="true"] .switch::after { transform: translateX(20px); background: #0b1004; }
+@media (hover: hover) {
+  .switch-row:hover:not(:disabled) .switch { background: var(--tone-2); }
+  .switch-row[aria-checked="true"]:hover:not(:disabled) .switch { background: #d4ff58; }
+}
+.switch-row:active:not(:disabled) .switch { transform: scale(.96); }
+.switch-row:disabled { color: #566070; cursor: not-allowed; }
+.switch-row:disabled .switch { background: #1a2029; }
+.switch-row:disabled .switch::after { background: #566070; }
+@media (prefers-reduced-motion: reduce) { .switch, .switch::after { transition: none; } }
+
+/* ----- Map pill (UI.md; 2026-11-20, A to B's Undo and Clear) -----
+   A map button with words: the same --float fill and shadow, a 46px pill.
+   Laptops show the key that does the same (kbd). */
+.map-pill {
+  height: 46px; padding: 0 18px; border-radius: 999px; display: inline-flex; align-items: center; gap: 8px;
+  background: var(--float); color: var(--text); box-shadow: 0 6px 16px rgba(0, 0, 0, .5);
+  font-size: 15px; font-weight: 600; white-space: nowrap;
+  transition: transform .12s, background-color .15s; -webkit-tap-highlight-color: transparent;
+}
+.map-pill[hidden] { display: none; }
+.map-pill:has(svg) { padding-left: 14px; }
+.map-pill svg { width: 20px; height: 20px; flex: none; }
+@media (hover: hover) { .map-pill:hover:not(:disabled) { background: var(--tone-2); } }
+.map-pill:active:not(:disabled) { transform: scale(.94); background: var(--tone-press); }
+.map-pill:disabled { background: #1a2029; color: #566070; box-shadow: none; cursor: not-allowed; }
+.map-pill kbd { font: 500 11px "JetBrains Mono", monospace; color: var(--dim); border: 1px solid var(--edge); border-radius: 6px; padding: 2px 6px; }
+.map-pill kbd:empty { display: none; }
+/* a detail after the words, as Lap's length: quieter, numbers in mono */
+.map-pill-note { margin-left: -2px; color: var(--dim); font: 500 14px "JetBrains Mono", monospace; }
+@media (hover: none) { .map-pill kbd { display: none; } }
+
+/* ----- Warning line (UI.md; 2026-11-20, A to B's route info) -----
+   Route info's warning card made small: an amber mark, what it is in one
+   line, and a chevron; tap it for the why, which opens below. Its target
+   reaches 44px tall though it looks 36. */
+.warn-line {
+  position: relative; justify-self: start; display: inline-flex; align-items: center; gap: 8px; min-height: 36px;
+  padding: 0 12px 0 9px; border-radius: 999px; background: rgba(255, 181, 71, .1); color: #ffdca8;
+  font-size: 14px; font-weight: 500; text-align: left; transition: transform .12s, background-color .15s;
+}
+.warn-line { max-width: 100%; }
+/* a long road name in a refused tap's line: cut short, the why says it whole */
+.warn-line > span:not(.warn-mark) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.warn-line::before { content: ""; position: absolute; inset: -4px 0; }
+.warn-line[hidden] { display: none; }
+.warn-line svg { width: 16px; height: 16px; flex: none; opacity: .8; transition: transform .2s; }
+.warn-line[aria-expanded="true"] svg { transform: rotate(180deg); }
+@media (hover: hover) { .warn-line:hover { background: rgba(255, 181, 71, .16); } }
+.warn-line:active { transform: scale(.96); }
+.warn-mark {
+  width: 16px; height: 16px; border-radius: 50%; display: grid; place-items: center; flex: none;
+  background: var(--amber); color: var(--bg); font: 700 11px "JetBrains Mono", monospace;
+}
+.warn-text { margin: -2px 0 0; font-size: 15px; line-height: 1.45; color: var(--dim); }
+.warn-text[hidden] { display: none; }
+
+/* ----- A to B mode (js/p2p.js) -----
+   It shares the deck with the other modes: here loop's and GPS art's panels,
+   loop's start marker, list and top-bar text are hidden, and A to B's own
+   show. Its body classes (p2p-*) only count in this mode. */
+body:not([data-mode="p2p"]) :is(.p2p-hint, .p2p-info) { display: none !important; }
+.p2p { display: none; }
+[data-mode="p2p"] .setup, [data-mode="p2p"] .results, [data-mode="p2p"] .list, [data-mode="p2p"] .info-tab,
+[data-mode="p2p"] .route-info, [data-mode="p2p"] .hud-top .hint:not(.p2p-hint), [data-mode="p2p"] .hud-top .info:not(.p2p-info),
+[data-mode="p2p"] .start-marker { display: none !important; }
+/* A column, like GPS art's: the parts that grow in and shrink away take
+   the gap above them with them (a negative margin, js/panel.js), which a
+   grid's gaps won't do. */
+[data-mode="p2p"] .p2p { display: flex; flex-direction: column; gap: 10px; }
+[data-mode="p2p"] .p2p > * { min-width: 0; }
+/* The top bar: loop's hint (what a tap does next) until there's a leg,
+   then the distance, as in loop mode. */
+body[data-mode="p2p"] .hud-top .p2p-hint { display: block; }
+body[data-mode="p2p"] .hud-top .p2p-info { display: none; }
+body[data-mode="p2p"].p2p-has-leg .hud-top .p2p-hint { display: none; }
+body[data-mode="p2p"].p2p-has-leg .hud-top .p2p-info { display: block; }
+/* The heading heads all four controls (the chips and the switch) and says
+   what they change: Next leg, or Last leg (a Scope heading). */
+.p2p-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.p2p-title { margin: 0; font-size: 16px; font-weight: 700; color: var(--text); }
+
+/* ----- Scope heading (UI.md; 2026-11-22, A to B's Next leg / Last leg) -----
+   A heading that's also a button: each tap moves on to the next of a few
+   scopes for the controls under it. Joined dots under the words show
+   them, the current one lime; like the grip, a small mark on a big
+   target. The dots sit under the words without taking room, so the words
+   stay level with the row's other label and don't move when the dots
+   come. Disabled (nothing else to choose), it's a plain heading. */
+.scope {
+  position: relative; display: flex; align-items: center; min-height: 44px; padding: 0 2px 0 0;
+  text-align: left; -webkit-tap-highlight-color: transparent; transition: transform .12s;
+}
+.scope:disabled { cursor: default; }
+.scope-dots { position: absolute; left: 0; top: calc(50% + 13px); display: flex; gap: 8px; }
+.scope-dots i { width: 8px; height: 8px; border-radius: 50%; background: var(--dim-2); transition: background-color .15s; }
+.scope-dots::before {
+  content: ""; position: absolute; left: 4px; right: 4px; top: 3px; height: 2px;
+  background: var(--dim-2); transition: background-color .15s;
+}
+.scope-dots::after {
+  content: ""; position: absolute; left: 0; top: 0; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--neon); transform: translateX(calc(var(--at, 0) * 16px)); transition: transform .18s ease;
+}
+.scope:disabled .scope-dots { display: none; }
+@media (hover: hover) {
+  .scope:hover:not(:disabled) .scope-dots i, .scope:hover:not(:disabled) .scope-dots::before { background: var(--dim); }
+}
+.scope:active:not(:disabled) { transform: scale(.96); }
+.scope:active:not(:disabled) .scope-dots i, .scope:active:not(:disabled) .scope-dots::before { background: var(--text); }
+@media (prefers-reduced-motion: reduce) { .scope, .scope-dots i, .scope-dots::before, .scope-dots::after { transition: none; } }
+/* From the first leg: the elevation and any warning, then Export and the
+   heart. p2p-has-route follows them as they grow in and shrink away (it
+   comes off once they're gone); p2p-has-leg, for everything else that
+   comes with a route, changes at once, so it all moves together. */
+.p2p-details, .p2p-actions { display: none; }
+[data-mode="p2p"].p2p-has-route .p2p-details {
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; padding-top: 10px; border-top: 1px solid var(--edge);
+}
+[data-mode="p2p"].p2p-has-route .p2p-actions { display: grid; grid-template-columns: minmax(0, 1fr) 52px; gap: 10px; }
+[data-mode="p2p"].p2p-no-details .p2p-details, .p2p-folded .p2p-fold { display: none !important; }
+.p2p-details .profile { padding-top: 0; margin-bottom: 0; }
+.p2p-actions .fav { height: 52px; }
+/* A tap too far from the last point: the warning line, under the routing
+   (so it shows folded, and with only a start). */
+.p2p-alert { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.p2p-alert[hidden] { display: none; }
+/* Undo and Clear float above the panel's right end, from the first point
+   (Undo also after a Clear, to bring the route back), and Lap left of
+   them while there is one. Laid out from the right (Undo, Clear, Lap) so
+   that where the row has no room, Lap goes up a row, still on the right,
+   and Undo and Clear stay put. */
+.p2p-history {
+  position: absolute; right: 0; bottom: calc(100% + 10px); display: none; gap: 8px;
+  flex-direction: row-reverse; flex-wrap: wrap-reverse; max-width: 100%;
+}
+#p2p-undo { order: 1; }
+#p2p-clear { order: 2; }
+#p2p-lap { order: 3; }
+[data-mode="p2p"]:is(.p2p-has-point, .p2p-can-undo) .p2p-history { display: flex; }
+/* Folded with a warning hidden: the grip's pill turns amber, so it says
+   there's something to see where you'd tap to see it (was a dot beside
+   it, which floated on the panel's edge, 2026-11-21). */
+body[data-mode="p2p"].p2p-folded.p2p-warnings #p2p-grip i { background: var(--amber); }
+body[data-mode="p2p"].p2p-folded.p2p-warnings #p2p-grip:active i { background: var(--text); }
+/* Waypoints (UI.md): the start keeps loop's pink, vias are dark beads,
+   the finish is chequered. Small, and they take no taps: a tap near one
+   lands on it (moving them is the Edit mode's job). */
+.wp { border-radius: 50%; pointer-events: none; }
+.wp-start {
+  width: 18px; height: 18px; background: var(--pink); border: 3px solid #fff;
+  box-shadow: 0 0 0 3px rgba(255, 61, 139, .35), 0 0 14px rgba(255, 61, 139, .8);
+}
+.wp-via { width: 13px; height: 13px; background: #0b1004; border: 2.5px solid #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, .7); }
+.wp-fin {
+  width: 19px; height: 19px; border: 2.5px solid #fff;
+  background: repeating-conic-gradient(#0b1004 0 25%, #fff 0 50%) 0 0 / 7px 7px; box-shadow: 0 1px 6px rgba(0, 0, 0, .8);
+}
+/* The same finish on routes that end away from their start in the route
+   viewer (favourites) and GPS art (2026-11-21). The viewer's goes with
+   its routes, and out of sight in other modes, as loop's start does. */
+body:not(.show-results) .loop-finish, :is([data-mode="art"], [data-mode="p2p"]) .loop-finish { display: none !important; }
+/* It comes when the line has drawn in to it, fading in (opacity only: the
+   map positions markers with transform). */
+.loop-finish, .art-finish { animation: finish-in .25s ease-out; }
+@keyframes finish-in { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .loop-finish, .art-finish { animation: none; } }
+@media (max-width: 899px) {
+  /* the panel is always open, so a shorter chart leaves more map */
+  .p2p .profile-chart { height: 84px; }
+  /* room for the grip: the panel, and everything floating above it, moves up */
+  body[data-mode="p2p"].p2p-has-leg .deck { padding-top: 28px; }
+  body[data-mode="p2p"].p2p-has-leg :is(.p2p-history, .locate-btn) { bottom: calc(100% + 18px); }
+  body[data-mode="p2p"].p2p-has-leg .sat-btn { bottom: calc(100% + 72px); }
+  /* clear of My location, at the panel's left end */
+  .p2p-history { max-width: calc(100% - 54px); }
+}
+/* The route's part of the panel grows in and shrinks away (js/p2p.js,
+   createSmoother); the grip's room and the buttons over the map glide
+   with it rather than jump. */
+@media (max-width: 899px) and (prefers-reduced-motion: no-preference) {
+  body[data-mode="p2p"] .deck { transition: padding-top .28s cubic-bezier(.2, .8, .2, 1); }
+  body[data-mode="p2p"] .p2p-history { transition: bottom .28s cubic-bezier(.2, .8, .2, 1); }
+  body[data-mode="p2p"] .locate-btn {
+    transition: bottom .28s cubic-bezier(.2, .8, .2, 1), transform .12s, background-color .15s, opacity .18s, visibility .18s;
+  }
 }

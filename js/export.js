@@ -6,7 +6,7 @@
 // 2026-12-17) the panel's button keeps saying Export GPX and downloads at
 // once, as before.
 //
-// Page elements: #download, #art-download (the panels' buttons),
+// Page elements: #download, #art-download, #p2p-export (the panels' buttons),
 // #export-dialog and its #export-* parts.
 
 import { GARMIN_BASE } from "./garmin.js";
@@ -43,7 +43,7 @@ export function createExport({ account }) {
   const connect = $("export-connect");
   const signIn = $("export-signin");
   const garmin = account.garmin;
-  let route = null; // { points: [[lat, lon]...], heights?, climb?, distance, kind, shape?, gpxName, fileName }
+  let route = null; // { points: [[lat, lon]...], heights?, climb?, distance, kind? (loop, art, p2p; none on older favourites), shape?, gpxName, fileName }
   let place = "";
   let status = { connected: false, canSendCourses: false };
   let sent = false;
@@ -58,7 +58,7 @@ export function createExport({ account }) {
   const sentHere = new Map(); // line id → course name, shown until the check on opening answers
 
   if (GARMIN_BASE) {
-    for (const id of ["download", "art-download"]) {
+    for (const id of ["download", "art-download", "p2p-export"]) {
       const b = $(id);
       if (b) b.textContent = "Export";
     }
@@ -73,7 +73,8 @@ export function createExport({ account }) {
   }
   function routeLine() {
     const shape = route.shape ? shapeLabel(route.shape) : "GPS art";
-    const what = route.kind === "art" ? `${shape}, ${km(route.distance)} km` : `${km(route.distance)} km loop`;
+    const what = route.kind === "art" ? `${shape}, ${km(route.distance)} km`
+      : `${km(route.distance)} km ${route.kind === "loop" ? "loop" : "route"}`; // A to B, or not known
     return place ? `${what} from ${place}` : what;
   }
 

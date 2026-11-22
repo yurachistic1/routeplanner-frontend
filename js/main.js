@@ -8,13 +8,16 @@ import { createLoopMode } from "./loop.js";
 import { createMap, addCredits, addLocate, addSatellite, placeMapTools } from "./map.js";
 import { buildStyle, ATTRIBUTION } from "./mapstyle.js";
 import { registerMode, createModeBar, setMode, currentMode } from "./modes.js";
+import { createP2PMode } from "./p2p.js";
 
 // "Dusk": a lighter dark map, so roads and parks are easy to read. Paths are
 // dashed, and turn sand-coloured close up so they stand out under the route
-// (chosen 2026-11-11).
+// (chosen 2026-11-11). Roads and paths no one may walk (private, closed to
+// walkers) are a faint red, a little clearer close up (2026-11-21).
 const style = buildStyle({
   land: "#151a22", park: "#173b2f", wood: "#153529", water: "#10304f", building: "#1c222c",
   motorway: "#4a5878", major: "#3b4761", minor: "#283040", service: "#222937", path: "#2e4743", pathNear: "#d9b77a", rail: "#2c3342",
+  closed: "#4c2a31", closedNear: "#8a3d42",
   label: "#8a96aa", labelHalo: "#151a22", roadLabel: "#c9d2df", waterLabel: "#5d86b0", parkLabel: "#5c947f",
   cityLabel: "#e3e8f0", townLabel: "#b4bfcf",
 }, { labels: "normal", pathDash: [2, 1.5] });
@@ -44,6 +47,8 @@ const { map, ready } = createMap({
   style,
   ...(desktop.matches ? {} : { view: PHONE_VIEW, openFrom: installed && !calm ? ICON_VIEW : null }),
 });
+
+
 // The map's credits, and the heights' (their full statements are on the
 // privacy page).
 const CREDITS = `${ATTRIBUTION} · Heights: <a href="./privacy/#data" target="_blank" rel="noopener">Copernicus, Environment Agency</a>`;
@@ -51,6 +56,27 @@ const credits = addCredits(CREDITS);
 addLocate(map);
 addSatellite(map, ready, credits, CREDITS);
 placeMapTools();
+
+// Room to leave round a route on screen, for every mode: clear of the top
+// bar and the panel (on laptops, beside it), and of the route list on the
+// right where list is set (offsetWidth ignores its slide-in). over: more
+// things floating above the panel on phones, such as A to B's Undo and
+// Clear, that the route should stay clear of too.
+function routePadding({ list = false, over = null } = {}) {
+  return () => {
+    const top = document.querySelector(".hud-top").getBoundingClientRect();
+    const deck = document.querySelector(".deck").getBoundingClientRect();
+    if (desktop.matches) {
+      return { top: 60, bottom: 60, left: deck.right + 40, right: list ? document.querySelector(".list").offsetWidth + 40 : 60 };
+    }
+    let floor = deck.top;
+    for (const el of over ? document.querySelectorAll(over) : []) {
+      const r = el.getBoundingClientRect();
+      if (r.height) floor = Math.min(floor, r.top);
+    }
+    return { top: top.bottom + 30, left: 30, right: 30, bottom: innerHeight - floor + 30 };
+  };
+}
 
 // ----- loop mode -----
 const account = createAccount({ openFavourites: () => setMode("favourites") });
@@ -66,12 +92,7 @@ const app = createLoopMode(map, ready, {
   isFavourite: (route) => account.isFavourite(route),
   formatIndex: (i) => String(i + 1).padStart(2, "0"),
   exportRoute: (r) => exporter.open(r),
-  padding: () => {
-    const top = document.querySelector(".hud-top").getBoundingClientRect();
-    const deck = document.querySelector(".deck").getBoundingClientRect();
-    if (desktop.matches) return { top: 60, bottom: 60, left: deck.right + 40, right: document.querySelector(".list").offsetWidth + 40 }; // clear of the route list (offsetWidth ignores its slide-in)
-    return { top: top.bottom + 30, left: 30, right: 30, bottom: innerHeight - deck.top + 30 };
-  },
+  padding: routePadding({ list: true }),
   // Uncertain (countryside) paths, which route info warns about, are dashed (see
   // shapeRoute in loop.js).
   // The route draws under the map's labels, so street names stay readable.
@@ -110,17 +131,18 @@ registerMode("favourites", {
   restores: "loop",
 });
 
+// Hearts in the other modes save to the same favourites.
+const favourites = {
+  toggle: (r) => account.toggleFavourite(r), has: (r) => account.isFavourite(r), onChange: (f) => account.onFavouritesChange(f),
+  update: (r) => account.updateFavourite(r), // A to B's, which follow their route
+};
+
 // ----- GPS art mode -----
 // The route in lime like a loop. Its heart saves to the same favourites.
 registerMode("art", createArtMode(map, ready, {
-  favourites: { toggle: (r) => account.toggleFavourite(r), has: (r) => account.isFavourite(r), onChange: (f) => account.onFavouritesChange(f) },
+  favourites,
   exportRoute: (r) => exporter.open(r),
-  padding: () => {
-    const top = document.querySelector(".hud-top").getBoundingClientRect();
-    const deck = document.querySelector(".deck").getBoundingClientRect();
-    if (desktop.matches) return { top: 60, bottom: 60, left: deck.right + 40, right: 60 };
-    return { top: top.bottom + 30, left: 30, right: 30, bottom: innerHeight - deck.top + 30 };
-  },
+  padding: routePadding(),
   addArtLayers(map) {
     const below = map.getStyle().layers.find((l) => l.type === "symbol")?.id;
     const add = (layer) => map.addLayer(layer, below);
@@ -131,8 +153,46 @@ registerMode("art", createArtMode(map, ready, {
   },
 }));
 
+// ----- A to B mode -----
+// The route drawn like a loop's, from js/lanes.js: one line, moved sideways
+// where a stretch is run more than once, so each pass is its own thinner
+// line (zoomed in) or the passes bunch into one thick line (zoomed out).
+// Features with more than one pass ("multi") carry their widths (w, and h
+// for the halo) for the zoom they were drawn at; uncertain paths are
+// dashed, as in loops.
+registerMode("p2p", createP2PMode(map, ready, {
+  favourites,
+  exportRoute: (r) => exporter.open(r),
+  padding: routePadding({ over: ".p2p-history" }),
+  addP2PLayers(map) {
+    const below = map.getStyle().layers.find((l) => l.type === "symbol")?.id;
+    const add = (layer) => map.addLayer(layer, below);
+    // multi: the feature's own width at every zoom (it's redrawn when a zoom ends)
+    const width = (k, lo, hi) => ["interpolate", ["linear"], ["zoom"],
+      11, ["case", ["get", "multi"], ["get", k], lo], 16, ["case", ["get", "multi"], ["get", k], hi]];
+    const kind = (k) => ["==", ["get", "kind"], k];
+    // Zoomed right in, counted-out lanes stay nearly solid: they're thin, so
+    // the street shows between them, and faded they'd be hard to count.
+    // dim: the legs that aren't the last one, while Last leg lights it up
+    // (2026-11-22), at about a third of their usual strength.
+    const dimmed = (on, off) => ["case", ["get", "dim"], off, on];
+    const fade = ["interpolate", ["linear"], ["zoom"], 15, dimmed(1, 0.35),
+      16.3, ["case", ["get", "lanes"], dimmed(0.85, 0.3), dimmed(0.35, 0.15)]];
+    const glow = ["interpolate", ["linear"], ["zoom"], 15, dimmed(1, 0.25), 16, 0];
+    add({ id: "p2p-halo", type: "line", source: "p2p", layout,
+      paint: { "line-color": "#4f6328", "line-width": width("h", 6, 13), "line-blur": W(1.5, 4), "line-opacity": glow } });
+    add({ id: "p2p-route", type: "line", source: "p2p", layout, filter: kind("plain"),
+      paint: { "line-color": "#c8ff2e", "line-width": width("w", 2.2, 4.5), "line-opacity": fade } });
+    add({ id: "p2p-country-gaps", type: "line", source: "p2p", layout, filter: kind("country"),
+      paint: { "line-color": "#151a22", "line-width": width("w", 2.2, 4.5), "line-opacity": glow } });
+    add({ id: "p2p-country", type: "line", source: "p2p", filter: kind("country"),
+      layout: { "line-cap": "butt", "line-join": "round" },
+      paint: { "line-color": "#c8ff2e", "line-width": width("w", 2.2, 4.5), "line-dasharray": [2.6, 1.8], "line-opacity": fade } });
+  },
+}));
+
 // ----- the shelf of modes along the bottom -----
-// Point to point and edit are placeholders for now (see modes.js).
+// Edit is a placeholder for now (see modes.js).
 // The favourites heart sits in the middle.
 createModeBar("loop", map);
 

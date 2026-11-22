@@ -16,7 +16,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@800&text=RUNTHEFAVOIS&display=swap" rel="stylesheet" />
   <link href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css" rel="stylesheet" />
   <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
-  <link href="./css/styles.css?v=74" rel="stylesheet" />
+  <link href="./css/styles.css?v=88" rel="stylesheet" />
 </head>
 <body>
   <div id="map"></div>
@@ -28,6 +28,13 @@
     <div class="info">
       <div class="tag">Route <span class="mono" id="route-title">01</span> / <span class="mono" id="route-count">00</span></div>
       <div class="now mono"><span id="route-distance">0.00</span><small> KM</small></div>
+    </div>
+    <!-- A to B (js/p2p.js): what a tap does next, then, from the second
+         point, the distance, as in loop mode. -->
+    <div class="hint p2p-hint" id="p2p-hint">Tap to set start</div>
+    <div class="info p2p-info">
+      <div class="tag">Distance</div>
+      <div class="now mono"><span id="p2p-distance">0.00</span><small> KM</small></div>
     </div>
     <button class="account-btn" id="account" aria-label="Account and favourites">
       <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.2-4.4 4-6.5 8-6.5s6.8 2.1 8 6.5"/></svg>
@@ -131,6 +138,61 @@
           </button>
           <button class="btn btn-secondary" id="art-new">New search</button>
         </div>
+      </div>
+    </div>
+
+    <!-- A to B mode (js/p2p.js): tap the map to place points; each leg is
+         routed the way chosen here when it's placed. Undo and Clear float
+         above the panel; on phones the grip folds it to the routing and
+         Export. -->
+    <div class="p2p">
+      <div class="p2p-history">
+        <!-- Lap: while the route ends on a spot it came through before -->
+        <button class="map-pill" id="p2p-lap" hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>Lap<span class="map-pill-note" id="p2p-lap-km"></span>
+        </button>
+        <button class="map-pill" id="p2p-clear">Clear</button>
+        <button class="map-pill" id="p2p-undo" aria-keyshortcuts="Control+Z Meta+Z">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>Undo<kbd></kbd>
+        </button>
+      </div>
+      <button class="deck-grip" id="p2p-grip" aria-label="Hide route details" aria-expanded="true" aria-controls="p2p-details"><i aria-hidden="true"></i></button>
+      <div class="p2p-head">
+        <!-- What the routing changes (js/p2p.js): Next leg; tap it for Last leg (UI.md "Scope heading"). -->
+        <h3 class="p2p-title"><button class="scope" id="p2p-scope" type="button" disabled>
+          <span id="p2p-title">Next leg</span><span class="scope-dots" id="p2p-scope-dots" aria-hidden="true"><i></i><i></i></span>
+        </button></h3>
+        <button class="switch-row" id="p2p-climb" role="switch" aria-checked="false">Minimise climb<span class="switch" aria-hidden="true"></span></button>
+      </div>
+      <div class="chips" id="p2p-routing" role="radiogroup" aria-label="Routing for the next leg">
+        <button class="chip active" data-routing="pleasant" role="radio" aria-checked="true">Pleasant</button>
+        <button class="chip" data-routing="shortest" role="radio" aria-checked="false">Shortest</button>
+        <button class="chip" data-routing="freehand" role="radio" aria-checked="false">Freehand</button>
+      </div>
+      <!-- A tap that placed no point (too far, no paths near, no route...), and why (js/p2p.js). -->
+      <div class="p2p-alert" id="p2p-refused-box" role="status" hidden>
+        <button class="warn-line" id="p2p-refused" aria-expanded="false" aria-controls="p2p-refused-text">
+          <span class="warn-mark" aria-hidden="true">!</span><span id="p2p-refused-label"></span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <p class="warn-text" id="p2p-refused-text" hidden></p>
+      </div>
+      <div class="p2p-details p2p-fold" id="p2p-details">
+        <div class="profile" id="p2p-profile" hidden>
+          <div class="profile-head"><span class="profile-label">Elevation</span><span class="profile-value" aria-live="polite"></span></div>
+          <div class="profile-chart" tabindex="0" role="slider"></div>
+        </div>
+        <button class="warn-line" id="p2p-warn" aria-expanded="false" aria-controls="p2p-warn-text" hidden>
+          <span class="warn-mark" aria-hidden="true">!</span><span id="p2p-warn-label"></span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <p class="warn-text" id="p2p-warn-text" hidden>We don't know their surface or whether they're looked after, so they may not be good for running in all conditions. They're dashed on the map.</p>
+      </div>
+      <div class="p2p-actions">
+        <button class="btn btn-primary" id="p2p-export">Export GPX</button>
+        <button class="icon-btn fav" id="p2p-fav" aria-label="Favourite this route" aria-pressed="false">
+          <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 20.5S3 15 3 8.8A4.8 4.8 0 0 1 12 6.5a4.8 4.8 0 0 1 9 2.3C21 15 12 20.5 12 20.5z"/></svg>
+        </button>
       </div>
     </div>
   </section>
@@ -301,23 +363,28 @@
   <script type="importmap">
   {
     "imports": {
-      "./js/account.js": "./js/account.js?v=63",
-      "./js/api.js": "./js/api.js?v=63",
-      "./js/art.js": "./js/art.js?v=63",
-      "./js/export.js": "./js/export.js?v=63",
-      "./js/garmin.js": "./js/garmin.js?v=63",
-      "./js/loop.js": "./js/loop.js?v=63",
-      "./js/main.js": "./js/main.js?v=63",
-      "./js/map.js": "./js/map.js?v=63",
-      "./js/mapstyle.js": "./js/mapstyle.js?v=63",
-      "./js/modes.js": "./js/modes.js?v=63",
-      "./js/polyline.js": "./js/polyline.js?v=63",
-      "./js/profile.js": "./js/profile.js?v=63",
-      "./js/shapes.js": "./js/shapes.js?v=63",
-      "./js/ui.js": "./js/ui.js?v=63"
+      "./js/account.js": "./js/account.js?v=103",
+      "./js/api.js": "./js/api.js?v=103",
+      "./js/art.js": "./js/art.js?v=103",
+      "./js/export.js": "./js/export.js?v=103",
+      "./js/garmin.js": "./js/garmin.js?v=103",
+      "./js/geometry.js": "./js/geometry.js?v=103",
+      "./js/lanes.js": "./js/lanes.js?v=103",
+      "./js/loop.js": "./js/loop.js?v=103",
+      "./js/main.js": "./js/main.js?v=103",
+      "./js/map.js": "./js/map.js?v=103",
+      "./js/mapstyle.js": "./js/mapstyle.js?v=103",
+      "./js/modes.js": "./js/modes.js?v=103",
+      "./js/p2p.js": "./js/p2p.js?v=103",
+      "./js/panel.js": "./js/panel.js?v=103",
+      "./js/polyline.js": "./js/polyline.js?v=103",
+      "./js/profile.js": "./js/profile.js?v=103",
+      "./js/shapes.js": "./js/shapes.js?v=103",
+      "./js/spot.js": "./js/spot.js?v=103",
+      "./js/ui.js": "./js/ui.js?v=103"
     }
   }
   </script>
-  <script type="module" src="./js/main.js?v=63"></script>
+  <script type="module" src="./js/main.js?v=103"></script>
 </body>
 </html>

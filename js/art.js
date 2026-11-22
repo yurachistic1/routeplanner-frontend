@@ -21,8 +21,10 @@
 // remembers where it was when you come back from the shelf.
 
 import { API_BASE } from "./api.js";
-import { smoothLine, metresPerPixel } from "./loop.js";
+import { smoothLine, metresPerPixel, endsMeet } from "./geometry.js";
+import { setSourceVisible, finishMarker } from "./map.js";
 import { goBack } from "./modes.js";
+import { createSmoother, attachGrip } from "./panel.js";
 import { createIconPicker, createDrawPad, isTextIcon } from "./shapes.js";
 import { $, toast } from "./ui.js";
 
@@ -64,6 +66,9 @@ export function createArtMode(map, mapReady, opts) {
   const RADIUS_KM = 15;
   const state = { shape: null, routes: [], index: 0, where: "default", custom: { km: 12, radius: 3 }, place: null };
   let start = null; // the pink dot where the route on screen starts
+  // Parts of the panel that appear or fold away grow and shrink in place
+  // (js/panel.js), so Generate stays put at the bottom.
+  const smooth = createSmoother();
 
   const ready = mapReady.then(() => {
     map.addSource("art", { type: "geojson", data: EMPTY });
@@ -205,6 +210,7 @@ export function createArtMode(map, mapReady, opts) {
       drawing = false;
       shownKey = half(map.getZoom());
       setLine(lineAt(r, shownKey));
+      placeFinish(r);
     };
     anim = requestAnimationFrame(step);
   }
@@ -223,9 +229,21 @@ export function createArtMode(map, mapReady, opts) {
     shownKey = r ? half(map.getZoom()) : null;
     setLine(r ? lineAt(r, shownKey) : null);
     placeStart(r);
+    placeFinish(r); // drawn at once here, so the finish too
     syncHeart();
   }
+  // The start, and the finish where the drawing ends away from it (most
+  // do), which comes once the line has drawn in to it; one that ends at
+  // its start has the start marker for both.
+  let finish = null;
+  function placeFinish(r) {
+    if (!r || endsMeet(r.raw)) return finish?.remove();
+    finish ??= finishMarker("art-finish");
+    finish.setLngLat(r.raw.at(-1)).addTo(map);
+    start?.addTo(map); // the start on top, where the two are close
+  }
   function placeStart(r) {
+    finish?.remove(); // placeFinish puts it back
     if (r) {
       if (!start) {
         const el = document.createElement("div");
@@ -248,6 +266,7 @@ export function createArtMode(map, mapReady, opts) {
     const r = state.routes[state.index];
     if (!r) return;
     r.shape ??= state.shape?.name; // saved with the favourite, so it's known later
+    r.kind = "art";
     opts.favourites.toggle(r);
   });
   // Whether the map has been moved by hand (or to your location) since a
@@ -536,37 +555,6 @@ export function createArtMode(map, mapReady, opts) {
     layoutPlace();
   });
 
-  // ----- the panel moving smoothly -----
-  // Parts of the panel that appear or fold away grow and shrink in place
-  // (height, the grid gap beside them, and fading), so the panel's top
-  // edge glides and Generate stays put at the bottom. show: apply() makes
-  // them visible first, then they grow; hide: they shrink, then apply()
-  // hides them. Nothing moves with reduced motion.
-  const EASE = "cubic-bezier(.2, .8, .2, 1)", DUR = 280, GAP = 10;
-  const calm = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
-  let folding = []; // animations still running
-  function smooth(els, show, apply) {
-    for (const a of folding) a.cancel();
-    folding = [];
-    if (calm()) return apply();
-    if (show) apply();
-    const anims = els.filter((el) => el.offsetHeight > 0).map((el) => {
-      const side = el.previousElementSibling ? "marginTop" : "marginBottom";
-      const open = { height: `${el.offsetHeight}px`, [side]: "0px", opacity: 1 };
-      const shut = { height: "0px", [side]: `-${GAP}px`, opacity: 0 };
-      el.style.overflow = "hidden";
-      const a = el.animate(show ? [shut, open] : [open, shut], { duration: DUR, easing: EASE, fill: "forwards" });
-      a.finished.then(() => { el.style.overflow = ""; }, () => { el.style.overflow = ""; });
-      return a;
-    });
-    folding = anims;
-    if (show) {
-      Promise.all(anims.map((a) => a.finished)).then(() => anims.forEach((a) => a.cancel()), () => {});
-    } else {
-      Promise.all(anims.map((a) => a.finished)).then(() => { apply(); anims.forEach((a) => a.cancel()); }, () => {});
-    }
-  }
-
   // ----- folding the panel (phones) -----
   // The grip on the panel's top edge folds it down to the shape row, and
   // opens it again: tap it, or drag it down or up.
@@ -578,33 +566,14 @@ export function createArtMode(map, mapReady, opts) {
     if (body.classList.contains("art-folded") === on) return;
     smooth([...document.querySelectorAll(".art-fold")], !on, () => body.classList.toggle("art-folded", on));
   }
-  let dragY = null, dragged = false;
-  grip.addEventListener("pointerdown", (e) => { dragY = e.clientY; dragged = false; grip.setPointerCapture(e.pointerId); });
-  grip.addEventListener("pointermove", (e) => {
-    if (dragY === null) return;
-    const dy = e.clientY - dragY;
-    if (Math.abs(dy) < 24) return;
-    dragged = true;
-    setFolded(dy > 0);
-    dragY = null;
-  });
-  grip.addEventListener("pointerup", () => { dragY = null; });
-  grip.addEventListener("pointercancel", () => { dragY = null; });
-  grip.addEventListener("click", () => {
-    if (dragged) { dragged = false; return; }
-    setFolded(!body.classList.contains("art-folded"));
-  });
+  attachGrip(grip, { isFolded: () => body.classList.contains("art-folded"), setFolded });
   renderWhere();
 
   // ----- switching modes -----
   // The loop mode's route and start stay as they are but out of sight:
   // its layers are hidden here and its marker and panels by CSS
   // ([data-mode="art"]).
-  const others = (visible) => ready.then(() => {
-    for (const l of map.getStyle().layers) {
-      if (l.source === "route") map.setLayoutProperty(l.id, "visibility", visible ? "visible" : "none");
-    }
-  });
+  const others = (visible) => ready.then(() => setSourceVisible(map, "route", visible));
   function enter() {
     others(false);
     draw();
@@ -614,6 +583,7 @@ export function createArtMode(map, mapReady, opts) {
     others(true);
     stopDrawing();
     start?.remove();
+    finish?.remove();
     hidePlace();
     ready.then(() => map.getSource("art").setData(EMPTY));
   }

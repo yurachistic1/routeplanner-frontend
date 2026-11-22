@@ -67,6 +67,25 @@ export function addCredits(html) {
   return { set };
 }
 
+// Shows or hides every layer that draws from source: a mode hides another
+// mode's route while it's on screen, and shows it again when it leaves.
+// The finish of a route that ends away from its start (favourites, GPS
+// art): A to B's chequered disc (UI.md "Waypoints"), taking no taps. cls
+// says whose it is, for the CSS that hides it outside its mode.
+export function finishMarker(cls) {
+  const el = document.createElement("div");
+  el.className = `wp wp-fin ${cls}`;
+  el.setAttribute("role", "img");
+  el.setAttribute("aria-label", "Finish");
+  return new maplibregl.Marker({ element: el });
+}
+
+export function setSourceVisible(map, source, visible) {
+  for (const l of map.getStyle().layers) {
+    if (l.source === source) map.setLayoutProperty(l.id, "visibility", visible ? "visible" : "none");
+  }
+}
+
 // ----- where the map's own buttons sit -----
 // Phones: the credits (ⓘ) under the top bar, and Satellite and My location
 // just above the bottom panel, moving with it. Laptops: all three together

@@ -22,7 +22,14 @@
 //
 // The heights come from the backend: route.elevation, evenly spaced
 // route.elevationStep metres apart from the start round to the start, and
-// route.climb, in metres (see the backend's ring/elevation.go).
+// route.climb, in metres (see the backend's ring/elevation.go). A to B
+// works its climb out here (climbOf), from its legs' heights.
+//
+// A to B (2026-11-20) adds, all optional: route.closed === false for a
+// route that doesn't end where it starts (no smoothing round the end),
+// route.descent (metres, shown beside the climb), and route.marks,
+// [{ m, kind: "via" | "finish" }]: the waypoints, metres from the start,
+// drawn on the chart like on the map.
 
 const MIN_SPAN = 10; // metres
 const SMOOTH = 0.015; // of the route's length, at least SMOOTH_MIN metres
@@ -37,25 +44,110 @@ const X_STEPS = [0.5, 1, 2, 2.5, 5, 10, 20];
 
 export const hasProfile = (r) => Array.isArray(r?.elevation) && r.elevation.length > 1 && r.elevationStep > 0;
 
+// Climb and descent counted the way the backend counts a loop's (ring
+// Smooth and Climb, chosen against the Environment Agency's LIDAR on
+// 2026-11-18), for routes put together here, as A to B's are from its
+// legs: heights every few metres averaged over SMOOTH_WINDOW_M, then only
+// rises and falls of more than CLIMB_STEP_M count, as a watch's barometer
+// is read.
+export const SMOOTH_WINDOW_M = 20;
+export const CLIMB_STEP_M = 2;
+
+// A profile cut down to at most `most` steps for saving (favourites keep
+// about 200 heights, as loops come; firestore.rules allows 400), each the
+// average of the heights over its stretch, as the backend makes a loop's
+// (addElevation). Returns { elevation, elevationStep }.
+export const SAVED_HEIGHTS = 200;
+export function shrinkProfile(elevation, step, most = SAVED_HEIGHTS) {
+  const n = elevation.length - 1;
+  if (n <= most) return { elevation, elevationStep: step };
+  const half = n / most / 2, out = [];
+  for (let i = 0; i <= most; i++) {
+    const at = (i * n) / most;
+    const lo = Math.max(Math.ceil(at - half), 0), hi = Math.min(Math.floor(at + half), n);
+    let sum = 0;
+    for (let k = lo; k <= hi; k++) sum += elevation[k];
+    out.push(Math.round((sum / (hi - lo + 1)) * 10) / 10);
+  }
+  return { elevation: out, elevationStep: (step * n) / most };
+}
+
+// Heights taken every step metres, averaged over window metres; the
+// average is over less near the ends (a route that isn't a loop).
+export function smoothHeights(hs, step, window = SMOOTH_WINDOW_M) {
+  const m = hs.length;
+  let half = step > 0 ? Math.round(window / 2 / step) : 0;
+  if (half === 0 || m < 3) return hs.slice();
+  half = Math.min(half, Math.floor((m - 1) / 2));
+  const sums = [0];
+  for (const h of hs) sums.push(sums.at(-1) + h);
+  return hs.map((_, i) => {
+    const lo = Math.max(i - half, 0), hi = Math.min(i + half + 1, m);
+    return (sums[hi] - sums[lo]) / (hi - lo);
+  });
+}
+
+// The total rise and fall along heights, counting only rises and falls of
+// more than step metres.
+export function climbOf(hs, step = CLIMB_STEP_M) {
+  let up = 0, down = 0;
+  if (!hs.length) return { climb: 0, descent: 0 };
+  // until the first rise or fall of more than step, which way it goes
+  // isn't known; then ref is the height of the last turn, and ext the
+  // highest (going up) or lowest (going down) since
+  let dir = 0, high = hs[0], low = hs[0], ref = 0, ext = 0;
+  for (const h of hs.slice(1)) {
+    if (dir === 0) {
+      high = Math.max(high, h);
+      low = Math.min(low, h);
+      if (h - low > step) [dir, ref, ext] = [1, low, h];
+      else if (high - h > step) [dir, ref, ext] = [-1, high, h];
+    } else if (dir === 1) {
+      if (h > ext) ext = h;
+      else if (ext - h > step) { up += ext - ref; [dir, ref, ext] = [-1, ext, h]; }
+    } else if (h < ext) {
+      ext = h;
+    } else if (h - ext > step) {
+      down += ref - ext;
+      [dir, ref, ext] = [1, ext, h];
+    }
+  }
+  // the stretch still under way, and the last bit back from its end
+  const last = hs.at(-1);
+  if (dir === 1) { up += ext - ref; down += ext - last; }
+  if (dir === -1) { down += ref - ext; up += last - ext; }
+  return { climb: up, descent: down };
+}
+
 // The heights as drawn: two passes of a moving average (so a triangle),
-// wrapping round, as a loop ends where it starts. Kept on the route.
+// wrapping round, as a loop ends where it starts; an open route's (A to B)
+// average just stops at its ends. Kept on the route.
 function drawn(r) {
   if (r._drawn) return r._drawn;
-  const hs = r.elevation, n = hs.length - 1; // the last is the first again
-  const total = r.elevationStep * n;
+  const open = r.closed === false;
+  const hs = r.elevation, n = open ? hs.length : hs.length - 1; // a loop's last is its first again
+  const total = r.elevationStep * (hs.length - 1);
   const half = Math.round(Math.max(SMOOTH * total, SMOOTH_MIN) / 2 / r.elevationStep / 2);
   let cur = hs.slice(0, n);
   for (let pass = 0; pass < 2 && half > 0 && n > 2 * half; pass++) {
     const next = new Array(n);
-    let sum = 0;
-    for (let j = -half; j <= half; j++) sum += cur[(j + n) % n];
-    for (let i = 0; i < n; i++) {
-      next[i] = sum / (2 * half + 1);
-      sum += cur[(i + half + 1) % n] - cur[(i - half + n) % n];
+    if (open) {
+      for (let i = 0; i < n; i++) {
+        let sum = 0, k = 0;
+        for (let j = Math.max(0, i - half); j <= Math.min(n - 1, i + half); j++, k++) sum += cur[j];
+        next[i] = sum / k;
+      }
+    } else {
+      let sum = 0;
+      for (let j = -half; j <= half; j++) sum += cur[(j + n) % n];
+      for (let i = 0; i < n; i++) {
+        next[i] = sum / (2 * half + 1);
+        sum += cur[(i + half + 1) % n] - cur[(i - half + n) % n];
+      }
     }
     cur = next;
   }
-  r._drawn = [...cur, cur[0]];
+  r._drawn = open ? cur : [...cur, cur[0]];
   return r._drawn;
 }
 
@@ -111,6 +203,20 @@ function yScale(lo, hi) {
 // "0", "0.5", "2.5", "10": no ".0" on whole kilometres
 const kmLabel = (km) => String(Math.round(km * 10) / 10);
 
+// The waypoints on the chart: a dashed line and a dot (dark with a white
+// ring, like the via markers on the map) at each via, the finish as a
+// white dot with a dark ring.
+function marksSVG(marks, hs, step, X, Y, y0, y1) {
+  if (!marks?.length) return "";
+  const at = (m) => Y(hs[Math.max(0, Math.min(hs.length - 1, Math.round(m / step)))]).toFixed(1);
+  return marks.map(({ m, kind }) => {
+    const x = X(m).toFixed(1);
+    return kind === "finish"
+      ? `<circle class="pf-fin" cx="${x}" cy="${at(m)}" r="4.5"/>`
+      : `<line class="pf-via" x1="${x}" x2="${x}" y1="${y0}" y2="${y1}"/><circle class="pf-vdot" cx="${x}" cy="${at(m)}" r="3.5"/>`;
+  }).join("");
+}
+
 // Renders the profile of route r into el (a .profile block with a
 // .profile-head and a .profile-chart), or hides it if r has no heights.
 // scale is from sharedScale, or none for a scale of r's own.
@@ -127,7 +233,8 @@ export function renderProfile(el, r, { onPoint, scale } = {}) {
   const total = r.elevationStep * (hs.length - 1); // metres
   const xMax = scale?.xMax ?? total;
   const target = scale?.target ?? null;
-  const climbText = `<b>${Math.round(r.climb ?? 0)}</b> m climb`;
+  const climbText = `<b>${Math.round(r.climb ?? 0)}</b> m climb` +
+    (r.descent != null ? ` · <b>${Math.round(r.descent)}</b> m descent` : "");
   head.innerHTML = climbText;
 
   const lo = Math.min(...hs), hi = Math.max(...hs);
@@ -181,6 +288,7 @@ export function renderProfile(el, r, { onPoint, scale } = {}) {
       <line class="pf-base" x1="${left}" x2="${width - right}" y1="${top + ph}" y2="${top + ph}"/>
       ${target ? `<line class="pf-target" x1="${X(target * 1000).toFixed(1)}" x2="${X(target * 1000).toFixed(1)}" y1="${top}" y2="${top + ph}"/>` : ""}
       ${xlabels}
+      ${marksSVG(r.marks, hs, r.elevationStep, X, Y, top, top + ph)}
       <circle class="pf-start" cx="${X(0).toFixed(1)}" cy="${Y(hs[0]).toFixed(1)}" r="4.5"/>
       <g class="pf-cursor" visibility="hidden">
         <line class="pf-cursor-line" y1="${top}" y2="${top + ph}"/>
@@ -254,5 +362,5 @@ export function renderProfile(el, r, { onPoint, scale } = {}) {
   chart.setAttribute("aria-valuemin", 0);
   chart.setAttribute("aria-valuemax", Math.round(total));
   chart.setAttribute("aria-label",
-    `Elevation profile: ${Math.round(r.climb ?? 0)} m of climb, between ${Math.round(lo)} and ${Math.round(hi)} m. Arrow keys read it out.`);
+    `Elevation profile: ${Math.round(r.climb ?? 0)} m of climb${r.descent != null ? `, ${Math.round(r.descent)} m of descent` : ""}, between ${Math.round(lo)} and ${Math.round(hi)} m. Arrow keys read it out.`);
 }

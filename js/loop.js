@@ -17,6 +17,8 @@
 //   has-info (the route has info to show), has-warnings, info-open
 
 import { API_BASE } from "./api.js";
+import { M_LAT, mLon, simplify, keptIndices, roundCorners, metresPerPixel, CORNER_PX, pointAlong, endsMeet } from "./geometry.js";
+import { finishMarker } from "./map.js";
 import { goBack } from "./modes.js";
 import { heightsAt, renderProfile, sharedScale } from "./profile.js";
 import { $, toast } from "./ui.js";
@@ -28,100 +30,7 @@ const body = document.body;
 class UserError extends Error {}
 
 // ---------- geometry ----------
-
-// Metres per degree near London, good enough for simplifying.
-const M_LAT = 111320;
-const mLon = (lat) => 111320 * Math.cos((lat * Math.PI) / 180);
-
-// Douglas-Peucker on [lon, lat] points with a tolerance in metres.
-function simplify(pts, tol) {
-  return keptIndices(pts, tol).map((i) => pts[i]);
-}
-
-// The indices of the points simplify keeps. It always keeps the ends and
-// any fixed points, such as where a marked stretch starts or ends.
-function keptIndices(pts, tol, fixed = []) {
-  const n = pts.length;
-  if (n < 3) return pts.map((_, i) => i);
-  const kx = mLon(pts[0][1]);
-  const keep = new Uint8Array(n);
-  const anchors = [...new Set([0, ...fixed.filter((i) => i > 0 && i < n - 1), n - 1])].sort((a, b) => a - b);
-  for (const i of anchors) keep[i] = 1;
-  const stack = anchors.slice(1).map((b, j) => [anchors[j], b]);
-  while (stack.length) {
-    const [a, b] = stack.pop();
-    const ax = pts[a][0] * kx, ay = pts[a][1] * M_LAT;
-    const bx = pts[b][0] * kx, by = pts[b][1] * M_LAT;
-    const dx = bx - ax, dy = by - ay;
-    const len2 = dx * dx + dy * dy || 1e-9;
-    let max = 0, idx = -1;
-    for (let i = a + 1; i < b; i++) {
-      const px = pts[i][0] * kx, py = pts[i][1] * M_LAT;
-      const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / len2));
-      const ex = ax + t * dx - px, ey = ay + t * dy - py;
-      const d = ex * ex + ey * ey;
-      if (d > max) { max = d; idx = i; }
-    }
-    if (max > tol * tol) {
-      keep[idx] = 1;
-      stack.push([a, idx], [idx, b]);
-    }
-  }
-  const out = [];
-  for (let i = 0; i < n; i++) if (keep[i]) out.push(i);
-  return out;
-}
-
-// Rounds each corner with an arc of (at most) radius metres, Strava style:
-// the line stays on the roads and only the sharp corners are softened.
-// A corner's arc can't use more than half of either neighbouring segment,
-// so short wiggles get small arcs instead of being swallowed.
-// If seg is given, it gets, for each point returned, the input segment the
-// point lies on (segment i runs from pts[i] to pts[i + 1]). A corner's arc
-// belongs to the segment before it up to its middle, then the one after.
-export function roundCorners(pts, radius, seg = null) {
-  if (pts.length < 3 || radius <= 0) {
-    seg?.push(...pts.map((_, i) => Math.max(0, Math.min(i, pts.length - 2))));
-    return pts;
-  }
-  const kx = mLon(pts[0][1]);
-  const P = pts.map(([lon, lat]) => [lon * kx, lat * M_LAT]);
-  const out = [pts[0]];
-  seg?.push(0);
-  for (let i = 1; i < P.length - 1; i++) {
-    const [ax, ay] = P[i - 1], [bx, by] = P[i], [cx, cy] = P[i + 1];
-    const ux = ax - bx, uy = ay - by, vx = cx - bx, vy = cy - by;
-    const lu = Math.hypot(ux, uy), lv = Math.hypot(vx, vy);
-    if (lu < 1e-6 || lv < 1e-6) continue;
-    // Angle between the two segments at this corner: π means straight on.
-    const cos = Math.max(-1, Math.min(1, (ux * vx + uy * vy) / (lu * lv)));
-    const angle = Math.acos(cos);
-    if (angle > Math.PI * 0.97) { out.push(pts[i]); seg?.push(i); continue; } // nearly straight
-    // Distance from the corner to where the arc starts and ends.
-    const t = Math.min(radius / Math.tan(angle / 2), lu / 2, lv / 2);
-    const p1 = [bx + (ux / lu) * t, by + (uy / lu) * t];
-    const p2 = [bx + (vx / lv) * t, by + (vy / lv) * t];
-    // Quadratic curve p1 → p2 pulled towards the corner: a near-circular arc.
-    const steps = Math.max(2, Math.ceil((Math.PI - angle) / (Math.PI / 12)));
-    for (let k = 0; k <= steps; k++) {
-      const q = k / steps, a = (1 - q) * (1 - q), b = 2 * (1 - q) * q, c = q * q;
-      const x = a * p1[0] + b * bx + c * p2[0], y = a * p1[1] + b * by + c * p2[1];
-      out.push([x / kx, y / M_LAT]);
-      seg?.push(2 * k <= steps ? i - 1 : i);
-    }
-  }
-  out.push(pts[pts.length - 1]);
-  seg?.push(pts.length - 2);
-  return out;
-}
-
-export const metresPerPixel = (zoom, lat) => (40075016.7 * Math.cos((lat * Math.PI) / 180)) / (512 * 2 ** zoom);
-// Corner radius on the map, in screen pixels.
-const CORNER_PX = 6;
-// A line smoothed for the map at mpp metres per pixel: detail under a pixel
-// dropped, corners rounded. The same as shapeRoute below for a route with no
-// marked stretches; GPS art (js/art.js) uses it so its routes look the same.
-export const smoothLine = (pts, mpp) => roundCorners(simplify(pts, mpp), CORNER_PX * mpp);
+// In js/geometry.js (shared with GPS art and A to B).
 
 // ---------- marked stretches ----------
 
@@ -322,6 +231,7 @@ export function createLoopMode(map, mapReady, opts) {
       if (!routes.length) throw new UserError("No routes found from here. Try another start point.");
       await showRoutes(
         routes.map((r) => ({
+          kind: "loop", // saved with a favourite, so it's known later
           distance: r.distance, raw: r.path.map(([lat, lon]) => [lon, lat]),
           info: { countryPaths: r.countryPaths || 0, countryPathSpans: r.countryPathSpans ?? [] },
           // heights (see js/profile.js); missing where the map has none
@@ -667,22 +577,6 @@ export function createLoopMode(map, mapReady, opts) {
     }
     renderProfile($("profile"), profileRoute, { onPoint: markPoint, scale: state.target === null ? null : scale });
   }
-  // The point a fraction f of the way round route r's line.
-  function pointAlong(raw, f) {
-    const d = (a, b) => Math.hypot((b[0] - a[0]) * mLon(a[1]), (b[1] - a[1]) * M_LAT);
-    let total = 0;
-    for (let i = 1; i < raw.length; i++) total += d(raw[i - 1], raw[i]);
-    let want = f * total;
-    for (let i = 1; i < raw.length; i++) {
-      const s = d(raw[i - 1], raw[i]);
-      if (want <= s && s > 0) {
-        const t = want / s;
-        return [raw[i - 1][0] + t * (raw[i][0] - raw[i - 1][0]), raw[i - 1][1] + t * (raw[i][1] - raw[i - 1][1])];
-      }
-      want -= s;
-    }
-    return raw.at(-1);
-  }
   function markPoint(f) {
     if (f === null || !profileRoute) {
       pointMarker?.remove();
@@ -776,6 +670,7 @@ export function createLoopMode(map, mapReady, opts) {
     state.index = (i + state.routes.length) % state.routes.length;
     const r = state.routes[state.index];
     if (r.start) setStart(r.start); // saved routes each have their own start
+    finish?.remove(); // back once the route has drawn in to it
     renderInfo(r); // first: it changes the panel's height, which framing allows for
 
     const target = map.cameraForBounds(bounds(r.raw), { padding: o.padding(), maxZoom: 16 });
@@ -783,7 +678,7 @@ export function createLoopMode(map, mapReady, opts) {
 
     cancelAnimationFrame(anim);
     if (o.animate) drawProgressively(r, key);
-    else { drawRoute(shapeAt(r, key)); shownKey = key; }
+    else { drawRoute(shapeAt(r, key)); shownKey = key; placeFinish(r); }
 
     // Not once another mode has the map: leaving favourites for GPS art
     // shows loop's routes again, but art puts its own view back.
@@ -791,6 +686,18 @@ export function createLoopMode(map, mapReady, opts) {
 
     markCurrent(scroll);
     o.onShow?.(state.index, r);
+  }
+
+  // A route that ends away from its start (A to B or GPS art favourites)
+  // shows its finish there, once the line has drawn in to it; one that
+  // ends at its start has the start marker for both. Hidden by CSS once
+  // the routes leave the screen.
+  let finish = null;
+  function placeFinish(r) {
+    if (endsMeet(r.raw)) return finish?.remove();
+    finish ??= finishMarker("loop-finish");
+    finish.setLngLat(r.raw.at(-1)).addTo(map);
+    marker?.addTo(map); // the start on top, where the two are close
   }
 
   function markCurrent(scroll = true) {
@@ -820,6 +727,7 @@ export function createLoopMode(map, mapReady, opts) {
       drawing = false;
       shownKey = zoomKey();
       drawRoute(shapeAt(r, shownKey));
+      placeFinish(r);
     };
     anim = requestAnimationFrame(step);
   }
@@ -844,18 +752,23 @@ export function createLoopMode(map, mapReady, opts) {
   $("download")?.addEventListener("click", () => {
     const r = state.routes[state.index];
     if (!r) return;
-    // A GPS art favourite remembers its shape (saved since 2026-11-17).
-    const name = r.shape ? `${r.shape} ${(r.distance / 1000).toFixed(1)} km` : `${km(r.distance)} km loop`;
+    // Favourites can be any mode's, named as that mode names them, or just
+    // a route where it isn't known (kind, see account.js); a GPS art
+    // favourite remembers its shape (since 2026-11-17).
+    const kind = r.kind;
+    const name = kind === "art" ? `${r.shape ?? "GPS art"} ${(r.distance / 1000).toFixed(1)} km`
+      : kind === "p2p" ? `A to B ${km(r.distance)} km`
+      : `${km(r.distance)} km ${kind === "loop" ? "loop" : "route"}`;
     const points = r.raw.map(([lon, lat]) => [lat, lon]);
     o.exportRoute?.({
-      kind: r.shape ? "art" : "loop",
+      kind,
       shape: r.shape,
       distance: r.distance,
       points,
       // heights for <ele> and Garmin courses, where the route has them
       ...(r.elevation && { heights: heightsAt(r, points), climb: r.climb }),
       gpxName: name,
-      fileName: r.shape ? `${name.replaceAll(" ", "-")}.gpx` : `${km(r.distance)}km.gpx`,
+      fileName: kind === "art" || kind === "p2p" ? `${name.replaceAll(" ", "-")}.gpx` : `${km(r.distance)}km.gpx`,
     });
   });
 

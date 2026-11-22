@@ -13,10 +13,24 @@ const grow = (stops) => ["interpolate", ["exponential", 1.5], ["zoom"], ...stops
 const isClass = (classes) => ["match", ["get", "class"], classes, true, false];
 const notTunnel = ["!=", ["get", "brunnel"], "tunnel"];
 
+// Roads and paths the map marks private (unless walkers are let on) or
+// closed to people on foot: routing never uses them (the backend's
+// walkfilter), so with p.closed they're drawn in it, a faint red, to
+// tell them apart from ways a route could take (the user, 2026-11-21).
+// Not motorways and trunk roads: everyone knows those, red A-roads would
+// shout, and a trunk road's pavement, mapped beside it, is routed on.
+const closed = ["all",
+  ["!", isClass(["motorway", "trunk"])],
+  ["any",
+    ["==", ["get", "foot"], "no"],
+    ["all", ["==", ["get", "access"], "no"], ["!", ["match", ["get", "foot"], ["yes", "designated", "permissive"], true, false]]]]];
+
 /**
  * p (palette):
  *   land, water, park, wood, building, casing (optional),
  *   motorway, major, minor, service, path, pathNear (optional), rail (optional),
+ *   closed, closedNear (optional): roads and paths no one may walk (see
+ *     closed below), and a clearer colour for them close up
  *   label, labelHalo, roadLabel (optional), waterLabel, parkLabel
  * o (options):
  *   buildings: bool, casing: bool, pathDash: [a, b] | null,
@@ -80,10 +94,21 @@ export function buildStyle(p, o = {}) {
     layout: { "line-cap": "round", "line-join": "round" },
     paint: { "line-color": color, "line-width": grow(widths), ...extra },
   });
+  // A road's colour, from [far, near]: as it is at zoom 14 and at 17,
+  // blending between; ways no one may walk in p.closed (see closed above).
+  // MapLibre takes the zoom only at an expression's top, so the choice
+  // between them goes inside each stop.
+  const paint = ([far, near]) => {
+    if (p.closed) {
+      const [cFar, cNear] = [p.closed, p.closedNear ?? p.closed];
+      return ["interpolate", ["linear"], ["zoom"], 14, ["case", closed, cFar, far], 17, ["case", closed, cNear, near]];
+    }
+    return far === near ? far : ["interpolate", ["linear"], ["zoom"], 14, far, 17, near];
+  };
 
   // pathNear (optional): a brighter path colour for close zooms, where
   // paths get wider too, so they're easy to see beside or under a route.
-  const pathColor = p.pathNear ? ["interpolate", ["linear"], ["zoom"], 14, p.path, 17, p.pathNear] : p.path;
+  const pathColor = [p.path, p.pathNear ?? p.path];
   const pathWidths = p.pathNear ? [[14, 0.4], [16, 1.5], [18, 3]] : [[14, 0.4], [18, 2]];
   // With pathDash, only trails are dashed: tracks, bridleways and paths not
   // tagged paved, plus anything tagged unpaved. Pavements, platforms, steps
@@ -101,11 +126,11 @@ export function buildStyle(p, o = {}) {
 
   const roadDefs = [
     ...pathDefs,
-    ["service", ["service"], p.service, [[13, 0.3], [18, 4]]],
-    ["minor", ["minor"], p.minor, [[12, 0.4], [18, 9]]],
-    ["secondary", ["secondary", "tertiary"], p.major, [[10, 0.6], [18, 14]]],
-    ["primary", ["primary", "trunk"], p.major, [[8, 0.8], [18, 18]]],
-    ["motorway", ["motorway"], p.motorway ?? p.major, [[6, 0.8], [18, 20]]],
+    ["service", ["service"], [p.service, p.service], [[13, 0.3], [18, 4]]],
+    ["minor", ["minor"], [p.minor, p.minor], [[12, 0.4], [18, 9]]],
+    ["secondary", ["secondary", "tertiary"], [p.major, p.major], [[10, 0.6], [18, 14]]],
+    ["primary", ["primary", "trunk"], [p.major, p.major], [[8, 0.8], [18, 18]]],
+    ["motorway", ["motorway"], [p.motorway ?? p.major, p.motorway ?? p.major], [[6, 0.8], [18, 20]]],
   ];
 
   if (opt.casing && p.casing) {
@@ -115,7 +140,7 @@ export function buildStyle(p, o = {}) {
     }
   }
   for (const [id, classes, color, widths, extra, where] of roadDefs) {
-    layers.push(road(id, classes, color, widths, extra, where));
+    layers.push(road(id, classes, paint(color), widths, extra, where));
   }
 
   if (p.rail) {
