@@ -173,13 +173,18 @@ registerMode("p2p", createP2PMode(map, ready, {
     const kind = (k) => ["==", ["get", "kind"], k];
     // Zoomed right in, counted-out lanes stay nearly solid: they're thin, so
     // the street shows between them, and faded they'd be hard to count.
-    const fade = ["interpolate", ["linear"], ["zoom"], 15, 1, 16.3, ["case", ["get", "lanes"], 0.85, 0.35]];
+    // dim: the legs that aren't the last one, while Last leg lights it up
+    // (2026-11-22), at about a third of their usual strength.
+    const dimmed = (on, off) => ["case", ["get", "dim"], off, on];
+    const fade = ["interpolate", ["linear"], ["zoom"], 15, dimmed(1, 0.35),
+      16.3, ["case", ["get", "lanes"], dimmed(0.85, 0.3), dimmed(0.35, 0.15)]];
+    const glow = ["interpolate", ["linear"], ["zoom"], 15, dimmed(1, 0.25), 16, 0];
     add({ id: "p2p-halo", type: "line", source: "p2p", layout,
-      paint: { "line-color": "#4f6328", "line-width": width("h", 6, 13), "line-blur": W(1.5, 4), "line-opacity": GLOW } });
+      paint: { "line-color": "#4f6328", "line-width": width("h", 6, 13), "line-blur": W(1.5, 4), "line-opacity": glow } });
     add({ id: "p2p-route", type: "line", source: "p2p", layout, filter: kind("plain"),
       paint: { "line-color": "#c8ff2e", "line-width": width("w", 2.2, 4.5), "line-opacity": fade } });
     add({ id: "p2p-country-gaps", type: "line", source: "p2p", layout, filter: kind("country"),
-      paint: { "line-color": "#151a22", "line-width": width("w", 2.2, 4.5), "line-opacity": GLOW } });
+      paint: { "line-color": "#151a22", "line-width": width("w", 2.2, 4.5), "line-opacity": glow } });
     add({ id: "p2p-country", type: "line", source: "p2p", filter: kind("country"),
       layout: { "line-cap": "butt", "line-join": "round" },
       paint: { "line-color": "#c8ff2e", "line-width": width("w", 2.2, 4.5), "line-dasharray": [2.6, 1.8], "line-opacity": fade } });

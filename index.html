@@ -16,7 +16,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@800&text=RUNTHEFAVOIS&display=swap" rel="stylesheet" />
   <link href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css" rel="stylesheet" />
   <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
-  <link href="./css/styles.css?v=87" rel="stylesheet" />
+  <link href="./css/styles.css?v=88" rel="stylesheet" />
 </head>
 <body>
   <div id="map"></div>
@@ -158,10 +158,13 @@
       </div>
       <button class="deck-grip" id="p2p-grip" aria-label="Hide route details" aria-expanded="true" aria-controls="p2p-details"><i aria-hidden="true"></i></button>
       <div class="p2p-head">
-        <h3 class="p2p-title" id="p2p-title">Next leg routing</h3>
+        <!-- What the routing changes (js/p2p.js): Next leg; tap it for Last leg (UI.md "Scope heading"). -->
+        <h3 class="p2p-title"><button class="scope" id="p2p-scope" type="button" disabled>
+          <span id="p2p-title">Next leg</span><span class="scope-dots" id="p2p-scope-dots" aria-hidden="true"><i></i><i></i></span>
+        </button></h3>
         <button class="switch-row" id="p2p-climb" role="switch" aria-checked="false">Minimise climb<span class="switch" aria-hidden="true"></span></button>
       </div>
-      <div class="chips" id="p2p-routing" role="radiogroup" aria-labelledby="p2p-title">
+      <div class="chips" id="p2p-routing" role="radiogroup" aria-label="Routing for the next leg">
         <button class="chip active" data-routing="pleasant" role="radio" aria-checked="true">Pleasant</button>
         <button class="chip" data-routing="shortest" role="radio" aria-checked="false">Shortest</button>
         <button class="chip" data-routing="freehand" role="radio" aria-checked="false">Freehand</button>
@@ -360,28 +363,28 @@
   <script type="importmap">
   {
     "imports": {
-      "./js/account.js": "./js/account.js?v=101",
-      "./js/api.js": "./js/api.js?v=101",
-      "./js/art.js": "./js/art.js?v=101",
-      "./js/export.js": "./js/export.js?v=101",
-      "./js/garmin.js": "./js/garmin.js?v=101",
-      "./js/geometry.js": "./js/geometry.js?v=101",
-      "./js/lanes.js": "./js/lanes.js?v=101",
-      "./js/loop.js": "./js/loop.js?v=101",
-      "./js/main.js": "./js/main.js?v=101",
-      "./js/map.js": "./js/map.js?v=101",
-      "./js/mapstyle.js": "./js/mapstyle.js?v=101",
-      "./js/modes.js": "./js/modes.js?v=101",
-      "./js/p2p.js": "./js/p2p.js?v=101",
-      "./js/panel.js": "./js/panel.js?v=101",
-      "./js/polyline.js": "./js/polyline.js?v=101",
-      "./js/profile.js": "./js/profile.js?v=101",
-      "./js/shapes.js": "./js/shapes.js?v=101",
-      "./js/spot.js": "./js/spot.js?v=101",
-      "./js/ui.js": "./js/ui.js?v=101"
+      "./js/account.js": "./js/account.js?v=103",
+      "./js/api.js": "./js/api.js?v=103",
+      "./js/art.js": "./js/art.js?v=103",
+      "./js/export.js": "./js/export.js?v=103",
+      "./js/garmin.js": "./js/garmin.js?v=103",
+      "./js/geometry.js": "./js/geometry.js?v=103",
+      "./js/lanes.js": "./js/lanes.js?v=103",
+      "./js/loop.js": "./js/loop.js?v=103",
+      "./js/main.js": "./js/main.js?v=103",
+      "./js/map.js": "./js/map.js?v=103",
+      "./js/mapstyle.js": "./js/mapstyle.js?v=103",
+      "./js/modes.js": "./js/modes.js?v=103",
+      "./js/p2p.js": "./js/p2p.js?v=103",
+      "./js/panel.js": "./js/panel.js?v=103",
+      "./js/polyline.js": "./js/polyline.js?v=103",
+      "./js/profile.js": "./js/profile.js?v=103",
+      "./js/shapes.js": "./js/shapes.js?v=103",
+      "./js/spot.js": "./js/spot.js?v=103",
+      "./js/ui.js": "./js/ui.js?v=103"
     }
   }
   </script>
-  <script type="module" src="./js/main.js?v=101"></script>
+  <script type="module" src="./js/main.js?v=103"></script>
 </body>
 </html>

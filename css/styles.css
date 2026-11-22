@@ -943,9 +943,40 @@ body[data-mode="p2p"] .hud-top .p2p-hint { display: block; }
 body[data-mode="p2p"] .hud-top .p2p-info { display: none; }
 body[data-mode="p2p"].p2p-has-leg .hud-top .p2p-hint { display: none; }
 body[data-mode="p2p"].p2p-has-leg .hud-top .p2p-info { display: block; }
-/* Next leg routing heads all four controls: the chips and the switch. */
+/* The heading heads all four controls (the chips and the switch) and says
+   what they change: Next leg, or Last leg (a Scope heading). */
 .p2p-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .p2p-title { margin: 0; font-size: 16px; font-weight: 700; color: var(--text); }
+
+/* ----- Scope heading (UI.md; 2026-11-22, A to B's Next leg / Last leg) -----
+   A heading that's also a button: each tap moves on to the next of a few
+   scopes for the controls under it. Joined dots under the words show
+   them, the current one lime; like the grip, a small mark on a big
+   target. The dots sit under the words without taking room, so the words
+   stay level with the row's other label and don't move when the dots
+   come. Disabled (nothing else to choose), it's a plain heading. */
+.scope {
+  position: relative; display: flex; align-items: center; min-height: 44px; padding: 0 2px 0 0;
+  text-align: left; -webkit-tap-highlight-color: transparent; transition: transform .12s;
+}
+.scope:disabled { cursor: default; }
+.scope-dots { position: absolute; left: 0; top: calc(50% + 13px); display: flex; gap: 8px; }
+.scope-dots i { width: 8px; height: 8px; border-radius: 50%; background: var(--dim-2); transition: background-color .15s; }
+.scope-dots::before {
+  content: ""; position: absolute; left: 4px; right: 4px; top: 3px; height: 2px;
+  background: var(--dim-2); transition: background-color .15s;
+}
+.scope-dots::after {
+  content: ""; position: absolute; left: 0; top: 0; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--neon); transform: translateX(calc(var(--at, 0) * 16px)); transition: transform .18s ease;
+}
+.scope:disabled .scope-dots { display: none; }
+@media (hover: hover) {
+  .scope:hover:not(:disabled) .scope-dots i, .scope:hover:not(:disabled) .scope-dots::before { background: var(--dim); }
+}
+.scope:active:not(:disabled) { transform: scale(.96); }
+.scope:active:not(:disabled) .scope-dots i, .scope:active:not(:disabled) .scope-dots::before { background: var(--text); }
+@media (prefers-reduced-motion: reduce) { .scope, .scope-dots i, .scope-dots::before, .scope-dots::after { transition: none; } }
 /* From the first leg: the elevation and any warning, then Export and the
    heart. p2p-has-route follows them as they grow in and shrink away (it
    comes off once they're gone); p2p-has-leg, for everything else that

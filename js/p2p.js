@@ -6,8 +6,10 @@
 //
 // Each leg is routed the way chosen when it's placed: Pleasant (the loop
 // router's taste: parks, quiet streets, paths), Shortest, or Freehand (a
-// straight line), with Minimise climb on or off. Changing them never
-// re-routes what's drawn. Tapping the start closes the route into a loop:
+// straight line), with Minimise climb on or off. Changing them sets the
+// next leg; tapping their heading (Next leg / Last leg, 2026-11-22) makes
+// them re-route the last leg instead, to compare, but nothing older ever
+// changes. Tapping the start closes the route into a loop:
 // only the start marker shows there, and tapping on carries on from it.
 // Routes may go over themselves as often as wanted (laps, out and back);
 // each pass gets its own lane on the map (js/lanes.js). Moving or removing
@@ -15,7 +17,8 @@
 //
 // Each leg is asked of the leg service (LEGS_BASE/leg, the backend's
 // leg.go) on its own, from the end of the route so far to the tap: it
-// knows nothing of the legs before, and nothing already drawn changes.
+// knows nothing of the legs before. Answers are kept, so going back and
+// forth between routings asks the server once for each.
 // Routed points sit on a path or street (the server moves them onto the
 // nearest one, and the start with them); after a Freehand leg the next
 // routed leg starts with a straight join to the path. A tap that can't be
@@ -79,11 +82,13 @@ const MAX_LEG_M = 20000;
  */
 export function createP2PMode(map, mapReady, opts) {
   // points: the waypoints, [lon, lat]. Leg i runs from points[i] to
-  // points[i + 1]: { routing, minimiseClimb, points ([lon, lat], its line),
-  // elevation (heights evenly spaced from its first point to its last, as
-  // the map has them, or null), country ([[i, j]] spans of uncertain path,
-  // by point) }.
-  const state = { points: [], legs: [], routing: "pleasant", minimiseClimb: false };
+  // points[i + 1]: { routing, minimiseClimb, tap (the tap that placed it,
+  // as routeLeg takes it, to route it again; null on a lap's copies),
+  // points ([lon, lat], its line), elevation (heights evenly spaced from
+  // its first point to its last, as the map has them, or null), country
+  // ([[i, j]] spans of uncertain path, by point) }.
+  // scope: what a change of routing changes, "next" or "last" (see "the routing").
+  const state = { points: [], legs: [], routing: "pleasant", minimiseClimb: false, scope: "next" };
   const undos = []; // earlier { points, legs, session }, newest last
   // The route being made, from the first point until Clear: once hearted,
   // it is that favourite, saved as it changes (link: the favourite's id).
@@ -124,15 +129,43 @@ export function createP2PMode(map, mapReady, opts) {
   // How near a way a tap at ll must land, in metres (TAP_PX).
   const reachAt = (ll) => Math.round(Math.min(300, Math.max(15, TAP_PX * metresPerPixel(map.getZoom(), ll[1]))));
 
-  // One leg. join: from stays where it is, off the paths (after a Freehand
-  // leg, or a start placed with Freehand), and the leg starts with a
-  // straight line to the nearest one. Freehand legs are asked too, for
-  // their heights; without an answer they're drawn all the same, with none.
-  async function routeLeg(from, to, { routing, minimiseClimb }, join) {
-    const leg = { routing, minimiseClimb, points: [from, to], elevation: null, country: [] };
+  // Answers from /leg by request, newest last, and its refusals (not "no
+  // answer"): a change of routing re-routes the last leg, so going back to
+  // one already seen shows at once and asks nothing.
+  const answers = new Map();
+  const KEEP_ANSWERS = 100;
+  const SETTLED = new Set(["too_far", "no_path_near", "no_route", "no_map", "same_point"]); // the same every time
+  async function askLeg(req) {
+    const key = JSON.stringify(req);
+    let got = answers.get(key);
+    if (!got) {
+      try {
+        got = { data: await ask("/leg", req) };
+      } catch (err) {
+        if (!SETTLED.has(err.reason)) throw err;
+        got = { err };
+      }
+    }
+    answers.delete(key);
+    answers.set(key, got);
+    if (answers.size > KEEP_ANSWERS) answers.delete(answers.keys().next().value);
+    if (got.err) throw got.err;
+    return got.data;
+  }
+
+  // One leg, for a tap { from, to, join, reach }. join: from stays where
+  // it is, off the paths (after a Freehand leg, or a start placed with
+  // Freehand), and the leg starts with a straight line to the nearest one.
+  // reach: how near a way to must be (reachAt, at the zoom of the tap).
+  // Freehand legs are asked too, for their heights; without an answer
+  // they're drawn all the same, with none.
+  async function routeLeg(tap, { routing, minimiseClimb }) {
+    const { from, to, join, reach } = tap;
+    const leg = { routing, minimiseClimb, tap, points: [from, to], elevation: null, country: [] };
     let data;
     try {
-      data = await ask("/leg", { from: [from[1], from[0]], to: [to[1], to[0]], routing, minimiseClimb, join, reach: reachAt(to) });
+      // the server doesn't use Minimise climb on Freehand, so one answer does for both
+      data = await askLeg({ from: [from[1], from[0]], to: [to[1], to[0]], routing, minimiseClimb: routing !== "freehand" && minimiseClimb, join, reach });
     } catch (err) {
       if (routing === "freehand" && err.reason !== "too_far") return leg;
       throw err;
@@ -143,6 +176,24 @@ export function createP2PMode(map, mapReady, opts) {
       elevation: data.elevation?.length > 1 ? data.elevation : null,
       country: data.countryPathSpans ?? [],
     };
+  }
+  // The leg for a tap, routed as settings say, or why there's none:
+  // { leg }, or { refused, detail } with a reason as the server gives it.
+  async function legFor(tap, settings) {
+    const far = segLength(tap.from, tap.to);
+    let leg;
+    try {
+      leg = await routeLeg(tap, settings);
+    } catch (err) {
+      if (!err.reason) throw err;
+      // The nearest spot on a path to the tap is where the route already
+      // ends (a tap out past the end of a path, say): say so, unless the
+      // tap was as good as on it.
+      return { refused: err.reason === "same_point" && far > NOWHERE_M ? "no_nearer" : err.reason, detail: { ...err, at: tap.to } };
+    }
+    // the same, when the nearest spot is only a step along
+    if (settings.routing !== "freehand" && far > 2 * NOWHERE_M && lineLength(leg.points) < NOWHERE_M) return { refused: "no_nearer", detail: {} };
+    return { leg };
   }
   // Where a Pleasant or Shortest route can start near a tap: on the nearest
   // way it can route on, within TAP_PX, so a start can't go where no leg
@@ -189,20 +240,10 @@ export function createP2PMode(map, mapReady, opts) {
       const far = segLength(from, ll);
       if (far > MAX_LEG_M) return refuse("too_far", { far });
       const join = state.legs.length ? state.legs.at(-1).routing === "freehand" : placedFree.has(state.points[0]);
-      let leg;
-      try {
-        leg = await routeLeg(from, ll, { routing, minimiseClimb }, join);
-      } catch (err) {
-        if (dropped.has(id)) return;
-        // The nearest spot on a path to the tap is where the route already
-        // ends (a tap out past the end of a path, say): say so, unless the
-        // tap was as good as on it.
-        refuse(err.reason === "same_point" && far > NOWHERE_M ? "no_nearer" : err.reason, { ...err, at: ll });
-        return;
-      }
+      const got = await legFor({ from, to: ll, join, reach: reachAt(ll) }, { routing, minimiseClimb });
       if (dropped.has(id)) return;
-      // the same, when the nearest spot is only a step along
-      if (routing !== "freehand" && far > 2 * NOWHERE_M && lineLength(leg.points) < NOWHERE_M) return refuse("no_nearer");
+      if (got.refused) return refuse(got.refused, got.detail);
+      const { leg } = got;
       // the first routed leg moves the start onto the path it sets off along
       const points = state.legs.length ? state.points : [leg.points[0]];
       commit([...points, leg.points.at(-1)], [...state.legs, leg]);
@@ -250,13 +291,15 @@ export function createP2PMode(map, mapReady, opts) {
     return best;
   }
   // The lap as legs: the leg the earlier pass is on, from there to its
-  // end (starting exactly here), then copies of every leg after it.
+  // end (starting exactly here), then copies of every leg after it. No
+  // tap: a change of routing after a Lap is for the next leg only (the
+  // user, 2026-11-22), so the lap stays a true copy.
   function lapLegs(lap) {
     const { legs, points } = state;
     const leg = legs[lap.leg], pts = leg.points;
     const rest = [points.at(-1), ...pts.slice(lap.seg + 1)];
-    const out = lineLength(rest) > 1 ? [{ ...leg, points: rest, elevation: cutHeights(leg, lap), country: cutSpans(leg.country, lap.seg) }] : [];
-    return [...out, ...legs.slice(lap.leg + 1).map((l) => ({ ...l }))];
+    const out = lineLength(rest) > 1 ? [{ ...leg, tap: null, points: rest, elevation: cutHeights(leg, lap), country: cutSpans(leg.country, lap.seg) }] : [];
+    return [...out, ...legs.slice(lap.leg + 1).map((l) => ({ ...l, tap: null }))];
   }
   // The heights from the pass to the leg's end, evenly spaced over that
   // part as a leg's are over the whole of it.
@@ -303,14 +346,25 @@ export function createP2PMode(map, mapReady, opts) {
     undos.push({ points: state.points, legs: state.legs, session });
     state.points = points;
     state.legs = legs;
+    state.scope = "next"; // a point placed, a lap or Clear ends Last leg
     session = next;
     render();
   }
   // A tap still waiting to be placed goes first, as if it never was.
+  // Undo just takes a point away (the user, 2026-11-22): changes of
+  // routing aren't Undo steps and the routing stays as it is. Like any
+  // change to the route it goes back to Next leg, and drops a re-route
+  // still on its way.
   function undo() {
     refuse(null);
+    choiceGen++;
+    state.scope = "next";
     const pending = waiting.filter((id) => !dropped.has(id));
-    if (pending.length) return dropped.add(pending.at(-1));
+    if (pending.length) {
+      dropped.add(pending.at(-1));
+      renderScope();
+      return drawLine();
+    }
     const last = undos.pop();
     if (!last) return;
     if (last.session !== session) flushSave();
@@ -435,7 +489,8 @@ export function createP2PMode(map, mapReady, opts) {
       shownKey = half(map.getZoom());
       const src = map.getSource("p2p");
       if (!pieces.length) return src.setData(EMPTY);
-      src.setData(routeFeatures(pieces, shownKey));
+      // Last leg lights up the last leg, the rest dimmed
+      src.setData(routeFeatures(pieces, shownKey, state.scope === "last" ? state.legs.length - 1 : -1));
     });
   }
   // Smoothing and the lanes are set in screen pixels, so they're redone
@@ -490,7 +545,22 @@ export function createP2PMode(map, mapReady, opts) {
   }
   attachGrip(grip, { isFolded: () => body.classList.contains("p2p-folded"), setFolded });
 
-  // The routing for the next leg, and Minimise climb.
+  // ----- the routing -----
+  // The routing and Minimise climb sit under a heading that says what they
+  // change (the user, 2026-11-22; UI.md "Scope heading"). Next leg, as it
+  // starts: they only set how the next tap is routed, so they can be
+  // switched freely mid-route. Tap the heading for Last leg: the chips show
+  // the last leg's routing, the map lights that leg up and dims the rest,
+  // and each change re-routes it as if its point were tapped again, to
+  // compare. One routing either way: what's chosen for the last leg goes
+  // on to the next tap. Last leg lasts until the route changes (a point
+  // placed, Lap, Clear, Undo; a refused tap places nothing, so it stays),
+  // and is only offered when a tap placed the last leg (a lap's copies
+  // stay as they are). A change that can't re-route it changes nothing:
+  // the routing goes back to the leg's and the pink toast says why.
+  const SCOPES = ["next", "last"]; // in the heading's order; maybe a whole-route one later (the user)
+  let choiceGen = 0; // counts changes and Undos, so only the newest change is acted on
+  const canCompare = () => !!state.legs.at(-1)?.tap;
   function renderChoices() {
     for (const b of document.querySelectorAll("[data-routing]")) {
       const on = b.dataset.routing === state.routing;
@@ -499,16 +569,88 @@ export function createP2PMode(map, mapReady, opts) {
     }
     $("p2p-climb").setAttribute("aria-checked", state.minimiseClimb);
   }
+  function renderScope() {
+    const can = canCompare();
+    if (!can) state.scope = "next";
+    const last = state.scope === "last", btn = $("p2p-scope");
+    btn.disabled = !can;
+    $("p2p-title").textContent = last ? "Last leg" : "Next leg";
+    $("p2p-scope-dots").style.setProperty("--at", SCOPES.indexOf(state.scope));
+    const what = !can ? "" : last ? "Tap to go back to the next leg" : "Tap to compare routings for the last leg";
+    btn.setAttribute("aria-label", `${last ? "Last" : "Next"} leg routing${what ? `. ${what}` : ""}`);
+    btn.title = what;
+    $("p2p-routing").setAttribute("aria-label", `Routing for the ${last ? "last" : "next"} leg`);
+  }
+  $("p2p-scope").addEventListener("click", () => {
+    if (!canCompare()) return;
+    state.scope = SCOPES[(SCOPES.indexOf(state.scope) + 1) % SCOPES.length];
+    if (state.scope === "last") followLast();
+    renderScope();
+    drawLine();
+  });
+  function choose(change) {
+    Object.assign(state, change);
+    renderChoices();
+    if (state.scope !== "last") return; // the next leg's, nothing to re-route
+    const gen = ++choiceGen, leg = state.legs.at(-1), want = { routing: state.routing, minimiseClimb: state.minimiseClimb };
+    queue = queue.then(() => gen === choiceGen && reroute(leg, want, gen)).catch((err) => {
+      console.error(err);
+      toast("Couldn't re-route the last leg. Try again?");
+    });
+  }
+  // Freehand doesn't use Minimise climb, so switching it leaves a Freehand leg be.
+  const routedAs = (leg, { routing, minimiseClimb }) =>
+    leg.routing === routing && (routing === "freehand" || leg.minimiseClimb === minimiseClimb);
+  // leg: the last leg when the change was made, the one on show. A tap
+  // still on its way then places its own leg first, and that's left be.
+  async function reroute(leg, want, gen) {
+    if (state.legs.at(-1) !== leg || routedAs(leg, want)) return;
+    const got = await legFor(leg.tap, want);
+    if (gen !== choiceGen || state.legs.at(-1) !== leg) return; // changed again meanwhile, or Undo, or Clear
+    if (got.refused) {
+      if (state.scope === "last") followLast();
+      return toast(notRerouted(got.refused, got.detail, want), 4500);
+    }
+    // its new end, and the start too if it's the first leg (as in tapAt)
+    const legs = [...state.legs.slice(0, -1), got.leg];
+    const points = legs.length > 1 ? state.points.slice(0, -1) : [got.leg.points[0]];
+    state.points = [...points, got.leg.points.at(-1)];
+    state.legs = legs;
+    render();
+  }
+  // A change of routing that couldn't re-route the last leg, for the pink
+  // toast (the user, 2026-11-22: the warning line under the chips grew
+  // the panel and moved them from under the finger). same_point: as far
+  // as paths go, its point is where it sets off.
+  const ROUTING_NAMES = { pleasant: "Pleasant", shortest: "Shortest", freehand: "Freehand" };
+  const NOT_REROUTED = {
+    no_path_near: ({ end }) => end === "from" ? "no path within 300 m of where it starts" : "its point is off the paths",
+    no_nearer: () => "no path comes nearer its point",
+    same_point: () => "no path comes nearer its point",
+    no_route: () => "no way along paths between its ends",
+    no_map: () => "no map data there",
+  };
+  function notRerouted(reason, detail, { routing, minimiseClimb }) {
+    const why = NOT_REROUTED[reason];
+    if (!why) return "No answer from the server, so the last leg stays as it was. Try again?";
+    return `${ROUTING_NAMES[routing]}${minimiseClimb ? " with Minimise climb" : ""} can't route the last leg: ${why(detail)}. It stays as it was.`;
+  }
+  // The routing shown becomes the last leg's (going to Last leg, or after
+  // a change that couldn't re-route it). A Freehand leg leaves Minimise
+  // climb as it is: it doesn't use it.
+  function followLast() {
+    const leg = state.legs.at(-1);
+    if (!leg?.tap) return;
+    state.routing = leg.routing;
+    if (leg.routing !== "freehand") state.minimiseClimb = leg.minimiseClimb;
+    renderChoices();
+  }
   $("p2p-routing").addEventListener("click", (e) => {
     const b = e.target.closest("[data-routing]");
-    if (!b) return;
-    state.routing = b.dataset.routing;
-    renderChoices();
+    if (!b || b.dataset.routing === state.routing) return;
+    choose({ routing: b.dataset.routing });
   });
-  $("p2p-climb").addEventListener("click", () => {
-    state.minimiseClimb = !state.minimiseClimb;
-    renderChoices();
-  });
+  $("p2p-climb").addEventListener("click", () => choose({ minimiseClimb: !state.minimiseClimb }));
 
   function render() {
     route = whole();
@@ -530,6 +672,7 @@ export function createP2PMode(map, mapReady, opts) {
     if (lapLength >= LAP_MIN_M) $("p2p-lap-km").textContent = `${km(lapLength)} km`;
     syncHeart();
     scheduleSave(); // a hearted route's favourite follows it
+    renderScope(); // Last leg only while a tap placed the last leg (before drawLine: it lights it up)
     placeMarkers();
     drawLine();
     showRoute();

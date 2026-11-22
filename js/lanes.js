@@ -42,10 +42,10 @@ export const samePoint = (a, b) => key(a) === key(b);
 
 // legs: [{ points: [[lon, lat], ...], country: [[i, j], ...] }], in order;
 // country spans index the leg's points (uncertain paths, dashed).
-// Returns [{ coords, n, lane, forward, kind }] in route order: n passes
-// over this piece, this pass is lane `lane` (0 the leftmost, looking the
-// way the first pass ran), forward if it runs that way too, kind "plain"
-// or "country".
+// Returns [{ coords, n, lane, forward, kind, leg }] in route order: n
+// passes over this piece, this pass is lane `lane` (0 the leftmost,
+// looking the way the first pass ran), forward if it runs that way too,
+// kind "plain" or "country", leg the index of the leg it's part of.
 export function routePieces(legs) {
   // Every run along an edge, in order, and how many there are of each.
   const runs = legs.map((leg) => {
@@ -91,7 +91,7 @@ export function routePieces(legs) {
     runs[li].forEach((r, i) => {
       if (!r) { cur = null; return; }
       if (!cur || cuts.has(r.a)) {
-        cur = { coords: [leg.points[i]], n: r.n, lane: r.lane, forward: r.forward, kind: r.kind };
+        cur = { coords: [leg.points[i]], n: r.n, lane: r.lane, forward: r.forward, kind: r.kind, leg: li };
         pieces.push(cur);
       }
       cur.coords.push(leg.points[i + 1]);
@@ -149,8 +149,9 @@ function gentle(run, mpp, reach) {
 // moved sideways into its lane, easing between lanes, then cut where the
 // width or the kind of path changes. Properties: kind, multi (more than one
 // pass), lanes (counted out one by one), w and h (line and halo width, px,
-// for multi).
-export function routeFeatures(pieces, z) {
+// for multi), dim (focus is a leg's index and this isn't part of it: A to
+// B's Last leg lights up the last leg and dims the rest, 2026-11-22).
+export function routeFeatures(pieces, z, focus = -1) {
   if (!pieces.length) return { type: "FeatureCollection", features: [] };
   const lat0 = pieces[0].coords[0][1], kx = mLon(lat0), mpp = metresPerPixel(z, lat0);
   const W = atZoom(LINE, z), H = atZoom(HALO, z);
@@ -286,12 +287,14 @@ export function routeFeatures(pieces, z) {
   // A band is the same line for every pass over it, so only the first
   // pass draws it (once, so it doesn't stack up where the line fades,
   // zoomed in, and its dashes stay in step); the others draw only their
-  // way in and out of it.
+  // way in and out of it. The focus leg draws its own over a dimmed one,
+  // so it stays lit there too.
   const features = [];
-  const repeat = (j) => styles[outK[j]].mode === "band" && pieces[outK[j]].lane > 0 && outD[j] === 0 && outD[j + 1] === 0;
+  const dim = (k) => focus >= 0 && pieces[k].leg !== focus;
+  const repeat = (j) => styles[outK[j]].mode === "band" && pieces[outK[j]].lane > 0 && outD[j] === 0 && outD[j + 1] === 0 && pieces[outK[j]].leg !== focus;
   const styleKey = (j) => {
     const s = styles[outK[j]];
-    return `${pieces[outK[j]].kind}|${s.mode}|${s.mode === "band" ? s.w.toFixed(2) : ""}|${repeat(j)}`;
+    return `${pieces[outK[j]].kind}|${s.mode}|${s.mode === "band" ? s.w.toFixed(2) : ""}|${repeat(j)}|${dim(outK[j])}`;
   };
   let start = 0;
   for (let j = 0; j <= outK.length; j++) {
@@ -300,7 +303,7 @@ export function routeFeatures(pieces, z) {
     if (repeat(start)) { start = j; continue; }
     features.push({
       type: "Feature",
-      properties: { kind: pieces[k].kind, multi, lanes: styles[k].mode === "lanes", w, h: w + H - W },
+      properties: { kind: pieces[k].kind, multi, lanes: styles[k].mode === "lanes", w, h: w + H - W, dim: dim(k) },
       geometry: { type: "LineString", coordinates: out.slice(start, j + 1).map(([x, y]) => [x / kx, y / M_LAT]) },
     });
     start = j;
