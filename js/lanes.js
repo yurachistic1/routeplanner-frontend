@@ -34,6 +34,8 @@ const MAX_PITCH = 2.5; // lane centres never more than this many line widths apa
 const LANE_W = 2.5; // a counted-out lane's width, px (COUNT_PX apart leaves a 1.5 px gap)
 const EASE_PX = 12; // the shortest a move between lanes takes, px
 const EASE_SLOPE = 3; // and it takes at least this many times its sideways distance
+const SHARP = (115 * Math.PI) / 180; // a sharper turn puts every lane on its outside (routeFeatures)
+const REVERSAL = (176 * Math.PI) / 180; // and sharper than this is turning straight back
 const atZoom = ([lo, hi], z) => lo + (hi - lo) * Math.max(0, Math.min(1, (z - 11) / 5));
 
 // Points closer than about 10 cm are the same point.
@@ -118,31 +120,42 @@ function laneStyle(p, z, W, mpp) {
   return { d: side * pitch * mpp, w: Math.min(W, LANE_W), mode: "lanes", reach: ((p.n - 1) / 2) * pitch * mpp };
 }
 
-// A line smoothed over about reach metres either side: points every few
-// metres, then two passes of a moving average whose window narrows towards
-// the ends, so the ends stay put (and pieces still meet). mpp: metres per
-// pixel, for dropping the detail that's left under a pixel.
-function gentle(run, mpp, reach) {
-  const kx = mLon(run[0][1]);
-  const xy = run.map(([lon, lat]) => [lon * kx, lat * M_LAT]);
-  const step = Math.max(mpp, reach / 3);
-  const pts = [xy[0]];
-  for (let i = 1; i < xy.length; i++) {
-    const [a, b] = [xy[i - 1], xy[i]], len = Math.hypot(b[0] - a[0], b[1] - a[1]);
-    for (let s = step; s < len; s += step) pts.push([a[0] + ((b[0] - a[0]) * s) / len, a[1] + ((b[1] - a[1]) * s) / len]);
-    pts.push(b);
-  }
-  const half = Math.max(1, Math.round((1.5 * reach) / step));
-  let cur = pts;
-  for (let pass = 0; pass < 2; pass++) {
-    cur = cur.map((p, i) => {
-      const h = Math.min(half, i, cur.length - 1 - i);
-      let x = 0, y = 0;
-      for (let j = i - h; j <= i + h; j++) { x += cur[j][0]; y += cur[j][1]; }
-      return [x / (2 * h + 1), y / (2 * h + 1)];
-    });
-  }
-  return simplify(cur.map(([x, y]) => [x / kx, y / M_LAT]), mpp);
+// The turn at b, going a → b → c (points in metres, y north): phi, how far
+// it turns (0 straight on, π straight back), left, and the two directions.
+function turnAt(a, b, c) {
+  const ux = b[0] - a[0], uy = b[1] - a[1], vx = c[0] - b[0], vy = c[1] - b[1];
+  const lu = Math.hypot(ux, uy), lv = Math.hypot(vx, vy);
+  if (lu < 1e-9 || lv < 1e-9) return { phi: 0, left: false, lu, lv };
+  const cos = Math.max(-1, Math.min(1, (ux * vx + uy * vy) / (lu * lv)));
+  return { phi: Math.acos(cos), left: ux * vy - uy * vx > 0, lu, lv, u: [ux / lu, uy / lu], v: [vx / lv, vy / lv] };
+}
+const smoothstep = (x) => x * x * (3 - 2 * x);
+// How far q is from the segment ab.
+function distToSeg(q, a, b) {
+  const dx = b[0] - a[0], dy = b[1] - a[1], l2 = dx * dx + dy * dy;
+  const t = l2 ? Math.max(0, Math.min(1, ((q[0] - a[0]) * dx + (q[1] - a[1]) * dy) / l2)) : 0;
+  return Math.hypot(a[0] + t * dx - q[0], a[1] + t * dy - q[1]);
+}
+// Where the line a → b, carried on past b, meets the line c → d coming up
+// to c, or null.
+function lineMeet(a, b, c, d) {
+  const rx = b[0] - a[0], ry = b[1] - a[1], sx = d[0] - c[0], sy = d[1] - c[1];
+  const den = rx * sy - ry * sx;
+  if (Math.abs(den) < 1e-12) return null;
+  const qx = c[0] - a[0], qy = c[1] - a[1];
+  const t = (qx * sy - qy * sx) / den, u = (qx * ry - qy * rx) / den;
+  return t >= 1 && u <= 0 ? [a[0] + t * rx, a[1] + t * ry] : null;
+}
+const lerp = (a, b, t) => a + (b - a) * t;
+const lerp2 = (a, b, t) => [lerp(a[0], b[0], t), lerp(a[1], b[1], t)];
+// Where segments ab and cd cross, as how far along ab (0-1), or null.
+function crossAt(a, b, c, d) {
+  const rx = b[0] - a[0], ry = b[1] - a[1], sx = d[0] - c[0], sy = d[1] - c[1];
+  const den = rx * sy - ry * sx;
+  if (Math.abs(den) < 1e-12) return null;
+  const qx = c[0] - a[0], qy = c[1] - a[1];
+  const t = (qx * sy - qy * sx) / den, u = (qx * ry - qy * rx) / den;
+  return t > 1e-9 && t < 1 - 1e-9 && u > 1e-9 && u < 1 - 1e-9 ? t : null;
 }
 
 // GeoJSON for the route at zoom z: the pieces end to end as one line, each
@@ -151,32 +164,34 @@ function gentle(run, mpp, reach) {
 // pass), lanes (counted out one by one), w and h (line and halo width, px,
 // for multi), dim (focus is a leg's index and this isn't part of it: A to
 // B's Last leg lights up the last leg and dims the rest, 2026-11-22).
+//
+// Turns (the user, 2026-11-23: lanes broke up at turns, junctions and
+// waypoints, with hooks, arrowheads and lanes crossing): every lane turns
+// about the same centre, like lines on a transit map, so they stay side
+// by side and none folds over itself.
 export function routeFeatures(pieces, z, focus = -1) {
   if (!pieces.length) return { type: "FeatureCollection", features: [] };
   const lat0 = pieces[0].coords[0][1], kx = mLon(lat0), mpp = metresPerPixel(z, lat0);
   const W = atZoom(LINE, z), H = atZoom(HALO, z);
   const styles = pieces.map((p) => laneStyle(p, z, W, mpp));
+  const R0 = CORNER_PX * mpp; // a corner's smallest radius: a single line's, and the inside lane's at a bend
 
-  // Each stretch smoothed once, the way its first pass ran, and every pass
-  // over it uses that same line, so the lanes stay parallel. Like loops'
-  // lines (geometry.js smoothLine), but where there are lanes it's smoothed
-  // over about as far as they reach, so small zigzags (crossing a road from
-  // one pavement to the other) become gentle bends that every lane can
-  // follow, instead of hairpins.
+  // Each stretch simplified once, the way its first pass ran, and every
+  // pass over it uses that same line, so the lanes stay parallel. A single
+  // line or a band gets its corners rounded here, like loops' lines
+  // (geometry.js smoothLine); lanes get theirs below, with the rest.
   const smoothed = new Map();
   const lineOf = (p, s) => {
     const run = p.forward ? p.coords : [...p.coords].reverse();
-    const k = `${key(run[0])}>${key(run.at(-1))}#${run.length}@${s.reach.toFixed(2)}`;
-    if (!smoothed.has(k)) {
-      smoothed.set(k, s.mode === "lanes" ? gentle(run, mpp, s.reach) : roundCorners(simplify(run, mpp), CORNER_PX * mpp));
-    }
+    const k = `${key(run[0])}>${key(run.at(-1))}#${run.length}@${s.mode}`;
+    if (!smoothed.has(k)) smoothed.set(k, s.mode === "lanes" ? simplify(run, mpp / 2) : roundCorners(simplify(run, mpp), R0));
     const line = smoothed.get(k);
     return p.forward ? line : [...line].reverse();
   };
 
   // 1. The route as one line, in metres; seg[i] is the piece of the
   // segment from pts[i] to pts[i + 1].
-  const pts = [], seg = [];
+  let pts = [], seg = [];
   pieces.forEach((p, k) => {
     for (const [lon, lat] of lineOf(p, styles[k])) {
       const q = [lon * kx, lat * M_LAT];
@@ -187,6 +202,50 @@ export function routeFeatures(pieces, z, focus = -1) {
     }
   });
   if (pts.length < 2) return { type: "FeatureCollection", features: [] };
+
+  // 2. Corners: lanes' bends and every join between pieces. A bend is
+  // rounded with a radius of at least the lanes' reach and R0, so every
+  // lane goes round it about the same centre and the inside one still
+  // has R0. A sharper turn than SHARP stays a corner: no rounding could
+  // fit the lanes inside it without crossing or turning well short of
+  // it, so they all move out to its outside (step 4) and go round it in
+  // arcs. Turning straight back has no outside: the lanes, each keeping
+  // left, are already either side, and go round its far side.
+  const cp = [pts[0]], cs = [], corner = [null]; // corner[i]: { back } or { out, shift } where cp[i] stays a corner
+  const add = (q, k, c = null) => {
+    const last = cp.at(-1);
+    if (Math.hypot(q[0] - last[0], q[1] - last[1]) < 0.01) { // the same point (two bends' arcs meet)
+      if (c) corner[corner.length - 1] = c;
+      return;
+    }
+    cp.push(q); cs.push(k); corner.push(c);
+  };
+  for (let i = 1; i < pts.length - 1; i++) {
+    const kin = seg[i - 1], kout = seg[i];
+    const lanes = styles[kin].mode === "lanes" || styles[kout].mode === "lanes";
+    if (kin === kout && !lanes) { add(pts[i], kin); continue; } // rounded already (lineOf)
+    const t = turnAt(pts[i - 1], pts[i], pts[i + 1]);
+    const reach = Math.max(styles[kin].reach, styles[kout].reach);
+    if (t.phi < 1e-3) add(pts[i], kin);
+    else if (t.phi > REVERSAL) add(pts[i], kin, { back: true });
+    else if (reach > 0 && t.phi > SHARP) add(pts[i], kin, { out: t.left ? 1 : -1, shift: reach });
+    else {
+      const along = Math.min((reach + R0) * Math.tan(t.phi / 2), t.lu / 2, t.lv / 2);
+      const r = along / Math.tan(t.phi / 2), sgn = t.left ? 1 : -1;
+      const a = [pts[i][0] - t.u[0] * along, pts[i][1] - t.u[1] * along];
+      const c = [a[0] - sgn * t.u[1] * r, a[1] + sgn * t.u[0] * r]; // the arc's centre, on the inside
+      const a0 = Math.atan2(a[1] - c[1], a[0] - c[0]);
+      const steps = Math.max(2, Math.ceil(t.phi / (Math.PI / 12)));
+      for (let q = 0; q <= steps; q++) {
+        const ang = a0 + sgn * t.phi * (q / steps);
+        add([c[0] + Math.cos(ang) * r, c[1] + Math.sin(ang) * r], 2 * q <= steps ? kin : kout);
+      }
+    }
+  }
+  add(pts.at(-1), seg.at(-1));
+  pts = cp;
+  seg = cs;
+
   const cum = [0];
   for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
   const from = new Map(), to = new Map(); // each piece's stretch, metres along the route
@@ -195,7 +254,7 @@ export function routeFeatures(pieces, z, focus = -1) {
     to.set(k, cum[i + 1]);
   });
 
-  // 2. Where the offset changes, it eases from one to the other, centred
+  // 3. Where the offset changes, it eases from one to the other, centred
   // on the change and never using more than 45% of either piece.
   const eases = [];
   for (let i = 1; i < seg.length; i++) {
@@ -205,22 +264,51 @@ export function routeFeatures(pieces, z, focus = -1) {
     eases.push({ at: cum[i], half: Math.min(want, 0.45 * (cum[i] - from.get(a)), 0.45 * (to.get(b) - cum[i])), da, db });
   }
 
-  // 3. Points where each ease starts and ends, then every point's offset.
-  const P = [pts[0]], S = [0], K = []; // points, metres along, piece of the segment ending at each point (K[i] for P[i + 1])
-  const marks = eases.flatMap((e) => [e.at - e.half, e.at + e.half]).sort((x, y) => x - y);
+  // 4. At a sharp corner every lane moves out by as far as the lanes
+  // reach, so the inside one runs through the corner and the rest go
+  // round it, easing over as far as a change of lane would (and never
+  // into the next corner).
+  const kept = [];
+  corner.forEach((c, i) => { if (c) kept.push(i); });
+  const shifts = [];
+  kept.forEach((i, j) => {
+    const c = corner[i];
+    if (c.back) return;
+    const prev = j > 0 ? cum[kept[j - 1]] : 0, next = j < kept.length - 1 ? cum[kept[j + 1]] : cum.at(-1);
+    const want = Math.max(EASE_PX * mpp, EASE_SLOPE * c.shift);
+    shifts.push({ at: cum[i], before: Math.min(want, 0.45 * (cum[i] - prev)), after: Math.min(want, 0.45 * (next - cum[i])), d: c.out * c.shift });
+  });
+  const shiftAt = (s) => {
+    let d = 0;
+    for (const sh of shifts) {
+      const x = s < sh.at ? (sh.at - s) / sh.before : (s - sh.at) / sh.after;
+      if (x < 1) d += sh.d * smoothstep(1 - x);
+    }
+    return d;
+  };
+
+  // 5. Points where each ease starts and ends, and along each shift, then
+  // every point's offset.
+  const P = [pts[0]], S = [0], K = [], C = [corner[0]]; // points, metres along, piece of the segment ending at each point (K[i] for P[i + 1]), corners
+  const marks = [
+    ...eases.flatMap((e) => [e.at - e.half, e.at + e.half]),
+    ...shifts.flatMap((sh) => Array.from({ length: 13 }, (_, q) => (q < 6 ? sh.at - sh.before * (1 - q / 6) : sh.at + sh.after * ((q - 6) / 6)))),
+  ].sort((x, y) => x - y);
   let m = 0;
   for (let i = 1; i < pts.length; i++) {
-    while (m < marks.length && marks[m] <= cum[i - 1] + 1e-6) m++;
-    while (m < marks.length && marks[m] < cum[i] - 1e-6) {
+    while (m < marks.length && marks[m] <= cum[i - 1] + 0.01) m++;
+    while (m < marks.length && marks[m] < cum[i] - 0.01) {
       const t = (marks[m] - cum[i - 1]) / (cum[i] - cum[i - 1]);
-      P.push([pts[i - 1][0] + t * (pts[i][0] - pts[i - 1][0]), pts[i - 1][1] + t * (pts[i][1] - pts[i - 1][1])]);
+      P.push(lerp2(pts[i - 1], pts[i], t));
       S.push(marks[m]);
       K.push(seg[i - 1]);
+      C.push(null);
       m++;
     }
     P.push(pts[i]);
     S.push(cum[i]);
     K.push(seg[i - 1]);
+    C.push(corner[i]);
   }
   const D = new Array(P.length);
   let e = 0;
@@ -232,13 +320,14 @@ export function routeFeatures(pieces, z, focus = -1) {
     } else {
       D[i] = styles[i > 0 ? K[i - 1] : K[0]].d; // a point goes with the segment ending at it
     }
+    if (shifts.length) D[i] += shiftAt(S[i]);
   }
 
-  // 4. Every point moved sideways by its offset: along the corner's
-  // bisector (a mitre), or at a sharp turn round the far side of the corner
-  // in an arc (turning back on yourself, the lanes' arcs nest like a
-  // hairpin bend); on the inside of a sharp turn, a mitre no longer than
-  // twice the offset.
+  // 6. Every point moved sideways by its offset: along the corner's
+  // bisector (a mitre) where the line bends a little; round the outside
+  // of a corner in an arc (and round the far side of a turn straight
+  // back, where the lanes' arcs nest like a hairpin bend); on the inside,
+  // to where the two sides meet, any fold that leaves cut out in step 7.
   const normal = (a, b) => {
     const dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy) || 1;
     return [dy / l, -dx / l]; // to the right of a → b
@@ -251,39 +340,127 @@ export function routeFeatures(pieces, z, focus = -1) {
     while (da <= -Math.PI) da += 2 * Math.PI;
     const mid = a1 + da / 2;
     if (Math.cos(mid) * u[0] + Math.sin(mid) * u[1] < 0) da -= Math.sign(da || 1) * 2 * Math.PI;
-    const steps = Math.max(2, Math.ceil(Math.abs(da) / (Math.PI / 10)));
-    const pts = [];
+    const steps = Math.max(2, Math.ceil(Math.abs(da) / (Math.PI / 12)));
+    const out = [];
     for (let s = 0; s <= steps; s++) {
       const q = s / steps, a = a1 + da * q, r = r1 + (r2 - r1) * q;
-      pts.push([p[0] + Math.cos(a) * r, p[1] + Math.sin(a) * r]);
+      out.push([p[0] + Math.cos(a) * r, p[1] + Math.sin(a) * r]);
     }
-    return pts;
+    return out;
   };
-  const out = [], outK = [], outD = []; // outK[j]: piece of the segment ending at out[j + 1]; outD: each point's offset
-  const push = (p, k, d) => { if (out.length) outK.push(k); out.push(p); outD.push(d); };
+  // outK[j]: piece of the segment ending at out[j + 1]; outD, outS: each point's offset and metres along the route
+  let out = [], outK = [], outD = [], outS = [];
+  const push = (p, k, d, s) => { if (out.length) outK.push(k); out.push(p); outD.push(d); outS.push(s); };
   for (let i = 0; i < P.length; i++) {
-    const d = D[i], p = P[i];
+    const d = D[i], p = P[i], s = S[i];
     const kin = i > 0 ? K[i - 1] : K[0], kout = i < K.length ? K[i] : kin;
-    if (Math.abs(d) < 1e-9) { push(p, kin, 0); continue; }
+    if (Math.abs(d) < 1e-6) { push(p, kin, 0, s); continue; }
     const n1 = i > 0 ? normal(P[i - 1], p) : null, n2 = i < P.length - 1 ? normal(p, P[i + 1]) : null;
-    if (!n1 || !n2) { const nn = n1 ?? n2; push([p[0] + nn[0] * d, p[1] + nn[1] * d], kin, d); continue; }
+    if (!n1 || !n2) { const nn = n1 ?? n2; push([p[0] + nn[0] * d, p[1] + nn[1] * d], kin, d, s); continue; }
     const bx = n1[0] + n2[0], by = n1[1] + n2[1], bl = Math.hypot(bx, by), cosHalf = bl / 2;
     // a segment's direction is its right-hand normal turned left: (-ny, nx);
     // turning left when in × out > 0, which works out as u · n2
     const u = [-n1[1], n1[0]], turnLeft = u[0] * n2[0] + u[1] * n2[1] > 0;
     const outside = d > 0 === turnLeft;
-    if (cosHalf > 0.5) {
-      push([p[0] + (bx / bl) * (d / cosHalf), p[1] + (by / bl) * (d / cosHalf)], kin, d);
-    } else if (cosHalf > 0.26 && !outside) {
-      const m = Math.min(1 / cosHalf, 2) * d;
-      push([p[0] + (bx / bl) * m, p[1] + (by / bl) * m], kin, d);
+    if (!C[i]?.back && cosHalf > 0.97) {
+      push([p[0] + (bx / bl) * (d / cosHalf), p[1] + (by / bl) * (d / cosHalf)], kin, d, s);
+    } else if (C[i]?.back || outside) {
+      arc(p, [n1[0] * d, n1[1] * d], [n2[0] * d, n2[1] * d], u).forEach((q, j) => push(q, j ? kout : kin, d, s));
+    } else if (cosHalf > 0.5) {
+      push([p[0] + (bx / bl) * (d / cosHalf), p[1] + (by / bl) * (d / cosHalf)], kin, d, s);
     } else {
-      const pts = arc(p, [n1[0] * d, n1[1] * d], [n2[0] * d, n2[1] * d], u);
-      pts.forEach((q, s) => push(q, s ? kout : kin, d));
+      push([p[0] + n1[0] * d, p[1] + n1[1] * d], kin, d, s);
+      push([p[0] + n2[0] * d, p[1] + n2[1] * d], kout, d, s);
     }
   }
 
-  // 5. Cut where the width or the kind of path changes; back to lon, lat.
+  // 7. Where moving the line sideways folded it over itself (the inside
+  // of a bend tighter than the lane's offset, or a stretch too short for
+  // its lanes), cut the fold out: drop every point that came out nearer
+  // the route close by than its own offset, then any small loop left.
+  const maxReach = Math.max(...styles.map((st) => st.reach));
+  if (maxReach > 0) {
+    const at = (s) => { // the index of the last point of P at or before s
+      let lo = 0, hi = S.length - 1;
+      while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (S[mid] <= s) lo = mid; else hi = mid - 1; }
+      return lo;
+    };
+    const tol = mpp / 2;
+    const near = (q, s, lim, span) => {
+      const i1 = Math.min(at(s + span) + 1, P.length - 1);
+      for (let a = at(s - span); a < i1; a++) if (distToSeg(q, P[a], P[a + 1]) < lim) return true;
+      return false;
+    };
+    const ok = out.map((q, i) => {
+      const d = Math.abs(outD[i]);
+      return i === 0 || i === out.length - 1 || d < 2 * tol || !near(q, outS[i], d - Math.max(tol, 0.03 * d), 2 * d + tol);
+    });
+    let nO = [out[0]], nK = [], nD = [outD[0]], nS = [outS[0]];
+    let last = 0;
+    for (let i = 1; i < out.length; i++) {
+      if (!ok[i]) continue;
+      if (i > last + 1 && last > 0 && i < out.length - 1) {
+        // across the gap: where the lines either side meet, if that's close by
+        const x = lineMeet(out[last - 1], out[last], out[i], out[i + 1]);
+        const reachX = 3 * Math.abs(outD[i]) + tol;
+        if (x && Math.hypot(x[0] - out[last][0], x[1] - out[last][1]) < reachX && Math.hypot(x[0] - out[i][0], x[1] - out[i][1]) < reachX) {
+          nO.push(x); nK.push(outK[last]); nD.push(outD[last]); nS.push(outS[last]);
+        }
+      }
+      nO.push(out[i]); nK.push(outK[i - 1]); nD.push(outD[i]); nS.push(outS[i]);
+      last = i;
+    }
+    [out, outK, outD, outS] = [nO, nK, nD, nS];
+
+    const WIN = Math.max(12 * maxReach, 30 * mpp);
+    const routeCrosses = (s0, s1) => {
+      const i0 = at(s0), i1 = Math.min(at(s1) + 1, P.length - 1);
+      for (let a = i0; a < i1; a++) for (let b = a + 2; b < i1; b++) if (crossAt(P[a], P[a + 1], P[b], P[b + 1]) !== null) return true;
+      return false;
+    };
+    nO = [out[0]]; nK = []; nD = [outD[0]]; nS = [outS[0]];
+    for (let j = 0; j < out.length - 1;) {
+      let best = -1, bt = 0;
+      for (let k = j + 2; k < out.length - 1 && outS[k] - outS[j + 1] <= WIN; k++) {
+        const t = crossAt(out[j], out[j + 1], out[k], out[k + 1]);
+        if (t !== null) { best = k; bt = t; }
+      }
+      if (best >= 0 && !routeCrosses(outS[j], outS[best + 1])) {
+        // the crossing, then on along segment best from there
+        const x = lerp2(out[j], out[j + 1], bt);
+        nO.push(x); nK.push(outK[j]); nD.push(lerp(outD[j], outD[j + 1], bt)); nS.push(lerp(outS[j], outS[j + 1], bt));
+        out[best] = x; outD[best] = nD.at(-1); outS[best] = nS.at(-1);
+        j = best;
+        continue;
+      }
+      nO.push(out[j + 1]); nK.push(outK[j]); nD.push(outD[j + 1]); nS.push(outS[j + 1]);
+      j++;
+    }
+    [out, outK, outD, outS] = [nO, nK, nD, nS];
+  }
+
+  // Last, any back-step left a few pixels long (where points
+  // of the route are closer together than its lanes are wide).
+  const tiny = 6 * mpp;
+  for (let pass = 0; pass < 3; pass++) {
+    const keep = out.map(() => true);
+    for (let i = 1; i < out.length - 1; i++) {
+      const a = out[i - 1], b = out[i], c = out[i + 1];
+      const ux = b[0] - a[0], uy = b[1] - a[1], vx = c[0] - b[0], vy = c[1] - b[1];
+      const lu = Math.hypot(ux, uy), lv = Math.hypot(vx, vy);
+      if ((lu < tiny || lv < tiny) && ux * vx + uy * vy < -0.5 * lu * lv) { keep[i] = false; i++; }
+    }
+    if (keep.every(Boolean)) break;
+    const nO = [], nK = [], nD = [], nS = [];
+    out.forEach((q, i) => {
+      if (!keep[i]) return;
+      if (nO.length) nK.push(outK[i - 1]);
+      nO.push(q); nD.push(outD[i]); nS.push(outS[i]);
+    });
+    [out, outK, outD, outS] = [nO, nK, nD, nS];
+  }
+
+  // 8. Cut where the width or the kind of path changes; back to lon, lat.
   // A band is the same line for every pass over it, so only the first
   // pass draws it (once, so it doesn't stack up where the line fades,
   // zoomed in, and its dashes stay in step); the others draw only their
