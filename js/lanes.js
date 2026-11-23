@@ -30,7 +30,7 @@ import { CORNER_PX, M_LAT, mLon, metresPerPixel, roundCorners, simplify } from "
 // layers in main.js (W(2.2, 4.5) for the line, W(6, 13) for its halo).
 const LINE = [2.2, 4.5];
 const HALO = [6, 13];
-const LANES_FROM = 17; // lanes are counted out from this zoom in, and the route is no longer smoothed
+const LANES_FROM = 19.5; // lanes are counted out from this zoom in, and the route is no longer smoothed (was 17, then 19.5: the user doesn't need laps apart sooner)
 const LANE_M = 1.5; // lane centres apart on the ground, so a bundle stays about as wide as the street (was 3.5 m, 25 m wide for 4 laps there and back)
 const BAND_M = 3.5; // how far apart the bunched passes are counted, for the band's width
 const COUNT_PX = 4; // lanes at least this far apart on screen; with more passes than fit, one band
@@ -113,8 +113,9 @@ export function routePieces(legs) {
 // "single", "band" (its passes bunched into one thick line) or "lanes",
 // and how far its outermost lane reaches from the middle, metres. W: the
 // route's usual width at z, mpp: metres per pixel. Lanes are counted out
-// from zoom LANES_FROM, LANE_M apart but at least COUNT_PX on screen, when
-// that many fit: up to 19 passes at zoom 17, 26 at 17.5, 37 at 18. Every
+// from zoom LANES_FROM, LANE_M apart but at least COUNT_PX on screen and at
+// most MAX_PITCH line widths (from 19.5 that cap is what counts: about
+// 0.7 m on the ground), when that many fit: up to 100 passes. Every
 // lane has the same width, so a pass's line stays one line where the
 // number of passes changes.
 function laneStyle(p, z, W, mpp) {
@@ -212,8 +213,8 @@ export function routeFeatures(pieces, z, focus = -1) {
   });
   if (pts.length < 2) return { type: "FeatureCollection", features: [] };
 
-  // 2. Corners: lanes' bends, and zoomed out every join between pieces
-  // (single lines' corners are rounded only zoomed out). A bend is
+  // 2. Corners where there are lanes (a single line's or a band's were
+  // rounded in lineOf, zoomed out). A bend is
   // rounded with a radius of at least the lanes' reach and R0, so every
   // lane goes round it about the same centre and the inside one still
   // has R0. A sharper turn than SHARP stays a corner: no rounding could
@@ -233,7 +234,7 @@ export function routeFeatures(pieces, z, focus = -1) {
   for (let i = 1; i < pts.length - 1; i++) {
     const kin = seg[i - 1], kout = seg[i];
     const lanes = styles[kin].mode === "lanes" || styles[kout].mode === "lanes";
-    if (!lanes && (kin === kout || !smooth)) { add(pts[i], kin); continue; } // rounded already (lineOf), or not rounded at all
+    if (!lanes) { add(pts[i], kin); continue; } // a single line or band: rounded already (lineOf), zoomed out; a waypoint stays sharp, so the line reaches it
     const t = turnAt(pts[i - 1], pts[i], pts[i + 1]);
     const reach = Math.max(styles[kin].reach, styles[kout].reach);
     if (t.phi < 1e-3) add(pts[i], kin);
