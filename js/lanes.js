@@ -17,8 +17,12 @@
 // one line that moves sideways into its lane and out again, easing over a
 // short distance, so every lap runs on into the next with no breaks or
 // knots. Zoomed out the passes bunch into one thick line, and 10 laps look
-// much like 100. Zoomed in they spread out, about LANE_M metres apart on
-// the ground, so the lines can be counted.
+// much like 100. From zoom LANES_FROM in they spread out, about LANE_M
+// metres apart on the ground, so the lines can be counted.
+//
+// From LANES_FROM in the route also stops being smoothed (the user,
+// 2026-11-23): smoothing only makes the whole route look nicer zoomed out,
+// and lanes as wide as a street or more met it in knots at every bend.
 
 import { CORNER_PX, M_LAT, mLon, metresPerPixel, roundCorners, simplify } from "./geometry.js";
 
@@ -26,8 +30,10 @@ import { CORNER_PX, M_LAT, mLon, metresPerPixel, roundCorners, simplify } from "
 // layers in main.js (W(2.2, 4.5) for the line, W(6, 13) for its halo).
 const LINE = [2.2, 4.5];
 const HALO = [6, 13];
-const LANE_M = 3.5; // lane centres apart on the ground, zoomed in
-const COUNT_PX = 4; // lanes this far apart or more are drawn one by one; closer, as one band
+const LANES_FROM = 17; // lanes are counted out from this zoom in, and the route is no longer smoothed
+const LANE_M = 1.5; // lane centres apart on the ground, so a bundle stays about as wide as the street (was 3.5 m, 25 m wide for 4 laps there and back)
+const BAND_M = 3.5; // how far apart the bunched passes are counted, for the band's width
+const COUNT_PX = 4; // lanes at least this far apart on screen; with more passes than fit, one band
 const SPREAD = 1; // at zoom 13 and out, all the lanes span at most one line width; it doubles each zoom in
 const BAND = 3; // bunched up, the band is at most this many line widths
 const MAX_PITCH = 2.5; // lane centres never more than this many line widths apart
@@ -107,15 +113,17 @@ export function routePieces(legs) {
 // "single", "band" (its passes bunched into one thick line) or "lanes",
 // and how far its outermost lane reaches from the middle, metres. W: the
 // route's usual width at z, mpp: metres per pixel. Lanes are counted out
-// once they can be LANE_M apart or COUNT_PX on screen, whichever is more:
-// ten laps from about zoom 16, twenty from 17. Every lane has the same
-// width, so a pass's line stays one line where the number of passes
-// changes.
+// from zoom LANES_FROM, LANE_M apart but at least COUNT_PX on screen, when
+// that many fit: up to 19 passes at zoom 17, 26 at 17.5, 37 at 18. Every
+// lane has the same width, so a pass's line stays one line where the
+// number of passes changes.
 function laneStyle(p, z, W, mpp) {
   if (p.n < 2) return { d: 0, w: W, mode: "single", reach: 0 };
-  const cap = (SPREAD * W * 2 ** Math.max(0, z - 13)) / (p.n - 1);
-  const pitch = Math.min(LANE_M / mpp, cap, MAX_PITCH * W);
-  if (pitch < COUNT_PX) return { d: 0, w: Math.min(W + (p.n - 1) * pitch, BAND * W), mode: "band", reach: 0 };
+  const cap = Math.min((SPREAD * W * 2 ** Math.max(0, z - 13)) / (p.n - 1), MAX_PITCH * W);
+  if (z < LANES_FROM || cap < COUNT_PX) {
+    return { d: 0, w: Math.min(W + (p.n - 1) * Math.min(BAND_M / mpp, cap), BAND * W), mode: "band", reach: 0 };
+  }
+  const pitch = Math.min(Math.max(LANE_M / mpp, COUNT_PX), cap);
   const side = (p.lane - (p.n - 1) / 2) * (p.forward ? 1 : -1);
   return { d: side * pitch * mpp, w: Math.min(W, LANE_W), mode: "lanes", reach: ((p.n - 1) / 2) * pitch * mpp };
 }
@@ -175,16 +183,17 @@ export function routeFeatures(pieces, z, focus = -1) {
   const W = atZoom(LINE, z), H = atZoom(HALO, z);
   const styles = pieces.map((p) => laneStyle(p, z, W, mpp));
   const R0 = CORNER_PX * mpp; // a corner's smallest radius: a single line's, and the inside lane's at a bend
+  const smooth = z < LANES_FROM; // zoomed out, single lines and bands are smoothed like loops'; in, they follow the path
 
   // Each stretch simplified once, the way its first pass ran, and every
-  // pass over it uses that same line, so the lanes stay parallel. A single
-  // line or a band gets its corners rounded here, like loops' lines
-  // (geometry.js smoothLine); lanes get theirs below, with the rest.
+  // pass over it uses that same line, so the lanes stay parallel. Zoomed
+  // out, a single line or a band gets its corners rounded here, like
+  // loops' lines (geometry.js smoothLine); lanes get theirs below.
   const smoothed = new Map();
   const lineOf = (p, s) => {
     const run = p.forward ? p.coords : [...p.coords].reverse();
     const k = `${key(run[0])}>${key(run.at(-1))}#${run.length}@${s.mode}`;
-    if (!smoothed.has(k)) smoothed.set(k, s.mode === "lanes" ? simplify(run, mpp / 2) : roundCorners(simplify(run, mpp), R0));
+    if (!smoothed.has(k)) smoothed.set(k, s.mode !== "lanes" && smooth ? roundCorners(simplify(run, mpp), R0) : simplify(run, mpp / 2));
     const line = smoothed.get(k);
     return p.forward ? line : [...line].reverse();
   };
@@ -203,7 +212,8 @@ export function routeFeatures(pieces, z, focus = -1) {
   });
   if (pts.length < 2) return { type: "FeatureCollection", features: [] };
 
-  // 2. Corners: lanes' bends and every join between pieces. A bend is
+  // 2. Corners: lanes' bends, and zoomed out every join between pieces
+  // (single lines' corners are rounded only zoomed out). A bend is
   // rounded with a radius of at least the lanes' reach and R0, so every
   // lane goes round it about the same centre and the inside one still
   // has R0. A sharper turn than SHARP stays a corner: no rounding could
@@ -223,7 +233,7 @@ export function routeFeatures(pieces, z, focus = -1) {
   for (let i = 1; i < pts.length - 1; i++) {
     const kin = seg[i - 1], kout = seg[i];
     const lanes = styles[kin].mode === "lanes" || styles[kout].mode === "lanes";
-    if (kin === kout && !lanes) { add(pts[i], kin); continue; } // rounded already (lineOf)
+    if (!lanes && (kin === kout || !smooth)) { add(pts[i], kin); continue; } // rounded already (lineOf), or not rounded at all
     const t = turnAt(pts[i - 1], pts[i], pts[i + 1]);
     const reach = Math.max(styles[kin].reach, styles[kout].reach);
     if (t.phi < 1e-3) add(pts[i], kin);
@@ -412,10 +422,19 @@ export function routeFeatures(pieces, z, focus = -1) {
     }
     [out, outK, outD, outS] = [nO, nK, nD, nS];
 
-    const WIN = Math.max(12 * maxReach, 30 * mpp);
-    const routeCrosses = (s0, s1) => {
+      const WIN = Math.max(12 * maxReach, 30 * mpp);
+    // The route between s0 and s1 crosses itself or comes back to where
+    // it was (out and back to a waypoint, a lollipop): then a lane
+    // crossing itself there is the route's own shape, not a fold.
+    const routeReturns = (s0, s1, d) => {
       const i0 = at(s0), i1 = Math.min(at(s1) + 1, P.length - 1);
-      for (let a = i0; a < i1; a++) for (let b = a + 2; b < i1; b++) if (crossAt(P[a], P[a + 1], P[b], P[b + 1]) !== null) return true;
+      const close = Math.max(0.5 * d, tol), apart = 4 * d + tol;
+      for (let a = i0; a < i1; a++) {
+        for (let b = a + 2; b < i1; b++) {
+          if (crossAt(P[a], P[a + 1], P[b], P[b + 1]) !== null) return true;
+          if (S[b] - S[a + 1] > apart && distToSeg(P[b], P[a], P[a + 1]) < close) return true;
+        }
+      }
       return false;
     };
     nO = [out[0]]; nK = []; nD = [outD[0]]; nS = [outS[0]];
@@ -425,7 +444,11 @@ export function routeFeatures(pieces, z, focus = -1) {
         const t = crossAt(out[j], out[j + 1], out[k], out[k + 1]);
         if (t !== null) { best = k; bt = t; }
       }
-      if (best >= 0 && !routeCrosses(outS[j], outS[best + 1])) {
+      // only a small fold: no longer along the route than a few times the
+      // lanes' offset there, and not the route's own shape
+      let d = 0;
+      for (let k = j; k <= best + 1 && best >= 0; k++) d = Math.max(d, Math.abs(outD[k]));
+      if (best >= 0 && outS[best + 1] - outS[j] <= 8 * d + 10 * mpp && !routeReturns(outS[j], outS[best + 1], d)) {
         // the crossing, then on along segment best from there
         const x = lerp2(out[j], out[j + 1], bt);
         nO.push(x); nK.push(outK[j]); nD.push(lerp(outD[j], outD[j + 1], bt)); nS.push(lerp(outS[j], outS[j + 1], bt));
