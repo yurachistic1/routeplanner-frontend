@@ -894,6 +894,12 @@ dialog.sheet::backdrop { background: rgba(7, 9, 13, .66); }
 .map-pill:disabled { background: #1a2029; color: #566070; box-shadow: none; cursor: not-allowed; }
 .map-pill kbd { font: 500 11px "JetBrains Mono", monospace; color: var(--dim); border: 1px solid var(--edge); border-radius: 6px; padding: 2px 6px; }
 .map-pill kbd:empty { display: none; }
+/* Lap's count, inside its arrow once the route runs a lap more than once
+   (2026-11-23): bold, in the icon's colour, smaller for two digits */
+.lap-icon { position: relative; display: inline-flex; flex: none; }
+.lap-count { position: absolute; inset: 0; display: grid; place-items: center; font-size: 10px; font-weight: 700; line-height: 1; letter-spacing: -.02em; pointer-events: none; }
+.lap-count.two-digits { font-size: 8px; letter-spacing: -.04em; }
+.lap-count:empty { display: none; }
 /* a detail after the words, as Lap's length: quieter, numbers in mono */
 .map-pill-note { margin-left: -2px; color: var(--dim); font: 500 14px "JetBrains Mono", monospace; }
 @media (hover: none) { .map-pill kbd { display: none; } }

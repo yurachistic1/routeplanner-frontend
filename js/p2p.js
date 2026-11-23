@@ -87,7 +87,10 @@ export function createP2PMode(map, mapReady, opts) {
   // its first point to its last, as the map has them, or null), country
   // ([[i, j]] spans of uncertain path, by point) }.
   // scope: what a change of routing changes, "next" or "last" (see "the routing").
-  const state = { points: [], legs: [], routing: "pleasant", minimiseClimb: false, scope: "next" };
+  // lap: { length, count } after Lap: how long that lap is and how many
+  // times the route runs it now (the counter in Lap's arrow, 2026-11-23),
+  // null after anything else
+  const state = { points: [], legs: [], routing: "pleasant", minimiseClimb: false, scope: "next", lap: null };
   const undos = []; // earlier { points, legs, session }, newest last
   // The route being made, from the first point until Clear: once hearted,
   // it is that favourite, saved as it changes (link: the favourite's id).
@@ -327,7 +330,10 @@ export function createP2PMode(map, mapReady, opts) {
       const lap = dropped.has(id) ? null : lapAt();
       if (!lap) return;
       const legs = lapLegs(lap);
-      commit([...state.points, ...legs.map((l) => l.points.at(-1))], [...state.legs, ...legs]);
+      // the same lap again counts on; any other starts at 2 (once round, then this)
+      const length = route.distance - lap.from;
+      const count = state.lap && Math.abs(state.lap.length - length) < 1 ? state.lap.count + 1 : 2;
+      commit([...state.points, ...legs.map((l) => l.points.at(-1))], [...state.legs, ...legs], session, { length, count });
     }).finally(() => {
       waiting.splice(waiting.indexOf(id), 1);
       dropped.delete(id);
@@ -338,12 +344,14 @@ export function createP2PMode(map, mapReady, opts) {
   }
 
   // Every change goes through here, so Undo can take it back. next: the
-  // session it starts (Clear), the route before it saved first.
-  function commit(points, legs, next = session) {
+  // session it starts (Clear), the route before it saved first. lap: as
+  // state.lap, for a Lap.
+  function commit(points, legs, next = session, lap = null) {
     if (next !== session) flushSave();
-    undos.push({ points: state.points, legs: state.legs, session });
+    undos.push({ points: state.points, legs: state.legs, session, lap: state.lap });
     state.points = points;
     state.legs = legs;
+    state.lap = lap;
     state.scope = "next"; // a point placed, a lap or Clear ends Last leg
     session = next;
     render();
@@ -367,6 +375,7 @@ export function createP2PMode(map, mapReady, opts) {
     if (last.session !== session) flushSave();
     state.points = last.points;
     state.legs = last.legs;
+    state.lap = last.lap;
     session = last.session;
     render();
   }
@@ -663,10 +672,17 @@ export function createP2PMode(map, mapReady, opts) {
     $("p2p-undo").disabled = !undos.length;
     $("p2p-clear").hidden = !n;
     // Lap, while the route ends on a spot it came through before (so
-    // still there after a lap), with how long the lap is
+    // still there after a lap), with how long the lap is, and after a Lap
+    // how many times the route runs it, in the arrow
     const lap = lapAt(), lapLength = lap ? route.distance - lap.from : 0;
     $("p2p-lap").hidden = lapLength < LAP_MIN_M;
-    if (lapLength >= LAP_MIN_M) $("p2p-lap-km").textContent = `${km(lapLength)} km`;
+    if (lapLength >= LAP_MIN_M) {
+      const count = state.lap?.count ?? 0;
+      $("p2p-lap-km").textContent = `${km(lapLength)} km`;
+      $("p2p-lap-count").textContent = count || "";
+      $("p2p-lap-count").classList.toggle("two-digits", count > 9);
+      $("p2p-lap").setAttribute("aria-label", `Lap, ${km(lapLength)} km${count ? `, ${count} laps so far` : ""}`);
+    }
     syncHeart();
     scheduleSave(); // a hearted route's favourite follows it
     renderScope(); // Last leg only while a tap placed the last leg (before drawLine: it lights it up)

@@ -16,7 +16,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@800&text=RUNTHEFAVOIS&display=swap" rel="stylesheet" />
   <link href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css" rel="stylesheet" />
   <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
-  <link href="./css/styles.css?v=89" rel="stylesheet" />
+  <link href="./css/styles.css?v=90" rel="stylesheet" />
 </head>
 <body>
   <div id="map"></div>
@@ -149,7 +149,7 @@
       <div class="p2p-history">
         <!-- Lap: while the route ends on a spot it came through before -->
         <button class="map-pill" id="p2p-lap" hidden>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>Lap<span class="map-pill-note" id="p2p-lap-km"></span>
+          <span class="lap-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg><span class="lap-count" id="p2p-lap-count" aria-hidden="true"></span></span>Lap<span class="map-pill-note" id="p2p-lap-km"></span>
         </button>
         <button class="map-pill" id="p2p-clear">Clear</button>
         <button class="map-pill" id="p2p-undo" aria-keyshortcuts="Control+Z Meta+Z">
@@ -355,28 +355,28 @@
   <script type="importmap">
   {
     "imports": {
-      "./js/account.js": "./js/account.js?v=107",
-      "./js/api.js": "./js/api.js?v=107",
-      "./js/art.js": "./js/art.js?v=107",
-      "./js/export.js": "./js/export.js?v=107",
-      "./js/garmin.js": "./js/garmin.js?v=107",
-      "./js/geometry.js": "./js/geometry.js?v=107",
-      "./js/lanes.js": "./js/lanes.js?v=107",
-      "./js/loop.js": "./js/loop.js?v=107",
-      "./js/main.js": "./js/main.js?v=107",
-      "./js/map.js": "./js/map.js?v=107",
-      "./js/mapstyle.js": "./js/mapstyle.js?v=107",
-      "./js/modes.js": "./js/modes.js?v=107",
-      "./js/p2p.js": "./js/p2p.js?v=107",
-      "./js/panel.js": "./js/panel.js?v=107",
-      "./js/polyline.js": "./js/polyline.js?v=107",
-      "./js/profile.js": "./js/profile.js?v=107",
-      "./js/shapes.js": "./js/shapes.js?v=107",
-      "./js/spot.js": "./js/spot.js?v=107",
-      "./js/ui.js": "./js/ui.js?v=107"
+      "./js/account.js": "./js/account.js?v=108",
+      "./js/api.js": "./js/api.js?v=108",
+      "./js/art.js": "./js/art.js?v=108",
+      "./js/export.js": "./js/export.js?v=108",
+      "./js/garmin.js": "./js/garmin.js?v=108",
+      "./js/geometry.js": "./js/geometry.js?v=108",
+      "./js/lanes.js": "./js/lanes.js?v=108",
+      "./js/loop.js": "./js/loop.js?v=108",
+      "./js/main.js": "./js/main.js?v=108",
+      "./js/map.js": "./js/map.js?v=108",
+      "./js/mapstyle.js": "./js/mapstyle.js?v=108",
+      "./js/modes.js": "./js/modes.js?v=108",
+      "./js/p2p.js": "./js/p2p.js?v=108",
+      "./js/panel.js": "./js/panel.js?v=108",
+      "./js/polyline.js": "./js/polyline.js?v=108",
+      "./js/profile.js": "./js/profile.js?v=108",
+      "./js/shapes.js": "./js/shapes.js?v=108",
+      "./js/spot.js": "./js/spot.js?v=108",
+      "./js/ui.js": "./js/ui.js?v=108"
     }
   }
   </script>
-  <script type="module" src="./js/main.js?v=107"></script>
+  <script type="module" src="./js/main.js?v=108"></script>
 </body>
 </html>
