@@ -22,8 +22,7 @@
 // Routed points sit on a path or street (the server moves them onto the
 // nearest one, and the start with them); after a Freehand leg the next
 // routed leg starts with a straight join to the path. A tap that can't be
-// routed places nothing and says why in the warning line under the
-// routing. Climb and descent are counted here over the whole route, from
+// routed places nothing and says why in the pink toast. Climb and descent are counted here over the whole route, from
 // the legs' heights, the way the backend counts a loop's (climbOf).
 //
 // Like every mode it keeps to its own map source ("p2p") and markers, and
@@ -341,7 +340,6 @@ export function createP2PMode(map, mapReady, opts) {
   // Every change goes through here, so Undo can take it back. next: the
   // session it starts (Clear), the route before it saved first.
   function commit(points, legs, next = session) {
-    refuse(null);
     if (next !== session) flushSave();
     undos.push({ points: state.points, legs: state.legs, session });
     state.points = points;
@@ -356,7 +354,6 @@ export function createP2PMode(map, mapReady, opts) {
   // change to the route it goes back to Next leg, and drops a re-route
   // still on its way.
   function undo() {
-    refuse(null);
     choiceGen++;
     state.scope = "next";
     const pending = waiting.filter((id) => !dropped.has(id));
@@ -729,40 +726,29 @@ export function createP2PMode(map, mapReady, opts) {
     if (camera) map.easeTo({ ...camera, duration: 550 });
   }
 
-  // A tap that placed no point: the same small warning line, under the
-  // routing, until the next point, Undo or Clear. Tap it for the why.
-  // reason: as the leg service gives it, or null to hide the line.
+  // A tap that placed no point says why in the pink toast, like a change
+  // of routing that couldn't re-route the last leg (the user, 2026-11-23:
+  // every routing error in the toast). reason: as the leg service gives it.
   const REFUSED = {
-    too_far: ({ far }) => [`Too far: legs up to ${MAX_LEG_M / 1000} km`,
-      `That point is ${far ? `${Math.round(far / 1000)} km` : "too far"} from the last one in a straight line. A leg can be up to ${MAX_LEG_M / 1000} km, so routing stays quick. For a longer route, add points along the way.`],
+    too_far: ({ far }) => `That point is ${far ? `${Math.round(far / 1000)} km` : "too far"} from the last one in a straight line, and legs go up to ${MAX_LEG_M / 1000} km, so routing stays quick. For a longer route, add points along the way.`,
     no_path_near: ({ end }) => end === "from"
-      ? ["No paths near the last point", "The last point is more than 300 m from any path or street we can route on, so this leg can't follow one. Use Freehand until you're nearer one."]
-      : [end === "start" ? "Can't start there" : "Can't route to that spot",
-        "There's no path or street we can route on right there. It may be private or closed, or a road with nowhere to walk, even where the map draws one. Tap on a path or street, or use Freehand."],
-    no_nearer: () => ["No path goes nearer", "The closest a path or street comes to that point is where the route already ends. Use Freehand to go off the paths, or tap further along one."],
-    no_route: () => ["No route found", "The map knows no way along paths and streets between these points. Try a point nearby, or use Freehand."],
-    no_map: () => ["No map data here", "Routing covers the UK for now. Freehand works anywhere."],
-    offline: () => ["Couldn't route that leg", "No answer from the server. Check your connection and try again, or use Freehand."],
+      ? "No paths near the last point: it's more than 300 m from any path or street we can route on, so this leg can't follow one. Use Freehand until you're nearer one."
+      : `${end === "start" ? "Can't start there" : "Can't route to that spot"}: there's no path or street we can route on right there. It may be private or closed, or a road with nowhere to walk, even where the map draws one. Tap on a path or street, or use Freehand.`,
+    no_nearer: () => "No path goes nearer: the closest a path or street comes to that point is where the route already ends. Use Freehand to go off the paths, or tap further along one.",
+    no_route: () => "No route found: the map knows no way along paths and streets between these points. Try a point nearby, or use Freehand.",
+    no_map: () => "No map data here: routing covers the UK for now. Freehand works anywhere.",
+    offline: () => "Couldn't route that leg: no answer from the server. Check your connection and try again, or use Freehand.",
   };
   // A tap that found nothing to route on says what the map draws there
   // (js/spot.js: a trunk road, a private road, water, with its name), if
-  // it can.
+  // it can. Long messages stay up longer, to be read.
   function refuse(reason, detail = {}) {
-    $("p2p-refused-box").hidden = !reason || reason === "same_point";
-    $("p2p-refused").setAttribute("aria-expanded", false);
-    $("p2p-refused-text").hidden = true;
-    if ($("p2p-refused-box").hidden) return;
+    if (reason === "same_point") return;
     const specific = reason === "no_path_near" && detail.end !== "from" && detail.at &&
       whyNotHere(map, detail.at, TAP_PX, detail.end === "start");
-    const [label, why] = specific || (REFUSED[reason] ?? REFUSED.offline)(detail);
-    $("p2p-refused-label").textContent = label;
-    $("p2p-refused-text").textContent = why;
+    const msg = specific || (REFUSED[reason] ?? REFUSED.offline)(detail);
+    toast(msg, Math.min(9000, Math.max(4500, msg.length * 50)));
   }
-  $("p2p-refused").addEventListener("click", () => {
-    const open = $("p2p-refused-text").hidden;
-    $("p2p-refused").setAttribute("aria-expanded", open);
-    $("p2p-refused-text").hidden = !open;
-  });
 
   // Uncertain paths: one small line, tap for the why (route info's card,
   // made small for A to B, 2026-11-20). Dashed on the map, as in loops.

@@ -908,7 +908,7 @@ dialog.sheet::backdrop { background: rgba(7, 9, 13, .66); }
   font-size: 14px; font-weight: 500; text-align: left; transition: transform .12s, background-color .15s;
 }
 .warn-line { max-width: 100%; }
-/* a long road name in a refused tap's line: cut short, the why says it whole */
+/* a long label: cut short, the why says it whole */
 .warn-line > span:not(.warn-mark) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .warn-line::before { content: ""; position: absolute; inset: -4px 0; }
 .warn-line[hidden] { display: none; }
@@ -989,10 +989,6 @@ body[data-mode="p2p"].p2p-has-leg .hud-top .p2p-info { display: block; }
 [data-mode="p2p"].p2p-no-details .p2p-details, .p2p-folded .p2p-fold { display: none !important; }
 .p2p-details .profile { padding-top: 0; margin-bottom: 0; }
 .p2p-actions .fav { height: 52px; }
-/* A tap too far from the last point: the warning line, under the routing
-   (so it shows folded, and with only a start). */
-.p2p-alert { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
-.p2p-alert[hidden] { display: none; }
 /* Undo and Clear float above the panel's right end, from the first point
    (Undo also after a Clear, to bring the route back), and Lap left of
    them while there is one. Laid out from the right (Undo, Clear, Lap) so

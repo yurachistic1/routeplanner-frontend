@@ -15,7 +15,7 @@ export const API_BASE = isLocal
 
 // The leg service, for A to B (a Cloud Run service of its own, so legs
 // never wait behind a loop or GPS art search). Locally the one backend
-// serves legs too. Live has none until A to B goes live.
+// serves legs too.
 export const LEGS_BASE = isLocal
   ? `http://${host}:8080`
   : host === "staging.runthe.uk"
