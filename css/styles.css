@@ -1,39 +1,7 @@
 /* Dark "Dusk" theme, phone first. Buttons and controls follow the Tonal
    system chosen on 2026-11-14 (see UI.md): everything tappable has a fill,
    lime is the main step, selected things go lime (no ticks: 2026-11-15). */
-:root {
-  --hud-h: 56px;
-  /* The shelf of modes along the bottom, and the space it leaves above. */
-  --modebar-h: 62px;
-  --above-modebar: calc(var(--modebar-h) + env(safe-area-inset-bottom) + 12px);
-  --bg: #07090d;
-  --glass: rgba(14, 18, 26, 0.72);
-  --edge: rgba(255, 255, 255, 0.08);
-  --text: #e9eef5;
-  /* Secondary text (notes, labels, hints): 9.2:1 on the panel. It was
-     #6c7889 (4.1:1), which friends found hard to read. */
-  --dim: #aeb8c6;
-  --dim-2: #8a96a7;   /* small print and units, 6.1:1 */
-  --neon: #c8ff2e;
-  --neon-rgb: 200, 255, 46;
-  --neon-glow: 0 0 18px rgba(var(--neon-rgb), 0.55);
-  --pink: #ff3d8b;
-  --amber: #ffb547;
-  --red: #ff4a3d;
-  /* Fills for controls */
-  --panel: #10141c;
-  --card: #1c232e;        /* choice cards, tiles and fields */
-  --tone: #2a3342;        /* icon buttons and chips */
-  --tone-2: #354052;      /* ... hovered */
-  --tone-press: #3d495d;  /* ... pressed */
-  --ltone: #2f3c19;       /* lime-tinted: secondary buttons, things switched on */
-  --ltone-2: #3a4a1e;
-  --ltone-press: #465a23;
-  --lime-ink: #dcff7a;    /* text on --ltone, 10.5:1 */
-  --float: #232b38;       /* buttons floating over the map */
-  /* A tick, as a mask so it takes the text colour: for checkboxes (UI.md). */
-  --tick: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 12.5 4.5 4.5L19 7.5'/%3E%3C/svg%3E");
-}
+/* Tokens and button roles are in css/tonal.css, loaded first. */
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; overflow: clip; background: var(--bg); }
 /* The map handles every pan and pinch itself, so the browser doesn't need to
@@ -45,52 +13,11 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 .mono { font-family: "JetBrains Mono", ui-monospace, monospace; }
 #map { position: absolute; inset: 0; }
 
-/* ----- Buttons -----
-   Primary: lime, the one main step on a panel. Secondary: a lime-tinted
-   pill. Tertiary: lime words. Danger: red. Icon buttons: round, neutral.
-   No arrows in buttons; previous and next use chevrons. */
-.btn {
-  height: 48px; padding: 0 20px; border-radius: 999px; min-width: 0;
-  display: flex; align-items: center; justify-content: center; gap: 8px;
-  font-size: 16px; font-weight: 600; letter-spacing: .01em;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  transition: transform .12s, background-color .15s, box-shadow .15s;
-  -webkit-tap-highlight-color: transparent;
-}
-.btn-primary {
-  height: 52px; background: var(--neon); color: #0b1004;
-  box-shadow: 0 8px 22px rgba(var(--neon-rgb), .2), inset 0 1px 0 rgba(255, 255, 255, .45);
-}
-.btn-secondary { background: var(--ltone); color: var(--lime-ink); }
-.btn-tertiary { height: 44px; padding: 0 14px; background: none; color: var(--neon); }
-.btn-danger { background: #ff6a5f; color: #1a0503; }
-.icon-btn {
-  width: 48px; height: 48px; padding: 0; border-radius: 50%; display: grid; place-items: center;
-  background: var(--tone); color: var(--text); font-size: 24px; line-height: 1;
-  transition: transform .12s, background-color .15s; -webkit-tap-highlight-color: transparent;
-}
-.close-btn { width: 44px; height: 44px; flex: none; }
-@media (hover: hover) {
-  .btn-primary:hover:not(:disabled) { background: #d4ff58; }
-  .btn-secondary:hover:not(:disabled) { background: var(--ltone-2); }
-  .btn-tertiary:hover:not(:disabled) { background: rgba(var(--neon-rgb), .08); }
-  .icon-btn:not(.on):hover:not(:disabled) { background: var(--tone-2); }
-}
-:is(.btn, .icon-btn):active:not(:disabled) { transform: scale(.96); }
-.btn-primary:active:not(:disabled) { background: #b3ea1d; box-shadow: 0 3px 10px rgba(var(--neon-rgb), .18); }
-.btn-secondary:active:not(:disabled) { background: var(--ltone-press); }
-.btn-tertiary:active:not(:disabled) { background: rgba(var(--neon-rgb), .14); }
-.icon-btn:not(.on):active:not(:disabled) { background: var(--tone-press); }
-:is(.btn, .icon-btn):disabled { background: #1a2029; color: #566070; box-shadow: none; cursor: not-allowed; }
-.btn-tertiary:disabled { background: none; }
-button:focus-visible { outline: 3px solid var(--neon); outline-offset: 3px; }
 /* Busy (Generate, Find): stays lime, with a spinner. */
 .go .t2 { display: none; align-items: center; gap: 10px; }
 .loading .go .t1 { display: none; }
 .loading .go .t2 { display: inline-flex; }
 .loading .go:disabled { background: var(--neon); color: #0b1004; cursor: progress; }
-.spin { width: 16px; height: 16px; border-radius: 50%; border: 2.5px solid currentColor; border-right-color: transparent; animation: spin .8s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
 /* Fields: email, icon search and the distance. */
 .field, .drawer input, .sheet-head input {
   height: 50px; padding: 0 16px; border-radius: 16px; border: 2px solid transparent;
@@ -274,6 +201,37 @@ dialog.account:not([data-view="account"]) #delete-account { display: none; }
 .conn-msg { margin: 0; font-size: 15px; line-height: 1.45; color: #ffd3e4; }
 .drawer .conn-msg { color: #ffd3e4; }
 .conn-msg:empty { display: none; }
+/* Export's Download GPX and Copy link: one under the other while Download
+   GPX is the primary, side by side when Send is (UI.md, Export dialog). */
+.export-pair { display: grid; gap: 10px; }
+.export-pair.two { grid-template-columns: 1fr 1fr; }
+.export-pair.two .btn { padding-inline: 12px; }
+.export-pair .btn[hidden] { display: none; }
+/* Link box (UI.md): the link just made, and what it means. */
+.link-box { display: grid; gap: 4px; padding: 12px 14px; border-radius: 16px; background: var(--card); }
+.link-box[hidden] { display: none; }
+.link-url { font-size: 15px; color: var(--text); overflow-wrap: anywhere; user-select: all; -webkit-user-select: all; }
+.link-box p { margin: 0; font-size: 14px; line-height: 1.4; color: var(--dim); }
+.link-box a { color: var(--neon); font-weight: 600; text-decoration: none; }
+.link-box a:hover { text-decoration: underline; }
+/* Settings rows (UI.md): in the account menu, each opens a page of its own. */
+.rows { display: grid; gap: 1px; border-radius: 18px; overflow: hidden; }
+.row-link {
+  display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 0 14px 0 16px;
+  background: var(--card); color: var(--text); text-decoration: none; font-size: 16px; font-weight: 600;
+  transition: background-color .15s; -webkit-tap-highlight-color: transparent;
+}
+.row-link > svg { flex: none; color: var(--dim); }
+.row-link .row-chev { color: var(--dim-2); }
+.row-label { flex: 1; min-width: 0; }
+.row-link:active { background: var(--tone-2); }
+.row-link:focus-visible { outline: 3px solid var(--neon); outline-offset: -3px; }
+@media (hover: hover) { .row-link:hover { background: var(--tone); } }
+.badge {
+  min-width: 24px; height: 24px; padding: 0 8px; border-radius: 999px; display: inline-grid; place-items: center;
+  background: var(--ltone); color: var(--lime-ink); font-size: 13px; font-weight: 700;
+}
+.badge[hidden] { display: none; }
 /* Export dialog (export.js): the buttons hide and show as the state changes. */
 #export-dialog .btn[hidden] { display: none; }
 #export-dialog .btn[aria-busy="true"] { pointer-events: none; cursor: progress; }

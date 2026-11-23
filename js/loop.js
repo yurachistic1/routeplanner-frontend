@@ -774,6 +774,7 @@ export function createLoopMode(map, mapReady, opts) {
       shape: r.shape,
       distance: r.distance,
       points,
+      share: r, // for Copy link: the route as favourites keep it
       // heights for <ele> and Garmin courses, where the route has them
       ...(r.elevation && { heights: heightsAt(r, points), climb: r.climb }),
       gpxName: name,

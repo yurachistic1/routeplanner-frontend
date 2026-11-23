@@ -915,6 +915,7 @@ export function createP2PMode(map, mapReady, opts) {
       kind: "p2p",
       distance: route.distance,
       points,
+      share: { kind: "p2p", raw: route.raw, distance: route.distance, info: route.info, ...(route.elevation && { ...shrinkProfile(route.elevation, route.elevationStep), climb: route.climb }) }, // for Copy link, as favourites keep it
       ...(route.elevation && { heights: heightsAt(route, points), climb: route.climb }),
       gpxName: name,
       fileName: `${name.replaceAll(" ", "-")}.gpx`,

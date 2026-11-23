@@ -30,7 +30,7 @@
 <body>
   <a class="back" href="../">← Back to Runthe</a>
   <h1>Privacy</h1>
-  <p class="updated">Last updated 18 November 2026</p>
+  <p class="updated">Last updated 23 November 2026</p>
 
   <p>Runthe is a free personal project that generates running routes. There are no adverts, no analytics and no tracking cookies, and your data is never sold.</p>
 
@@ -38,7 +38,7 @@
   <p>Runthe is run by Yury Chistov, an individual based in the UK, who is the data controller. For anything about your data, email <a href="mailto:hello@runthe.uk">hello@runthe.uk</a>.</p>
 
   <h2>Planning routes, with no account</h2>
-  <p>To plan a route, your start point and distance are sent to Runthe's server on Google Cloud. They're used to work out your routes, and neither they nor the routes are saved or logged. The server's request logs record your IP address, your browser type and the time. These logs are kept for 30 days to keep the service running and to spot abuse, and are then deleted.</p>
+  <p>To plan a route, your start point and distance are sent to Runthe's server on Google Cloud. They're used to work out your routes, and neither they nor the routes are saved or logged, unless you share a route (below). The server's request logs record your IP address, your browser type and the time. These logs are kept for 30 days to keep the service running and to spot abuse, and are then deleted.</p>
   <p>GPS art works the same way, with one difference. When you search with one of the built-in icons, the search runs from the middle of the 2 km square your map is centred in, and the routes it finds are kept on the server (in London) so anyone searching for that icon in that square gets them straight away. They're deleted after 60 days. They record the square and the icon, not who searched. Shapes you draw yourself aren't kept.</p>
 
   <h2>If you create an account</h2>
@@ -49,6 +49,13 @@
     <li><strong>Favourites:</strong> each saved route's line, distance, the notes shown in Route info (uncertain paths, its climb and height profile) and the time you saved it. The line includes its start point.</li>
   </ul>
   <p>Only you can read your favourites. Runthe keeps this data until you delete it. The maintainer can technically access it to run the service, but doesn't look at it otherwise.</p>
+
+  <h2>If you share a route</h2>
+  <p>When you choose Copy link, the route is sent to Runthe's sharing server (Google Cloud, Belgium) and kept in Google Cloud in London so the link can show it: its line (including its start point), distance, climb and heights, the notes shown in Route info, the shape's name for GPS art, and the name of the area it starts in. A picture of the route over the streets around it is made for the previews chat apps show. Anyone with the link can see the route, and chat apps you paste it into fetch the picture and the route's name. Shared routes are kept out of search engines. As when planning, the server's request logs record your IP address, your browser type and the time, and are deleted after 30 days.</p>
+  <ul>
+    <li><strong>Signed in:</strong> the link is kept with your account's unique ID, so you can see and delete it on the Shared links page in the account menu. It's kept until you delete it or your account.</li>
+    <li><strong>Signed out:</strong> nothing is kept saying who shared it. The link is deleted a year after it was last opened. As it isn't linked to you, Runthe can delete it sooner only if you send the link to the address above.</li>
+  </ul>
 
   <section class="garmin" hidden>
     <h2>If you connect Garmin Connect</h2>
@@ -70,7 +77,7 @@
   <h2>Who else is involved</h2>
   <p>Like any website, these services receive your IP address when your browser contacts them:</p>
   <ul>
-    <li><strong>Google:</strong> runs the route server (London), accounts and favourites (Firebase, with favourites stored in London), sends sign-in emails and serves the fonts.</li>
+    <li><strong>Google:</strong> runs the route server (London), runs sharing (Belgium) and keeps shared routes (London), runs accounts and favourites (Firebase, with favourites stored in London), sends sign-in emails and serves the fonts.</li>
     <li><strong>GitHub:</strong> hosts this website.</li>
     <li><strong>OpenFreeMap:</strong> supplies the map, so it can see which areas you view.</li>
     <li><strong>Esri:</strong> supplies the satellite images when you turn on the satellite view, so it can see which areas you view then.</li>
@@ -86,7 +93,7 @@
 
   <h2>Your rights</h2>
   <p>You can ask for a copy of your data, or ask for it to be corrected, deleted or restricted, and you can object to how it's used. Email <a href="mailto:hello@runthe.uk">hello@runthe.uk</a> to do any of these.</p>
-  <p>To delete your account and favourites yourself, open the account menu and choose Delete account. They're removed straight away<span class="garmin" hidden>, and Garmin Connect is disconnected</span>. Server logs expire within 30 days.</p>
+  <p>To delete your account, favourites and shared links yourself, open the account menu and choose Delete account. They're removed straight away<span class="garmin" hidden>, and Garmin Connect is disconnected</span>. Server logs expire within 30 days.</p>
   <p>If you're unhappy with how your data is handled, you can complain to the <a href="https://ico.org.uk/make-a-complaint/">Information Commissioner's Office</a>.</p>
 
   <h2>Children</h2>
@@ -103,7 +110,7 @@
        local until Garmin's notice period ends): the same switch as the app.
        Keep the ?v= in step with index.html's garmin.js. -->
   <script type="module">
-    import { GARMIN_BASE } from "../js/garmin.js?v=110";
+    import { GARMIN_BASE } from "../js/garmin.js?v=113";
     if (GARMIN_BASE) {
       for (const el of document.querySelectorAll(".garmin")) el.hidden = false;
       for (const el of document.querySelectorAll(".no-garmin")) el.hidden = true;

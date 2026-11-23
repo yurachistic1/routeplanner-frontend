@@ -16,7 +16,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@800&text=RUNTHEFAVOIS&display=swap" rel="stylesheet" />
   <link href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css" rel="stylesheet" />
   <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
-  <link href="./css/styles.css?v=92" rel="stylesheet" />
+  <link href="./css/tonal.css?v=93" rel="stylesheet" />
+  <link href="./css/styles.css?v=93" rel="stylesheet" />
 </head>
 <body>
   <div id="map"></div>
@@ -88,7 +89,7 @@
       </section>
       <div class="nav">
         <button class="icon-btn nav-btn" id="prev" aria-label="Previous route"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m14.5 5-7 7 7 7"/></svg></button>
-        <button class="btn btn-primary" id="download">Export GPX</button>
+        <button class="btn btn-primary" id="download">Export</button>
         <button class="icon-btn nav-btn" id="next" aria-label="Next route"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9.5 5 7 7-7 7"/></svg></button>
       </div>
       <div class="row2">
@@ -134,7 +135,7 @@
       </div>
       <div class="art-found">
         <div class="art-options" id="art-options"></div>
-        <button class="btn btn-primary" id="art-download">Export GPX</button>
+        <button class="btn btn-primary" id="art-download">Export</button>
         <div class="art-row">
           <button class="icon-btn fav" id="art-fav" aria-label="Favourite this route" aria-pressed="false">
             <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 20.5S3 15 3 8.8A4.8 4.8 0 0 1 12 6.5a4.8 4.8 0 0 1 9 2.3C21 15 12 20.5 12 20.5z"/></svg>
@@ -184,7 +185,7 @@
         <p class="warn-text" id="p2p-warn-text" hidden>We don't know their surface or whether they're looked after, so they may not be good for running in all conditions. They're dashed on the map.</p>
       </div>
       <div class="p2p-actions">
-        <button class="btn btn-primary" id="p2p-export">Export GPX</button>
+        <button class="btn btn-primary" id="p2p-export">Export</button>
         <button class="icon-btn fav" id="p2p-fav" aria-label="Favourite this route" aria-pressed="false">
           <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 20.5S3 15 3 8.8A4.8 4.8 0 0 1 12 6.5a4.8 4.8 0 0 1 9 2.3C21 15 12 20.5 12 20.5z"/></svg>
         </button>
@@ -249,6 +250,16 @@
           <p id="account-email"></p>
           <button class="btn btn-secondary" id="sign-out">Sign out</button>
         </div>
+        <!-- Settings rows (UI.md): each opens a plain page of its own. -->
+        <h3 class="drawer-label" id="routes-label">Your routes</h3>
+        <nav class="rows" aria-labelledby="routes-label">
+          <a class="row-link" href="./links/">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>
+            <span class="row-label">Shared links</span>
+            <span class="badge" id="links-count" hidden></span>
+            <svg class="row-chev" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
+          </a>
+        </nav>
         <section class="garmin" id="garmin" aria-labelledby="garmin-label" hidden>
           <h3 class="drawer-label" id="garmin-label">Watch</h3>
           <div class="conn">
@@ -266,7 +277,7 @@
 
       <div data-view="delete">
         <h2>Delete account?</h2>
-        <p>This permanently removes your account and all your favourites. It can't be undone.</p>
+        <p>This permanently removes your account, all your favourites and the links you've shared. It can't be undone.</p>
         <button class="btn btn-danger" id="delete-confirm">Delete my account</button>
         <button class="btn btn-secondary" id="delete-cancel">Keep my account</button>
       </div>
@@ -301,7 +312,7 @@
         <button class="icon-btn close-btn sheet-close" id="export-close" aria-label="Close"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
       </div>
       <p class="sheet-note" id="export-route"></p>
-      <div class="conn">
+      <div class="conn" id="export-garmin">
         <img class="conn-logo" src="./assets/garmin-connect.png" alt="" width="32" height="32" />
         <div class="conn-text">
           <div class="conn-name">Garmin Connect</div>
@@ -313,7 +324,17 @@
       <p class="conn-msg" id="export-msg" role="status"></p>
       <button class="btn btn-primary" id="export-send" hidden>Send to Garmin Connect</button>
       <button class="btn btn-primary" id="export-done" hidden>Done</button>
-      <button class="btn btn-secondary" id="export-gpx">Download GPX</button>
+      <!-- Side by side when both are secondary (Send is the primary);
+           otherwise Download GPX is the primary, Copy link under it. -->
+      <div class="export-pair" id="export-pair">
+        <button class="btn btn-secondary" id="export-gpx">Download GPX</button>
+        <button class="btn btn-secondary" id="export-link">Copy link</button>
+      </div>
+      <!-- The link once made, and what it means (UI.md, Link box). -->
+      <div class="link-box" id="export-link-box" role="status" hidden>
+        <span class="link-url mono" id="export-link-url"></span>
+        <p id="export-link-note"></p>
+      </div>
     </div>
   </dialog>
 
@@ -358,28 +379,30 @@
   <script type="importmap">
   {
     "imports": {
-      "./js/account.js": "./js/account.js?v=110",
-      "./js/api.js": "./js/api.js?v=110",
-      "./js/art.js": "./js/art.js?v=110",
-      "./js/export.js": "./js/export.js?v=110",
-      "./js/garmin.js": "./js/garmin.js?v=110",
-      "./js/geometry.js": "./js/geometry.js?v=110",
-      "./js/lanes.js": "./js/lanes.js?v=110",
-      "./js/loop.js": "./js/loop.js?v=110",
-      "./js/main.js": "./js/main.js?v=110",
-      "./js/map.js": "./js/map.js?v=110",
-      "./js/mapstyle.js": "./js/mapstyle.js?v=110",
-      "./js/modes.js": "./js/modes.js?v=110",
-      "./js/p2p.js": "./js/p2p.js?v=110",
-      "./js/panel.js": "./js/panel.js?v=110",
-      "./js/polyline.js": "./js/polyline.js?v=110",
-      "./js/profile.js": "./js/profile.js?v=110",
-      "./js/shapes.js": "./js/shapes.js?v=110",
-      "./js/spot.js": "./js/spot.js?v=110",
-      "./js/ui.js": "./js/ui.js?v=110"
+      "./js/account.js": "./js/account.js?v=113",
+      "./js/api.js": "./js/api.js?v=113",
+      "./js/art.js": "./js/art.js?v=113",
+      "./js/export.js": "./js/export.js?v=113",
+      "./js/firebase.js": "./js/firebase.js?v=113",
+      "./js/garmin.js": "./js/garmin.js?v=113",
+      "./js/geometry.js": "./js/geometry.js?v=113",
+      "./js/lanes.js": "./js/lanes.js?v=113",
+      "./js/loop.js": "./js/loop.js?v=113",
+      "./js/main.js": "./js/main.js?v=113",
+      "./js/map.js": "./js/map.js?v=113",
+      "./js/mapstyle.js": "./js/mapstyle.js?v=113",
+      "./js/modes.js": "./js/modes.js?v=113",
+      "./js/p2p.js": "./js/p2p.js?v=113",
+      "./js/panel.js": "./js/panel.js?v=113",
+      "./js/polyline.js": "./js/polyline.js?v=113",
+      "./js/profile.js": "./js/profile.js?v=113",
+      "./js/share.js": "./js/share.js?v=113",
+      "./js/shapes.js": "./js/shapes.js?v=113",
+      "./js/spot.js": "./js/spot.js?v=113",
+      "./js/ui.js": "./js/ui.js?v=113"
     }
   }
   </script>
-  <script type="module" src="./js/main.js?v=110"></script>
+  <script type="module" src="./js/main.js?v=113"></script>
 </body>
 </html>

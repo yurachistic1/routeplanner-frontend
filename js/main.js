@@ -9,6 +9,7 @@ import { createMap, addCredits, addLocate, addSatellite, placeMapTools } from ".
 import { buildStyle, ATTRIBUTION } from "./mapstyle.js";
 import { registerMode, createModeBar, setMode, currentMode, focusMode } from "./modes.js";
 import { createP2PMode } from "./p2p.js";
+import { createShare } from "./share.js";
 
 // "Dusk": a lighter dark map, so roads and parks are easy to read. Paths are
 // dashed, and turn sand-coloured close up so they stand out under the route
@@ -82,7 +83,8 @@ function routePadding({ list = false, over = null } = {}) {
 
 // ----- loop mode -----
 const account = createAccount({ openFavourites: () => setMode("favourites") });
-const exporter = createExport({ account });
+const share = createShare({ account });
+const exporter = createExport({ account, share });
 const app = createLoopMode(map, ready, {
   animate: true,
   // Closed from the top bar's back arrow, by signing out or by removing the
@@ -201,5 +203,10 @@ registerMode("p2p", createP2PMode(map, ready, {
 createModeBar("loop", map);
 // Focus, over the map: frames the current mode's route (js/modes.js)
 document.getElementById("focus").addEventListener("click", focusMode);
+
+// A shared link (https://r.runthe.uk/<id>) comes here as #s=<id>: its route
+// opens in loop mode's route viewer (js/share.js).
+const sharedId = share.linkInAddress();
+if (sharedId) share.openShared(sharedId, app);
 
 document.getElementById("list-close").addEventListener("click", () => document.body.classList.remove("list-open"));

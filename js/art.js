@@ -338,6 +338,7 @@ export function createArtMode(map, mapReady, opts) {
       shape: state.shape?.name,
       distance: r.distance,
       points: r.path,
+      share: { ...r, kind: "art", shape: state.shape?.name }, // for Copy link
       gpxName: name,
       fileName: `${name.replaceAll(" ", "-")}.gpx`,
     });
