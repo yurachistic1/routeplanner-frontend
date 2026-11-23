@@ -35,7 +35,7 @@
 import { LEGS_BASE } from "./api.js";
 import { lineLength, M_LAT, metresPerPixel, mLon, pointAlong, segLength } from "./geometry.js";
 import { routeFeatures, routePieces, samePoint } from "./lanes.js";
-import { setSourceVisible } from "./map.js";
+import { frameOnMap, setSourceVisible } from "./map.js";
 import { attachGrip, createSmoother } from "./panel.js";
 import { climbOf, heightsAt, renderProfile, shrinkProfile, smoothHeights } from "./profile.js";
 import { whyNotHere } from "./spot.js";
@@ -71,7 +71,7 @@ const MAX_LEG_M = 20000;
 
 /**
  * createP2PMode(map, mapReady, opts) wires up the A to B panel and returns
- * { enter, leave } for js/modes.js.
+ * { enter, leave, canFocus, focus } for js/modes.js.
  *   addP2PLayers(map): adds the layers that draw source "p2p" (pieces from
  *     js/lanes.js, with their widths and offsets as properties)
  *   favourites: { toggle(route), has(route), onChange(fn) } from accounts
@@ -742,6 +742,13 @@ export function createP2PMode(map, mapReady, opts) {
     if (camera) map.easeTo({ ...camera, duration: 550 });
   }
 
+  // Focus (js/modes.js): the whole route framed, or just A before there's a
+  // leg, clear of the panel, the top bar and Undo and Clear. Nothing before A.
+  const canFocus = () => state.points.length > 0;
+  function focus() {
+    if (state.points.length) frameOnMap(map, route ? [...route.raw, ...state.points] : state.points, opts.padding());
+  }
+
   // A tap that placed no point says why in the pink toast, like a change
   // of routing that couldn't re-route the last leg (the user, 2026-11-23:
   // every routing error in the toast). reason: as the leg service gives it.
@@ -935,5 +942,5 @@ export function createP2PMode(map, mapReady, opts) {
   renderChoices();
   render();
 
-  return { enter, leave };
+  return { enter, leave, canFocus, focus };
 }

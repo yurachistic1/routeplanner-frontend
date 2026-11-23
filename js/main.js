@@ -7,7 +7,7 @@ import { createExport } from "./export.js";
 import { createLoopMode } from "./loop.js";
 import { createMap, addCredits, addLocate, addSatellite, placeMapTools } from "./map.js";
 import { buildStyle, ATTRIBUTION } from "./mapstyle.js";
-import { registerMode, createModeBar, setMode, currentMode } from "./modes.js";
+import { registerMode, createModeBar, setMode, currentMode, focusMode } from "./modes.js";
 import { createP2PMode } from "./p2p.js";
 
 // "Dusk": a lighter dark map, so roads and parks are easy to read. Paths are
@@ -59,7 +59,8 @@ placeMapTools();
 
 // Room to leave round a route on screen, for every mode: clear of the top
 // bar and the panel (on laptops, beside it), and of the route list on the
-// right where list is set (offsetWidth ignores its slide-in). over: more
+// right where list is set, while it's out (offsetWidth ignores its slide-in;
+// out of sight, as when Focus centres a start, it leaves no gap). over: more
 // things floating above the panel on phones, such as A to B's Undo and
 // Clear, that the route should stay clear of too.
 function routePadding({ list = false, over = null } = {}) {
@@ -67,7 +68,8 @@ function routePadding({ list = false, over = null } = {}) {
     const top = document.querySelector(".hud-top").getBoundingClientRect();
     const deck = document.querySelector(".deck").getBoundingClientRect();
     if (desktop.matches) {
-      return { top: 60, bottom: 60, left: deck.right + 40, right: list ? document.querySelector(".list").offsetWidth + 40 : 60 };
+      const out = list && document.body.classList.contains("show-results");
+      return { top: 60, bottom: 60, left: deck.right + 40, right: out ? document.querySelector(".list").offsetWidth + 40 : 60 };
     }
     let floor = deck.top;
     for (const el of over ? document.querySelectorAll(over) : []) {
@@ -127,6 +129,8 @@ registerMode("favourites", {
   leave: () => app.exitFavourites(),
   // Tapping the heart again while in favourites opens or closes their list.
   reselect: () => app.toggleList(),
+  canFocus: () => app.canFocus(),
+  focus: () => app.focus(),
   keepsView: false,
   restores: "loop",
 });
@@ -195,5 +199,7 @@ registerMode("p2p", createP2PMode(map, ready, {
 // Edit is a placeholder for now (see modes.js).
 // The favourites heart sits in the middle.
 createModeBar("loop", map);
+// Focus, over the map: frames the current mode's route (js/modes.js)
+document.getElementById("focus").addEventListener("click", focusMode);
 
 document.getElementById("list-close").addEventListener("click", () => document.body.classList.remove("list-open"));

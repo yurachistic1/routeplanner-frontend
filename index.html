@@ -16,7 +16,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@800&text=RUNTHEFAVOIS&display=swap" rel="stylesheet" />
   <link href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css" rel="stylesheet" />
   <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
-  <link href="./css/styles.css?v=90" rel="stylesheet" />
+  <link href="./css/styles.css?v=92" rel="stylesheet" />
 </head>
 <body>
   <div id="map"></div>
@@ -50,6 +50,9 @@
     </button>
     <button class="locate-btn" id="locate" aria-label="Centre on my location">
       <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="6.5"/><circle cx="12" cy="12" r="2" fill="currentColor" stroke="none"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+    </button>
+    <button class="locate-btn focus-btn" id="focus" aria-label="Show the whole route" disabled>
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8V5a2 2 0 0 1 2-2h3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3"/><path d="M8.5 15.5c2.2 0 2.3-1.7 3-3.5s1.3-3.5 4-3.5"/><circle cx="8.5" cy="15.5" r="1.4" fill="currentColor" stroke="none"/></svg>
     </button>
     <div class="setup">
       <button class="btn btn-secondary back" id="back" aria-label="Back to routes"><span id="back-label">Back to routes</span><span class="back-short" aria-hidden="true">Back</span><kbd>Esc</kbd></button>
@@ -355,28 +358,28 @@
   <script type="importmap">
   {
     "imports": {
-      "./js/account.js": "./js/account.js?v=108",
-      "./js/api.js": "./js/api.js?v=108",
-      "./js/art.js": "./js/art.js?v=108",
-      "./js/export.js": "./js/export.js?v=108",
-      "./js/garmin.js": "./js/garmin.js?v=108",
-      "./js/geometry.js": "./js/geometry.js?v=108",
-      "./js/lanes.js": "./js/lanes.js?v=108",
-      "./js/loop.js": "./js/loop.js?v=108",
-      "./js/main.js": "./js/main.js?v=108",
-      "./js/map.js": "./js/map.js?v=108",
-      "./js/mapstyle.js": "./js/mapstyle.js?v=108",
-      "./js/modes.js": "./js/modes.js?v=108",
-      "./js/p2p.js": "./js/p2p.js?v=108",
-      "./js/panel.js": "./js/panel.js?v=108",
-      "./js/polyline.js": "./js/polyline.js?v=108",
-      "./js/profile.js": "./js/profile.js?v=108",
-      "./js/shapes.js": "./js/shapes.js?v=108",
-      "./js/spot.js": "./js/spot.js?v=108",
-      "./js/ui.js": "./js/ui.js?v=108"
+      "./js/account.js": "./js/account.js?v=110",
+      "./js/api.js": "./js/api.js?v=110",
+      "./js/art.js": "./js/art.js?v=110",
+      "./js/export.js": "./js/export.js?v=110",
+      "./js/garmin.js": "./js/garmin.js?v=110",
+      "./js/geometry.js": "./js/geometry.js?v=110",
+      "./js/lanes.js": "./js/lanes.js?v=110",
+      "./js/loop.js": "./js/loop.js?v=110",
+      "./js/main.js": "./js/main.js?v=110",
+      "./js/map.js": "./js/map.js?v=110",
+      "./js/mapstyle.js": "./js/mapstyle.js?v=110",
+      "./js/modes.js": "./js/modes.js?v=110",
+      "./js/p2p.js": "./js/p2p.js?v=110",
+      "./js/panel.js": "./js/panel.js?v=110",
+      "./js/polyline.js": "./js/polyline.js?v=110",
+      "./js/profile.js": "./js/profile.js?v=110",
+      "./js/shapes.js": "./js/shapes.js?v=110",
+      "./js/spot.js": "./js/spot.js?v=110",
+      "./js/ui.js": "./js/ui.js?v=110"
     }
   }
   </script>
-  <script type="module" src="./js/main.js?v=108"></script>
+  <script type="module" src="./js/main.js?v=110"></script>
 </body>
 </html>

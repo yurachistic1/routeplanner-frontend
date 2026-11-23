@@ -496,10 +496,11 @@ body:not(.show-results):not(.loading) .start-marker::before { animation: pulse 2
   max-width: 0; padding-left: 0; padding-right: 0; opacity: 0; border-color: transparent; pointer-events: none;
 }
 
-/* My location: a round button just above the bottom panel on the left,
-   moving with the panel. The dot marks where you are. */
+/* The round buttons over the map, stacked above the bottom panel on the
+   left and moving with it: Focus nearest the panel, My location above it
+   (the dot marks where you are), Satellite on top, 54px apart. */
 .locate-btn {
-  position: absolute; left: 0; bottom: calc(100% + 10px);
+  position: absolute; left: 0; bottom: calc(100% + 64px);
   width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center;
   background: var(--float); color: var(--text); box-shadow: 0 6px 16px rgba(0, 0, 0, .5);
   transition: transform .12s, background-color .15s; -webkit-tap-highlight-color: transparent;
@@ -507,13 +508,20 @@ body:not(.show-results):not(.loading) .start-marker::before { animation: pulse 2
 .locate-btn[hidden] { display: none; }
 /* No room above the panel (a short phone with a tall panel: js/map.js
    fit): they fade out rather than sit on the top bar. */
-.locate-btn { transition: transform .12s, background-color .15s, opacity .18s, visibility .18s; }
-.no-sat-btn .sat-btn, .no-locate-btn #locate { opacity: 0; visibility: hidden; pointer-events: none; }
-/* Satellite toggle: the same round button, stacked above the location one. */
-.sat-btn { bottom: calc(100% + 64px); }
+.locate-btn { transition: transform .12s, background-color .15s, color .15s, box-shadow .15s, opacity .18s, visibility .18s; }
+.no-sat-btn .sat-btn, .no-locate-btn #locate, .no-focus-btn #focus { opacity: 0; visibility: hidden; pointer-events: none; }
+/* Satellite toggle: the same round button, on top. */
+.sat-btn { bottom: calc(100% + 118px); }
+/* Focus (2026-11-23, the user): frames what the mode has on the map (the
+   route, or only its start before there's a leg; each mode's focus() in
+   js/modes.js). With nothing there yet (no start in Loop or A to B, GPS
+   art before a search) it's disabled, like Undo with nothing to undo,
+   rather than leaving a gap (the user). */
+.focus-btn { bottom: calc(100% + 10px); }
+.locate-btn:disabled { background: #1a2029; color: #566070; box-shadow: none; cursor: not-allowed; }
 .sat-btn[aria-pressed="true"] { color: var(--neon); background: var(--ltone); }
-.locate-btn:active { transform: scale(.94); }
-.locate-btn:not([aria-pressed="true"]):active { background: var(--tone-press); }
+.locate-btn:active:not(:disabled) { transform: scale(.94); }
+.locate-btn:not([aria-pressed="true"]):active:not(:disabled) { background: var(--tone-press); }
 .locate-btn.busy svg { animation: locate-busy 1s ease-in-out infinite; }
 @keyframes locate-busy { 50% { opacity: .35; } }
 .me-dot {
@@ -1040,9 +1048,10 @@ body:not(.show-results) .loop-finish, :is([data-mode="art"], [data-mode="p2p"]) 
   .p2p .profile-chart { height: 84px; }
   /* room for the grip: the panel, and everything floating above it, moves up */
   body[data-mode="p2p"].p2p-has-leg .deck { padding-top: 28px; }
-  body[data-mode="p2p"].p2p-has-leg :is(.p2p-history, .locate-btn) { bottom: calc(100% + 18px); }
-  body[data-mode="p2p"].p2p-has-leg .sat-btn { bottom: calc(100% + 72px); }
-  /* clear of My location, at the panel's left end */
+  body[data-mode="p2p"].p2p-has-leg .locate-btn { bottom: calc(100% + 72px); }
+  body[data-mode="p2p"].p2p-has-leg :is(.p2p-history, .focus-btn) { bottom: calc(100% + 18px); }
+  body[data-mode="p2p"].p2p-has-leg .sat-btn { bottom: calc(100% + 126px); }
+  /* clear of Focus, at the panel's left end */
   .p2p-history { max-width: calc(100% - 54px); }
 }
 /* The route's part of the panel grows in and shrinks away (js/p2p.js,
@@ -1052,6 +1061,6 @@ body:not(.show-results) .loop-finish, :is([data-mode="art"], [data-mode="p2p"]) 
   body[data-mode="p2p"] .deck { transition: padding-top .28s cubic-bezier(.2, .8, .2, 1); }
   body[data-mode="p2p"] .p2p-history { transition: bottom .28s cubic-bezier(.2, .8, .2, 1); }
   body[data-mode="p2p"] .locate-btn {
-    transition: bottom .28s cubic-bezier(.2, .8, .2, 1), transform .12s, background-color .15s, opacity .18s, visibility .18s;
+    transition: bottom .28s cubic-bezier(.2, .8, .2, 1), transform .12s, background-color .15s, color .15s, box-shadow .15s, opacity .18s, visibility .18s;
   }
 }

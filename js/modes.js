@@ -51,22 +51,33 @@ export const MODES = [
     '<circle cx="7.5" cy="11.5" r="1.1" fill="currentColor"/><circle cx="10" cy="7.3" r="1.1" fill="currentColor"/><circle cx="15" cy="7.5" r="1.1" fill="currentColor"/>') },
 ];
 
-const handlers = new Map(); // id -> { canEnter, enter, leave, reselect, canGoBack, goBack, keepsView, restores }
+const handlers = new Map(); // id -> { canEnter, enter, leave, reselect, canGoBack, goBack, canFocus, focus, keepsView, restores }
 const views = new Map(); // id -> the map's view when that mode was left
 let current = null;
 let map = null;
 
 // Plug in a working mode. Modes without one show "coming soon". reselect()
 // runs when the current mode's button is tapped again. canGoBack() says
-// whether the mode's Back is showing, and goBack() does it.
+// whether the mode's Back is showing, and goBack() does it. focus() is the
+// Focus button over the map (2026-11-23): it frames the mode's route, or
+// its start before there's a route (js/map.js, frameOnMap); canFocus()
+// says whether there's one of those, and the button is disabled while
+// there isn't. It's asked whenever the mode or <body>'s classes change
+// (syncFocus, below), so a mode keeps a class on <body> in step with it,
+// as each does already (has-start, p2p-has-point, art-results).
 export function registerMode(id, {
   canEnter = () => true, enter = () => {}, leave = () => {}, reselect = () => {},
-  canGoBack = () => false, goBack = () => {}, keepsView = true, restores = null,
+  canGoBack = () => false, goBack = () => {}, canFocus = () => false, focus = () => {}, keepsView = true, restores = null,
 } = {}) {
-  handlers.set(id, { canEnter, enter, leave, reselect, canGoBack, goBack, keepsView, restores });
+  handlers.set(id, { canEnter, enter, leave, reselect, canGoBack, goBack, canFocus, focus, keepsView, restores });
 }
 
 export const currentMode = () => current;
+export const focusMode = () => current && handlers.get(current).focus();
+function syncFocus() {
+  const btn = $("focus");
+  if (btn) btn.disabled = !(current && handlers.get(current).canFocus());
+}
 
 export function setMode(id) {
   if (id === current) return handlers.get(id).reselect();
@@ -112,7 +123,7 @@ addEventListener("popstate", () => {
   else if (canGoBack()) handlers.get(current).goBack();
   syncHistory();
 });
-new MutationObserver(syncHistory).observe(document.body, { attributes: true, attributeFilter: ["class", "data-mode"] });
+new MutationObserver(() => { syncHistory(); syncFocus(); }).observe(document.body, { attributes: true, attributeFilter: ["class", "data-mode"] });
 // The modes' Back buttons and Esc: through history when our entry is
 // there, so it's used up.
 export function goBack() {
