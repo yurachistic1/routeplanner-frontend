@@ -178,6 +178,7 @@ dialog.account[data-view="delete"] .drawer > [data-view="delete"] { display: gri
 /* Privacy and Delete account: tertiary, lime words. */
 .drawer-link { min-height: 44px; display: inline-flex; align-items: center; padding: 10px 0; font-size: 15px; font-weight: 600; color: var(--neon); text-decoration: none; text-underline-offset: .2em; }
 .drawer-link:hover { text-decoration: underline; }
+.drawer-links { display: flex; gap: 24px; }
 dialog.account:not([data-view="account"]) #delete-account { display: none; }
 .account-close { position: absolute; z-index: 1; top: calc(14px + env(safe-area-inset-top)); right: 12px; }
 /* Connection card (UI.md): a linked service in the account menu, Garmin
