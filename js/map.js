@@ -1,5 +1,5 @@
 // The map and the controls on it that every mode shares: the credits (ⓘ),
-// centring on your location and satellite view. Modes draw on the map with
+// centring on your location, satellite view and Focus's move (frameOnMap). Modes draw on the map with
 // their own sources and layers; see js/modes.js.
 
 import { $, toast } from "./ui.js";
@@ -87,32 +87,32 @@ export function setSourceVisible(map, source, visible) {
 }
 
 // ----- where the map's own buttons sit -----
-// Phones: the credits (ⓘ) under the top bar, and Satellite and My location
-// just above the bottom panel, moving with it. Laptops: all three together
-// at the top right of the map (2026-11-16): the panel can be tall there (GPS
-// art with everything open), which pushed the buttons up over the top bar.
-// They move between the two when the window is resized.
+// Phones: the credits (ⓘ) under the top bar, and Satellite, My location
+// and Focus just above the bottom panel, moving with it. Laptops: all four
+// together at the top right of the map (2026-11-16): the panel can be tall
+// there (GPS art with everything open), which pushed the buttons up over the
+// top bar. They move between the two when the window is resized.
 export function placeMapTools() {
   const deck = document.querySelector(".deck"), hud = document.querySelector(".hud-top");
-  const credits = document.querySelector(".credits"), sat = $("satellite"), locate = $("locate");
-  if (!deck || !credits || !sat || !locate) return;
+  const credits = document.querySelector(".credits"), sat = $("satellite"), locate = $("locate"), focus = $("focus");
+  if (!deck || !credits || !sat || !locate || !focus) return;
   const tools = document.createElement("div");
   tools.className = "map-tools";
   deck.parentElement.append(tools);
   const wide = matchMedia("(min-width: 900px)");
   const place = () => {
-    if (wide.matches) tools.append(credits, sat, locate);
-    else { hud.append(credits); deck.prepend(sat, locate); }
+    if (wide.matches) tools.append(credits, sat, locate, focus);
+    else { hud.append(credits); deck.prepend(sat, locate, focus); }
     fit();
   };
-  // On phones the two buttons stand above the panel, so a tall panel on a
-  // short screen (route info open with warnings) pushes them up into the
+  // On phones the three buttons stand above the panel, so a tall panel on
+  // a short screen (route info open with warnings) pushes them up into the
   // top bar. Then there's hardly any map to use them on anyway, so they
-  // hide (2026-11-18, the user): Satellite first, My location only if even
-  // it doesn't fit. They come back as the panel shrinks.
+  // hide (2026-11-18, the user): Satellite first, then My location, Focus
+  // only if even it doesn't fit. They come back as the panel shrinks.
   const GAP = 8; // px clear of the top bar and the credits
   const fit = () => {
-    let noSat = false, noLocate = false;
+    let noSat = false, noLocate = false, noFocus = false;
     if (!wide.matches) {
       // hidden, they keep their place (visibility), so where they'd be is
       // where they are
@@ -120,14 +120,31 @@ export function placeMapTools() {
       const ceiling = Math.max(hud.getBoundingClientRect().bottom, btn.getBoundingClientRect().bottom) + GAP;
       noSat = sat.getBoundingClientRect().top < ceiling;
       noLocate = locate.getBoundingClientRect().top < ceiling;
+      noFocus = focus.getBoundingClientRect().top < ceiling;
     }
     document.body.classList.toggle("no-sat-btn", noSat);
     document.body.classList.toggle("no-locate-btn", noLocate);
+    document.body.classList.toggle("no-focus-btn", noFocus);
   };
   place();
   wide.addEventListener("change", place);
   addEventListener("resize", fit);
   if ("ResizeObserver" in window) new ResizeObserver(fit).observe(deck);
+}
+
+// ----- Focus -----
+// The #focus button frames what the current mode has on the map (each
+// mode's focus(), js/modes.js), with this: pts ([lon, lat]) framed clear
+// of the panel and the bars (padding, as for showing a route) and no
+// closer than maxZoom, as a route is when it's shown. A lone point (a
+// start before there's a route) is centred in that room instead, at this
+// zoom or 15 if further out.
+export function frameOnMap(map, pts, padding, maxZoom = 16) {
+  if (!pts.length) return;
+  const b = pts.reduce((b, p) => b.extend(p), new maplibregl.LngLatBounds(pts[0], pts[0]));
+  const lone = b.getWest() === b.getEast() && b.getSouth() === b.getNorth();
+  const camera = map.cameraForBounds(b, { padding, maxZoom: lone ? Math.max(map.getZoom(), 15) : maxZoom });
+  if (camera) map.easeTo({ ...camera, duration: 700 });
 }
 
 // ----- my location -----

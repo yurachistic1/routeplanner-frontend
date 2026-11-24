@@ -22,7 +22,7 @@
 
 import { API_BASE } from "./api.js";
 import { smoothLine, metresPerPixel, endsMeet } from "./geometry.js";
-import { setSourceVisible, finishMarker } from "./map.js";
+import { setSourceVisible, finishMarker, frameOnMap } from "./map.js";
 import { goBack } from "./modes.js";
 import { createSmoother, attachGrip } from "./panel.js";
 import { createIconPicker, createDrawPad, isTextIcon } from "./shapes.js";
@@ -56,7 +56,8 @@ function thumbnail(shape, text = false) {
 
 /**
  * createArtMode(map, mapReady, opts) wires up the GPS art panel (.art in the
- * deck) and returns { enter, leave, canGoBack, goBack } for js/modes.js.
+ * deck) and returns { enter, leave, canGoBack, goBack, canFocus, focus } for
+ * js/modes.js.
  *   padding(): room to leave round a route when fitting it on screen
  *   addArtLayers(map): adds the layers that draw source "art", the route
  *   favourites: { toggle(route), has(route), onChange(fn) } from accounts,
@@ -287,6 +288,16 @@ export function createArtMode(map, mapReady, opts) {
     drawIn(r, target ? half(target.zoom) : half(map.getZoom()));
     if (target) map.easeTo({ ...target, duration: 700 });
   }
+  // Focus (js/modes.js): the route on screen framed again, as when it was
+  // shown, so New search goes back to where the search was, as if the map
+  // hadn't moved. Only with a route: disabled while planning.
+  const canFocus = () => !!current();
+  function focus() {
+    const r = current();
+    if (!r) return;
+    frameOnMap(map, r.raw, opts.padding());
+    moved = false;
+  }
   $("art-options").addEventListener("click", (e) => {
     const b = e.target.closest("[data-option]");
     if (b) show(+b.dataset.option);
@@ -327,6 +338,7 @@ export function createArtMode(map, mapReady, opts) {
       shape: state.shape?.name,
       distance: r.distance,
       points: r.path,
+      share: { ...r, kind: "art", shape: state.shape?.name }, // for Copy link
       gpxName: name,
       fileName: `${name.replaceAll(" ", "-")}.gpx`,
     });
@@ -588,5 +600,5 @@ export function createArtMode(map, mapReady, opts) {
     ready.then(() => map.getSource("art").setData(EMPTY));
   }
 
-  return { enter, leave, canGoBack, goBack: backToResults };
+  return { enter, leave, canGoBack, goBack: backToResults, canFocus, focus };
 }

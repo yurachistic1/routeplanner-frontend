@@ -12,16 +12,8 @@ import { encodeLine, decodeLine, lineId } from "./polyline.js";
 import { endsMeet } from "./geometry.js";
 import { createGarmin } from "./garmin.js";
 import { swipeAway } from "./ui.js";
-
-const SDK = "https://www.gstatic.com/firebasejs/13.2.0";
-// These identify the project and are safe to publish. firestore.rules is what
-// protects the data.
-const CONFIG = {
-  apiKey: "AIzaSyC0leJbFb_OM7wZQ8wJT9xbtlTIFiR38gE",
-  authDomain: "runthe-app.firebaseapp.com",
-  projectId: "runthe-app",
-  appId: "1:992600618756:web:c906428e1c3e84189c8251",
-};
+import { SDK, CONFIG } from "./firebase.js";
+import { listShares, deleteAllShares } from "./share.js";
 const UNDO_MS = 5000;
 const RECENT_SIGN_IN_MS = 4 * 60 * 1000;
 const HAS_ACCOUNT = "runthe.hasAccount";
@@ -123,6 +115,67 @@ async function placeOf(point) {
   }
 }
 
+// ----- routes as they're kept -----
+// A favourite keeps its route info (see renderInfo in loop.js) as "info".
+// Firestore can't store lists of lists, so the [from, to] stretches are
+// stored flat: [from, to, from, to, ...]. Favourites saved before
+// 2026-11-08 have no info. Ones saved on 8-9 Nov also hold noPavement,
+// noPavementSpans and back, which are ignored now that the app doesn't
+// warn about roads without a sidewalk or out and backs. Shared links
+// (js/share.js) keep a route the same way.
+const flat = (spans) => (spans ?? []).flat();
+function pairs(list) {
+  const out = [];
+  for (let i = 0; i + 1 < (list?.length ?? 0); i += 2) out.push([list[i], list[i + 1]]);
+  return out;
+}
+// The climb and height profile (js/profile.js), kept since 2026-11-18;
+// favourites saved before, and GPS art, have none.
+const heightsOf = (r) => Array.isArray(r.elevation) && r.elevation.length > 1 && r.elevationStep > 0
+  ? { climb: Math.max(0, Math.round(r.climb ?? 0)), elevation: [...r.elevation], elevationStep: r.elevationStep }
+  : {};
+const packInfo = (i) => ({ countryPaths: i.countryPaths, countryPathSpans: flat(i.countryPathSpans) });
+const unpackInfo = (s) => s && { countryPaths: s.countryPaths ?? 0, countryPathSpans: pairs(s.countryPathSpans) };
+
+// What a favourite holds of route r (firestore.rules says what it may).
+const favouriteData = (r) => ({
+  line: r.line, distance: r.distance, ...(r.info && { info: packInfo(r.info) }), ...(r.shape && { shape: r.shape.slice(0, 60) }),
+  ...(r.kind && { kind: r.kind }), ...heightsOf(r),
+});
+
+// Route r ({ raw: [[lon, lat], ...], distance, ... }) as it's kept, for a
+// shared link.
+export const storedRoute = (r) => favouriteData({ ...r, line: r.line ?? encodeLine(r.raw) });
+
+// A kept route (a favourite, or a shared link's) as the route viewer shows it.
+export function viewerRoute(f, id = lineId(f.line)) {
+  const raw = decodeLine(f.line), heights = heightsOf(f);
+  // The mode that made it (loop, art or p2p), saved since 2026-11-21;
+  // before, only GPS art said so (its shape), and the rest stay unknown.
+  const kind = f.kind ?? (f.shape ? "art" : undefined);
+  // The chart wraps round only where the route ends at its start, and
+  // never for A to B (as in its own mode); one that ends elsewhere shows
+  // its finish there, as the map does.
+  const open = !endsMeet(raw);
+  const chartEnd = heights.elevation ? heights.elevationStep * (heights.elevation.length - 1) : f.distance;
+  return {
+    id, line: f.line, distance: f.distance, raw, start: raw[0], place: placeKey(raw[0]), info: unpackInfo(f.info),
+    ...(kind && { kind }), ...(f.shape && { shape: f.shape }), ...heights,
+    ...((open || kind === "p2p") && { closed: false }),
+    ...(open && { marks: [{ m: chartEnd, kind: "finish" }] }),
+  };
+}
+
+// Remembers an area name the app was told (a shared link's), so it isn't
+// looked up again. point: [lat, lon].
+function rememberPlace([lat, lon], name) {
+  try {
+    const known = JSON.parse(localStorage.getItem(PLACES) ?? "{}");
+    known[placeKey([lon, lat])] ??= name;
+    localStorage.setItem(PLACES, JSON.stringify(known));
+  } catch {} // blocked storage: it's looked up when shown
+}
+
 export function createAccount({ openFavourites = () => {} } = {}) {
   const dialog = $("account-dialog");
   const heart = $("fav");
@@ -205,11 +258,29 @@ export function createAccount({ openFavourites = () => {} } = {}) {
   }
   function open(view) {
     setView(view);
-    if (view === "account") garmin.opened();
+    if (view === "account") {
+      garmin.opened();
+      countLinks();
+    }
     if (!dialog.open) dialog.showModal();
     load().catch(() => showError("Couldn't load sign-in. Check your connection."));
   }
   const showError = (msg) => { $("account-error").textContent = msg; };
+
+  // The Shared links row's count (js/links.js is the page), asked each time
+  // the menu opens, as links may have been made or deleted elsewhere.
+  async function countLinks() {
+    const badge = $("links-count");
+    if (!user || !badge) return;
+    try {
+      const n = (await listShares(await user.getIdToken())).length;
+      badge.textContent = n;
+      badge.setAttribute("aria-label", n === 1 ? "1 link" : `${n} links`);
+      badge.hidden = n === 0;
+    } catch (err) {
+      console.warn(err); // the row works without its count
+    }
+  }
 
   function explain(err) {
     console.error(err);
@@ -291,12 +362,18 @@ export function createAccount({ openFavourites = () => {} } = {}) {
         console.error(err);
         return showError("Couldn't disconnect Garmin, so nothing was deleted. Try again.");
       }
+      try {
+        await deleteAllShares(await user.getIdToken());
+      } catch (err) {
+        console.error(err);
+        return showError("Couldn't delete your shared links, so nothing was deleted. Try again.");
+      }
       const { auth, store, db } = await load();
       const snap = await store.getDocs(store.collection(db, favouritesPath()));
       await Promise.all(snap.docs.map((d) => store.deleteDoc(d.ref)));
       await auth.deleteUser(user);
       dialog.close();
-      toast("Your account and favourites have been deleted.");
+      toast("Your account, favourites and shared links have been deleted.");
     } catch (err) {
       showError(explain(err));
     } finally {
@@ -305,26 +382,6 @@ export function createAccount({ openFavourites = () => {} } = {}) {
   }
 
   // ----- favourites -----
-  // A favourite keeps its route info (see renderInfo in loop.js) as "info".
-  // Firestore can't store lists of lists, so the [from, to] stretches are
-  // stored flat: [from, to, from, to, ...]. Favourites saved before
-  // 2026-11-08 have no info. Ones saved on 8-9 Nov also hold noPavement,
-  // noPavementSpans and back, which are ignored now that the app doesn't
-  // warn about roads without a sidewalk or out and backs.
-  const flat = (spans) => (spans ?? []).flat();
-  function pairs(list) {
-    const out = [];
-    for (let i = 0; i + 1 < (list?.length ?? 0); i += 2) out.push([list[i], list[i + 1]]);
-    return out;
-  }
-  // The climb and height profile (js/profile.js), kept since 2026-11-18;
-  // favourites saved before, and GPS art, have none.
-  const heightsOf = (r) => Array.isArray(r.elevation) && r.elevation.length > 1 && r.elevationStep > 0
-    ? { climb: Math.max(0, Math.round(r.climb ?? 0)), elevation: [...r.elevation], elevationStep: r.elevationStep }
-    : {};
-  const packInfo = (i) => ({ countryPaths: i.countryPaths, countryPathSpans: flat(i.countryPathSpans) });
-  const unpackInfo = (s) => s && { countryPaths: s.countryPaths ?? 0, countryPathSpans: pairs(s.countryPathSpans) };
-
   // Called whenever the favourites change, for hearts drawn elsewhere (GPS
   // art's).
   const watchers = [];
@@ -350,23 +407,7 @@ export function createAccount({ openFavourites = () => {} } = {}) {
 
   function favouriteRoutes() {
     const newestFirst = [...saved.entries()].sort(([, a], [, b]) => (b.savedAt?.seconds ?? 0) - (a.savedAt?.seconds ?? 0));
-    return newestFirst.map(([id, f]) => {
-      const raw = decodeLine(f.line), heights = heightsOf(f);
-      // The mode that made it (loop, art or p2p), saved since 2026-11-21;
-      // before, only GPS art said so (its shape), and the rest stay unknown.
-      const kind = f.kind ?? (f.shape ? "art" : undefined);
-      // The chart wraps round only where the route ends at its start, and
-      // never for A to B (as in its own mode); one that ends elsewhere shows
-      // its finish there, as the map does.
-      const open = !endsMeet(raw);
-      const chartEnd = heights.elevation ? heights.elevationStep * (heights.elevation.length - 1) : f.distance;
-      return {
-        id, line: f.line, distance: f.distance, raw, start: raw[0], place: placeKey(raw[0]), info: unpackInfo(f.info),
-        ...(kind && { kind }), ...(f.shape && { shape: f.shape }), ...heights,
-        ...((open || kind === "p2p") && { closed: false }),
-        ...(open && { marks: [{ m: chartEnd, kind: "finish" }] }),
-      };
-    });
+    return newestFirst.map(([id, f]) => viewerRoute(f, id));
   }
 
   // Keeps the favourites list right after a change, staying on the route on
@@ -415,11 +456,6 @@ export function createAccount({ openFavourites = () => {} } = {}) {
     }
   }
 
-  // What a favourite holds of route r (firestore.rules says what it may).
-  const favouriteData = (r) => ({
-    line: r.line, distance: r.distance, ...(r.info && { info: packInfo(r.info) }), ...(r.shape && { shape: r.shape.slice(0, 60) }),
-    ...(r.kind && { kind: r.kind }), ...heightsOf(r),
-  });
   const OPTIONAL = ["info", "shape", "kind", "climb", "elevation", "elevationStep"];
 
   // An A to B favourite follows its route as it changes (js/p2p.js): the
@@ -535,6 +571,13 @@ export function createAccount({ openFavourites = () => {} } = {}) {
     attach(a) { app = a; start(); },
     garmin,
     signedIn: () => !!user,
+    // For calls that need to know who's signed in: null when no one is.
+    uid: () => user?.uid ?? null,
+    idToken: () => (user ? user.getIdToken() : Promise.resolve(null)),
+    // how routes are kept, for shared links (js/share.js)
+    storedRoute,
+    viewerRoute,
+    rememberPlace,
     // Opens sign-in, then runs then() once signed in (Google; an email link
     // leaves the page, so it's lost).
     signIn(then) {

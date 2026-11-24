@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#07090d" />
+  <meta name="robots" content="noindex" />
+  <meta name="description" content="The route links you've shared on Runthe." />
+  <title>Shared links · Runthe</title>
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet" />
+  <!-- Versioned like the app's (index.html): bump with it. -->
+  <link href="../css/tonal.css?v=93" rel="stylesheet" />
+  <link href="../css/page.css?v=93" rel="stylesheet" />
+</head>
+<body>
+  <!-- A settings page (UI.md): opened from the account menu's Shared links
+       row; js/links.js fills it in. -->
+  <a class="back" href="../"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>Back to Runthe</a>
+  <h1>Shared links</h1>
+  <p class="lede" id="lede">Loading your links…</p>
+  <p class="msg" id="msg" role="alert"></p>
+  <button class="btn btn-secondary btn-small" id="retry" hidden style="margin-top: 14px">Try again</button>
+  <ul class="links" id="links" aria-label="Your shared links"></ul>
+  <div class="empty" id="empty" hidden>
+    <div class="empty-mark" aria-hidden="true"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg></div>
+    <h2>No shared links yet</h2>
+    <p>Open Export on any route and choose Copy link. Links you share while signed in show up here.</p>
+  </div>
+  <p class="small" id="foot" hidden>Links you share while signed out aren't listed here. They last a year after they were last opened.</p>
+  <div class="undo" id="undo" role="status" hidden>
+    <span>Link deleted</span>
+    <button class="btn btn-tertiary" id="undo-btn">Undo</button>
+  </div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "../js/api.js": "../js/api.js?v=114",
+      "../js/firebase.js": "../js/firebase.js?v=114",
+      "../js/links.js": "../js/links.js?v=114",
+      "../js/share.js": "../js/share.js?v=114"
+    }
+  }
+  </script>
+  <script type="module" src="../js/links.js?v=114"></script>
+</body>
+</html>

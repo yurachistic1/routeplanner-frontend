@@ -15,12 +15,21 @@ export const API_BASE = isLocal
 
 // The leg service, for A to B (a Cloud Run service of its own, so legs
 // never wait behind a loop or GPS art search). Locally the one backend
-// serves legs too. Live has none until A to B goes live.
+// serves legs too.
 export const LEGS_BASE = isLocal
   ? `http://${host}:8080`
   : host === "staging.runthe.uk"
     ? "https://legs-staging-1068090158958.europe-west2.run.app"
     : "https://legs-1068090158958.europe-west2.run.app";
+
+// The share service: making, opening and deleting shared links (js/share.js),
+// and the links themselves (r.rnthe.com). It's in europe-west1, where Cloud
+// Run maps custom domains. Locally the one backend serves it too.
+export const SHARE_BASE = isLocal
+  ? `http://${host}:8080`
+  : host === "staging.runthe.uk"
+    ? "https://share-staging-1068090158958.europe-west1.run.app"
+    : "https://r.rnthe.com";
 
 // Wake the server while the user chooses their route. If this fails, the
 // route request will show the error.

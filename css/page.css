@@ -1,0 +1,76 @@
+/* Settings pages (UI.md, Settings page): plain pages opened from the
+   account menu, like the privacy page, starting with Shared links
+   (2026-11-23). App and watch connections are expected to follow. Tokens
+   and button roles come from css/tonal.css, loaded first. */
+* { box-sizing: border-box; }
+html { background: var(--bg); color-scheme: dark; }
+body {
+  margin: 0 auto; max-width: 680px; min-height: 100dvh; color: var(--text);
+  padding: calc(24px + env(safe-area-inset-top)) 20px calc(96px + env(safe-area-inset-bottom));
+  font: 16px/1.6 "Space Grotesk", system-ui, sans-serif; -webkit-font-smoothing: antialiased;
+}
+button { font: inherit; color: inherit; cursor: pointer; border: 0; background: none; }
+a { color: var(--neon); }
+a:focus-visible { outline: 3px solid var(--neon); outline-offset: 3px; }
+.mono { font-family: "JetBrains Mono", ui-monospace, monospace; }
+[hidden] { display: none !important; }
+
+/* The way back: a chevron and words, at the top left. */
+.back {
+  display: inline-flex; align-items: center; gap: 4px; min-height: 44px; margin-left: -4px;
+  font-weight: 600; text-decoration: none; border-radius: 8px;
+}
+.back svg { flex: none; }
+h1 { font-size: 30px; line-height: 1.2; margin: 16px 0 6px; }
+.lede { margin: 0; color: var(--dim); font-size: 15px; line-height: 1.5; }
+.small { margin: 16px 0 0; color: var(--dim-2); font-size: 14px; line-height: 1.5; }
+.msg { margin: 16px 0 0; font-size: 15px; line-height: 1.45; color: #ffd3e4; }
+.msg:empty { display: none; }
+.btn-small { height: 44px; padding: 0 16px; font-size: 15px; }
+a.btn { text-decoration: none; }
+
+/* ----- Shared links ----- */
+.links { list-style: none; margin: 20px 0 0; padding: 0; display: grid; gap: 10px; }
+.share {
+  display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 12px 14px; padding: 12px;
+  background: var(--card); border-radius: 18px; transition: opacity .2s, transform .2s;
+}
+.share.going { opacity: 0; transform: scale(.98); }
+/* The preview card, cropped to the route, which sits on its right. */
+.thumb {
+  width: 96px; height: 86px; border-radius: 12px; display: block; background: var(--panel);
+  object-fit: cover; object-position: 94% 50%;
+}
+.share-text { min-width: 0; display: grid; align-content: center; gap: 2px; }
+.share-title { font-size: 16px; font-weight: 600; line-height: 1.3; }
+.share-meta { font-size: 14px; color: var(--dim); line-height: 1.35; }
+.share-url { font-size: 13px; color: var(--dim-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.share-actions { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; }
+.share-actions .btn-tertiary { margin-left: auto; margin-right: -4px; }
+@media (min-width: 640px) {
+  .share { grid-template-columns: 116px minmax(0, 1fr) auto; align-items: center; padding: 14px 16px 14px 14px; }
+  .thumb { width: 116px; height: 104px; }
+  .share-actions { grid-column: auto; }
+}
+
+.empty {
+  margin: 28px 0 0; padding: 28px 20px; border-radius: 18px; background: var(--card);
+  display: grid; gap: 6px; justify-items: center; text-align: center;
+}
+.empty-mark { width: 64px; height: 64px; margin-bottom: 6px; border-radius: 50%; background: var(--tone); color: var(--dim); display: grid; place-items: center; }
+.empty h2 { margin: 0; font-size: 18px; }
+.empty p { margin: 0; color: var(--dim); font-size: 15px; line-height: 1.5; }
+
+/* The Undo bar, as the app's after removing a favourite. */
+.undo {
+  position: fixed; z-index: 2; left: 12px; right: 12px; bottom: calc(24px + env(safe-area-inset-bottom));
+  max-width: 420px; margin: 0 auto;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 6px 6px 6px 20px; border-radius: 999px; font-size: 15px;
+  background: var(--float); box-shadow: 0 10px 30px rgba(0, 0, 0, .5);
+  animation: undo-in .22s cubic-bezier(.2, .8, .2, 1);
+}
+@keyframes undo-in { from { opacity: 0; transform: translateY(10px); } }
+@media (prefers-reduced-motion: reduce) {
+  .share, .undo { transition: none; animation: none; }
+}

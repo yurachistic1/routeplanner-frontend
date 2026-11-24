@@ -78,21 +78,20 @@ const NEARBY = "Tap a path or street nearby, or use Freehand.";
 
 /**
  * whyNotHere(map, ll, px, start): what to say about a Pleasant or Shortest
- * tap at ll ([lon, lat]) that landed on nothing routing can use, as
- * [label, why] for the warning line: the road or path the map draws within
- * px of it, or the water it's in. start: the tap was for a route's start.
+ * tap at ll ([lon, lat]) that landed on nothing routing can use, as one
+ * message for the toast: the road or path the map draws within px of it,
+ * or the water it's in, and why. start: the tap was for a route's start.
  * Null when the map shows nothing there to explain.
  */
 export function whyNotHere(map, ll, px, start) {
   const p = map.project(ll);
-  const verb = start ? "start on" : "route on";
   const road = nearest(map, "transportation", p, px, (r) => !NOT_WAYS.has(r.class));
   if (!road) {
     if (!inWater(map, ll)) return null;
     // a river or canal by its line; a lake or the sea by its label's point
     const river = nearest(map, "waterway", p, px * 6, (w) => !!w.name)?.name ?? nearestPoint(map, "water_name", p, px * 12)?.name;
     const what = river ? (/^the /i.test(river) ? river.replace(/^The /, "the ") : `the ${river}`) : "water";
-    return [`That's ${what}`, `Pleasant and Shortest follow paths and streets, so a route can't ${start ? "start" : "go"} there. ${NEARBY}`];
+    return `That's ${what}. Pleasant and Shortest follow paths and streets, so a route can't ${start ? "start" : "go"} there. ${NEARBY}`;
   }
 
   // its name, from the names layer: the same kind of way, a little further
@@ -101,22 +100,21 @@ export function whyNotHere(map, ll, px, start) {
   const name = label?.name, ref = label?.ref;
   const cls = String(road.class).replace(/_construction$/, "");
   const noun = cls === "path" ? (road.subclass === "steps" ? "steps" : "path") : cls === "track" ? "track" : "road";
-  // "Lewes Road (A22)", "the M25", "Kingsway"; in the label, big roads go
-  // by number, and an unnamed way by what's wrong with it
+  // "Lewes Road (A22)", "the M25", "Kingsway"; an unnamed way goes by
+  // what it is ("That path")
   const full = name && ref ? `${name} (${ref})` : name || (ref ? `the ${ref}` : null);
-  const short = ["motorway", "trunk"].includes(cls) && ref ? `the ${ref}` : name || (ref && `the ${ref}`);
-  const say = (kind, why) => [`Can't ${verb} ${short || kind}`, `${why[0].toUpperCase()}${why.slice(1)} ${NEARBY}`];
+  const say = (why) => `${why[0].toUpperCase()}${why.slice(1)} ${NEARBY}`;
   const It = full ?? `That ${noun}`;
 
-  if (road.class !== cls) return say(`that ${noun}`, `${It} is still being built on the map, so routing leaves it out.`);
-  if (cls === "motorway") return say("a motorway", `${full ?? "That"} is a motorway, where walking isn't allowed.`);
+  if (road.class !== cls) return say(`${It} is still being built on the map, so routing leaves it out.`);
+  if (cls === "motorway") return say(`${full ?? "That"} is a motorway, where walking isn't allowed.`);
   if (cls === "trunk") {
-    return say("a trunk road", `${full ?? "That"} is a trunk road. Routing leaves trunk roads out, as most have nowhere safe to walk (a pavement mapped beside one is used).`);
+    return say(`${full ?? "That"} is a trunk road. Routing leaves trunk roads out, as most have nowhere safe to walk (a pavement mapped beside one is used).`);
   }
-  if (road.access === "no") return say(`a private ${noun}`, `${It} is marked private on the map, so routing leaves it out.`);
-  if (road.foot === "no") return say(`that ${noun}`, `${It} is closed to people on foot on the map, so routing leaves it out.`);
+  if (road.access === "no") return say(`${It} is marked private on the map, so routing leaves it out.`);
+  if (road.foot === "no") return say(`${It} is closed to people on foot on the map, so routing leaves it out.`);
   if (MAIN_ROADS.has(cls)) {
-    return say("a main road", `${full ?? "That"} is a main road with no pavement on the map, so routes only cross it, never run along it.`);
+    return say(`${full ?? "That"} is a main road with no pavement on the map, so routes only cross it, never run along it.`);
   }
-  return say(`that ${noun}`, `Routing leaves ${full ?? `that ${noun}`} out: on the map it may be private, closed, or not joined up with other paths and streets.`);
+  return say(`Routing leaves ${full ?? `that ${noun}`} out: on the map it may be private, closed, or not joined up with other paths and streets.`);
 }

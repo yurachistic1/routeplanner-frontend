@@ -1,10 +1,11 @@
-// Exporting a route: a GPX file, or (where there's a Garmin service) the
-// Export dialog with Send to Garmin Connect. Design: ROADMAP Phase 6 G3,
-// mockups in designs/garmin-export.html.
+// Exporting a route: the Export dialog, with Download GPX, Copy link (a
+// short link to share, js/share.js) and, where there's a Garmin service,
+// Send to Garmin Connect. Design: ROADMAP Phase 6 G3 (mockups in
+// designs/garmin-export.html) and §6 question 14 (designs/share-mockups).
 //
 // Without a Garmin service (live, until Garmin's notice period ends on
-// 2026-12-17) the panel's button keeps saying Export GPX and downloads at
-// once, as before.
+// 2026-12-17) the dialog has no Garmin card. Until Copy link came
+// (2026-11-23) the panels' button downloaded the GPX at once there.
 //
 // Page elements: #download, #art-download, #p2p-export (the panels' buttons),
 // #export-dialog and its #export-* parts.
@@ -32,8 +33,8 @@ export function downloadGPX({ points, heights, gpxName, fileName }) {
 }
 
 // account: from createAccount, for sign-in, the Garmin connection and place
-// names.
-export function createExport({ account }) {
+// names. share: from createShare, for links.
+export function createExport({ account, share }) {
   const dialog = $("export-dialog");
   const note = $("export-note");
   const msg = $("export-msg");
@@ -42,8 +43,12 @@ export function createExport({ account }) {
   const gpx = $("export-gpx");
   const connect = $("export-connect");
   const signIn = $("export-signin");
+  const linkBtn = $("export-link");
+  const linkBox = $("export-link-box");
   const garmin = account.garmin;
-  let route = null; // { points: [[lat, lon]...], heights?, climb?, distance, kind? (loop, art, p2p; none on older favourites), shape?, gpxName, fileName }
+  // { points: [[lat, lon]...], heights?, climb?, distance, kind? (loop, art, p2p; none on older
+  // favourites), shape?, gpxName, fileName, share (the route as favourites keep it) }
+  let route = null;
   let place = "";
   let status = { connected: false, canSendCourses: false };
   let sent = false;
@@ -56,13 +61,11 @@ export function createExport({ account }) {
   let line = ""; // the route's line id, the same one favourites use
   let lookup = null; // the check for an earlier send, while it runs
   const sentHere = new Map(); // line id → course name, shown until the check on opening answers
+  let link = null; // { id, url } once the route on show has one
+  let copied = false; // and whether it's on the clipboard
+  let making = false;
 
-  if (GARMIN_BASE) {
-    for (const id of ["download", "art-download", "p2p-export"]) {
-      const b = $(id);
-      if (b) b.textContent = "Export";
-    }
-  }
+  $("export-garmin").hidden = !GARMIN_BASE;
 
   const say = (text) => { msg.textContent = text; };
   // "Runthe Paddington 10.2 km"; GPS art adds its shape: "Runthe Heart, Paddington 29.0 km".
@@ -82,7 +85,7 @@ export function createExport({ account }) {
   // what you can do now: Send when connected, otherwise Download GPX.
   function render() {
     const signedIn = account.signedIn();
-    const ready = signedIn && status.connected && status.canSendCourses;
+    const ready = !!GARMIN_BASE && signedIn && status.connected && status.canSendCourses;
     $("export-route").textContent = routeLine();
     note.classList.toggle("on", sent || !!already);
     // Garmin's Courses API: courses sent this way sync to the watch.
@@ -102,12 +105,67 @@ export function createExport({ account }) {
     const gpxIsMain = !ready && !sent && !already;
     gpx.classList.toggle("btn-primary", gpxIsMain);
     gpx.classList.toggle("btn-secondary", !gpxIsMain);
+    // Download GPX and Copy link side by side when both are secondary
+    $("export-pair").classList.toggle("two", !gpxIsMain);
+    renderLink();
+  }
+
+  // Copy link: busy while the link's made, then "Link copied" and a box
+  // with the link and what it means (UI.md, Link box).
+  function renderLink() {
+    linkBtn.hidden = !route?.share;
+    linkBtn.setAttribute("aria-busy", making);
+    linkBtn.innerHTML = making ? `<span class="spin" aria-hidden="true"></span>Making link…`
+      : copied ? "Link copied" : "Copy link";
+    linkBox.hidden = !link;
+    if (!link) return;
+    $("export-link-url").textContent = link.url.replace(/^https?:\/\//, "");
+    $("export-link-note").innerHTML = !copied ? "Copy the link above to share it."
+      : account.signedIn() ? `Anyone with the link can open this route. You'll find it in <a href="./links/">Shared links</a>, in the account menu.`
+      : "Anyone with the link can open this route. It lasts a year after it was last opened. Sign in before sharing to keep links for good.";
+  }
+
+  async function copyLink() {
+    if (making || !route?.share) return;
+    const r = route;
+    say("");
+    making = true;
+    renderLink();
+    const job = share.make(r.share, place);
+    // Safari lets a page copy only while the tap is fresh, so the copy
+    // starts now, with the link to come (a ClipboardItem can wait for it).
+    let early = Promise.resolve(false);
+    if (window.ClipboardItem && navigator.clipboard?.write) {
+      try {
+        early = navigator.clipboard.write([new ClipboardItem({
+          "text/plain": job.then(({ url }) => new Blob([url], { type: "text/plain" })),
+        })]).then(() => true, () => false);
+      } catch {} // this browser's ClipboardItem won't wait: copied below instead
+    }
+    try {
+      const made = await job;
+      let ok = await early;
+      if (!ok) ok = await (navigator.clipboard?.writeText(made.url).then(() => true, () => false) ?? false);
+      if (route === r) {
+        link = made;
+        copied = ok;
+      }
+    } catch (err) {
+      console.error(err);
+      if (route === r) say(err.status === 429 ? "That's a lot of links for now. Try again later."
+        : "Couldn't make a link. Check your connection and try again.");
+    } finally {
+      making = false;
+      if (route === r) renderLink();
+    }
   }
 
   async function open(r) {
-    if (!GARMIN_BASE) return downloadGPX(r);
     route = r;
     sent = false;
+    link = null;
+    copied = false;
+    making = false; // a link still being made is for the route before
     line = lineId(encodeLine(r.points.map(([lat, lon]) => [lon, lat])));
     already = sentHere.get(line) ?? null;
     lookup = null;
@@ -118,7 +176,7 @@ export function createExport({ account }) {
     if (!dialog.open) dialog.showModal();
     // Fill in what wasn't known yet: the place name and a fresh status.
     account.placeOf(r.points[0]).then((p) => { if (route === r && p && p !== place) { place = p; render(); } });
-    if (account.signedIn()) {
+    if (GARMIN_BASE && account.signedIn()) {
       // Sent before, from here or elsewhere, and still in Garmin Connect?
       // Asked on every opening, alongside the status, so a course deleted
       // or renamed in Garmin Connect meanwhile shows. A failed check
@@ -206,6 +264,7 @@ export function createExport({ account }) {
   send.addEventListener("click", sendCourse);
   done.addEventListener("click", () => dialog.close());
   gpx.addEventListener("click", () => downloadGPX(route));
+  linkBtn.addEventListener("click", copyLink);
   connect.addEventListener("click", connectGarmin);
   signIn.addEventListener("click", () => {
     const r = route;

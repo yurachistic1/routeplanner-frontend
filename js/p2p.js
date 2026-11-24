@@ -22,8 +22,7 @@
 // Routed points sit on a path or street (the server moves them onto the
 // nearest one, and the start with them); after a Freehand leg the next
 // routed leg starts with a straight join to the path. A tap that can't be
-// routed places nothing and says why in the warning line under the
-// routing. Climb and descent are counted here over the whole route, from
+// routed places nothing and says why in the pink toast. Climb and descent are counted here over the whole route, from
 // the legs' heights, the way the backend counts a loop's (climbOf).
 //
 // Like every mode it keeps to its own map source ("p2p") and markers, and
@@ -36,7 +35,7 @@
 import { LEGS_BASE } from "./api.js";
 import { lineLength, M_LAT, metresPerPixel, mLon, pointAlong, segLength } from "./geometry.js";
 import { routeFeatures, routePieces, samePoint } from "./lanes.js";
-import { setSourceVisible } from "./map.js";
+import { frameOnMap, setSourceVisible } from "./map.js";
 import { attachGrip, createSmoother } from "./panel.js";
 import { climbOf, heightsAt, renderProfile, shrinkProfile, smoothHeights } from "./profile.js";
 import { whyNotHere } from "./spot.js";
@@ -72,7 +71,7 @@ const MAX_LEG_M = 20000;
 
 /**
  * createP2PMode(map, mapReady, opts) wires up the A to B panel and returns
- * { enter, leave } for js/modes.js.
+ * { enter, leave, canFocus, focus } for js/modes.js.
  *   addP2PLayers(map): adds the layers that draw source "p2p" (pieces from
  *     js/lanes.js, with their widths and offsets as properties)
  *   favourites: { toggle(route), has(route), onChange(fn) } from accounts
@@ -88,7 +87,10 @@ export function createP2PMode(map, mapReady, opts) {
   // its first point to its last, as the map has them, or null), country
   // ([[i, j]] spans of uncertain path, by point) }.
   // scope: what a change of routing changes, "next" or "last" (see "the routing").
-  const state = { points: [], legs: [], routing: "pleasant", minimiseClimb: false, scope: "next" };
+  // lap: { length, count } after Lap: how long that lap is and how many
+  // times the route runs it now (the counter in Lap's arrow, 2026-11-23),
+  // null after anything else
+  const state = { points: [], legs: [], routing: "pleasant", minimiseClimb: false, scope: "next", lap: null };
   const undos = []; // earlier { points, legs, session }, newest last
   // The route being made, from the first point until Clear: once hearted,
   // it is that favourite, saved as it changes (link: the favourite's id).
@@ -328,7 +330,10 @@ export function createP2PMode(map, mapReady, opts) {
       const lap = dropped.has(id) ? null : lapAt();
       if (!lap) return;
       const legs = lapLegs(lap);
-      commit([...state.points, ...legs.map((l) => l.points.at(-1))], [...state.legs, ...legs]);
+      // the same lap again counts on; any other starts at 2 (once round, then this)
+      const length = route.distance - lap.from;
+      const count = state.lap && Math.abs(state.lap.length - length) < 1 ? state.lap.count + 1 : 2;
+      commit([...state.points, ...legs.map((l) => l.points.at(-1))], [...state.legs, ...legs], session, { length, count });
     }).finally(() => {
       waiting.splice(waiting.indexOf(id), 1);
       dropped.delete(id);
@@ -339,13 +344,14 @@ export function createP2PMode(map, mapReady, opts) {
   }
 
   // Every change goes through here, so Undo can take it back. next: the
-  // session it starts (Clear), the route before it saved first.
-  function commit(points, legs, next = session) {
-    refuse(null);
+  // session it starts (Clear), the route before it saved first. lap: as
+  // state.lap, for a Lap.
+  function commit(points, legs, next = session, lap = null) {
     if (next !== session) flushSave();
-    undos.push({ points: state.points, legs: state.legs, session });
+    undos.push({ points: state.points, legs: state.legs, session, lap: state.lap });
     state.points = points;
     state.legs = legs;
+    state.lap = lap;
     state.scope = "next"; // a point placed, a lap or Clear ends Last leg
     session = next;
     render();
@@ -356,7 +362,6 @@ export function createP2PMode(map, mapReady, opts) {
   // change to the route it goes back to Next leg, and drops a re-route
   // still on its way.
   function undo() {
-    refuse(null);
     choiceGen++;
     state.scope = "next";
     const pending = waiting.filter((id) => !dropped.has(id));
@@ -370,6 +375,7 @@ export function createP2PMode(map, mapReady, opts) {
     if (last.session !== session) flushSave();
     state.points = last.points;
     state.legs = last.legs;
+    state.lap = last.lap;
     session = last.session;
     render();
   }
@@ -666,10 +672,17 @@ export function createP2PMode(map, mapReady, opts) {
     $("p2p-undo").disabled = !undos.length;
     $("p2p-clear").hidden = !n;
     // Lap, while the route ends on a spot it came through before (so
-    // still there after a lap), with how long the lap is
+    // still there after a lap), with how long the lap is, and after a Lap
+    // how many times the route runs it, in the arrow
     const lap = lapAt(), lapLength = lap ? route.distance - lap.from : 0;
     $("p2p-lap").hidden = lapLength < LAP_MIN_M;
-    if (lapLength >= LAP_MIN_M) $("p2p-lap-km").textContent = `${km(lapLength)} km`;
+    if (lapLength >= LAP_MIN_M) {
+      const count = state.lap?.count ?? 0;
+      $("p2p-lap-km").textContent = `${km(lapLength)} km`;
+      $("p2p-lap-count").textContent = count || "";
+      $("p2p-lap-count").classList.toggle("two-digits", count > 9);
+      $("p2p-lap").setAttribute("aria-label", `Lap, ${km(lapLength)} km${count ? `, ${count} laps so far` : ""}`);
+    }
     syncHeart();
     scheduleSave(); // a hearted route's favourite follows it
     renderScope(); // Last leg only while a tap placed the last leg (before drawLine: it lights it up)
@@ -729,40 +742,36 @@ export function createP2PMode(map, mapReady, opts) {
     if (camera) map.easeTo({ ...camera, duration: 550 });
   }
 
-  // A tap that placed no point: the same small warning line, under the
-  // routing, until the next point, Undo or Clear. Tap it for the why.
-  // reason: as the leg service gives it, or null to hide the line.
+  // Focus (js/modes.js): the whole route framed, or just A before there's a
+  // leg, clear of the panel, the top bar and Undo and Clear. Nothing before A.
+  const canFocus = () => state.points.length > 0;
+  function focus() {
+    if (state.points.length) frameOnMap(map, route ? [...route.raw, ...state.points] : state.points, opts.padding());
+  }
+
+  // A tap that placed no point says why in the pink toast, like a change
+  // of routing that couldn't re-route the last leg (the user, 2026-11-23:
+  // every routing error in the toast). reason: as the leg service gives it.
   const REFUSED = {
-    too_far: ({ far }) => [`Too far: legs up to ${MAX_LEG_M / 1000} km`,
-      `That point is ${far ? `${Math.round(far / 1000)} km` : "too far"} from the last one in a straight line. A leg can be up to ${MAX_LEG_M / 1000} km, so routing stays quick. For a longer route, add points along the way.`],
+    too_far: ({ far }) => `That point is ${far ? `${Math.round(far / 1000)} km` : "too far"} from the last one in a straight line, and legs go up to ${MAX_LEG_M / 1000} km, so routing stays quick. For a longer route, add points along the way.`,
     no_path_near: ({ end }) => end === "from"
-      ? ["No paths near the last point", "The last point is more than 300 m from any path or street we can route on, so this leg can't follow one. Use Freehand until you're nearer one."]
-      : [end === "start" ? "Can't start there" : "Can't route to that spot",
-        "There's no path or street we can route on right there. It may be private or closed, or a road with nowhere to walk, even where the map draws one. Tap on a path or street, or use Freehand."],
-    no_nearer: () => ["No path goes nearer", "The closest a path or street comes to that point is where the route already ends. Use Freehand to go off the paths, or tap further along one."],
-    no_route: () => ["No route found", "The map knows no way along paths and streets between these points. Try a point nearby, or use Freehand."],
-    no_map: () => ["No map data here", "Routing covers the UK for now. Freehand works anywhere."],
-    offline: () => ["Couldn't route that leg", "No answer from the server. Check your connection and try again, or use Freehand."],
+      ? "No paths near the last point: it's more than 300 m from any path or street we can route on, so this leg can't follow one. Use Freehand until you're nearer one."
+      : `${end === "start" ? "Can't start there" : "Can't route to that spot"}: there's no path or street we can route on right there. It may be private or closed, or a road with nowhere to walk, even where the map draws one. Tap on a path or street, or use Freehand.`,
+    no_nearer: () => "No path goes nearer: the closest a path or street comes to that point is where the route already ends. Use Freehand to go off the paths, or tap further along one.",
+    no_route: () => "No route found: the map knows no way along paths and streets between these points. Try a point nearby, or use Freehand.",
+    no_map: () => "No map data here: routing covers the UK for now. Freehand works anywhere.",
+    offline: () => "Couldn't route that leg: no answer from the server. Check your connection and try again, or use Freehand.",
   };
   // A tap that found nothing to route on says what the map draws there
   // (js/spot.js: a trunk road, a private road, water, with its name), if
-  // it can.
+  // it can. Long messages stay up longer, to be read.
   function refuse(reason, detail = {}) {
-    $("p2p-refused-box").hidden = !reason || reason === "same_point";
-    $("p2p-refused").setAttribute("aria-expanded", false);
-    $("p2p-refused-text").hidden = true;
-    if ($("p2p-refused-box").hidden) return;
+    if (reason === "same_point") return;
     const specific = reason === "no_path_near" && detail.end !== "from" && detail.at &&
       whyNotHere(map, detail.at, TAP_PX, detail.end === "start");
-    const [label, why] = specific || (REFUSED[reason] ?? REFUSED.offline)(detail);
-    $("p2p-refused-label").textContent = label;
-    $("p2p-refused-text").textContent = why;
+    const msg = specific || (REFUSED[reason] ?? REFUSED.offline)(detail);
+    toast(msg, Math.min(9000, Math.max(4500, msg.length * 50)));
   }
-  $("p2p-refused").addEventListener("click", () => {
-    const open = $("p2p-refused-text").hidden;
-    $("p2p-refused").setAttribute("aria-expanded", open);
-    $("p2p-refused-text").hidden = !open;
-  });
 
   // Uncertain paths: one small line, tap for the why (route info's card,
   // made small for A to B, 2026-11-20). Dashed on the map, as in loops.
@@ -906,6 +915,7 @@ export function createP2PMode(map, mapReady, opts) {
       kind: "p2p",
       distance: route.distance,
       points,
+      share: { kind: "p2p", raw: route.raw, distance: route.distance, info: route.info, ...(route.elevation && { ...shrinkProfile(route.elevation, route.elevationStep), climb: route.climb }) }, // for Copy link, as favourites keep it
       ...(route.elevation && { heights: heightsAt(route, points), climb: route.climb }),
       gpxName: name,
       fileName: `${name.replaceAll(" ", "-")}.gpx`,
@@ -933,5 +943,5 @@ export function createP2PMode(map, mapReady, opts) {
   renderChoices();
   render();
 
-  return { enter, leave };
+  return { enter, leave, canFocus, focus };
 }

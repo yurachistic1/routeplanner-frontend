@@ -18,7 +18,7 @@
 
 import { API_BASE } from "./api.js";
 import { M_LAT, mLon, simplify, keptIndices, roundCorners, metresPerPixel, CORNER_PX, pointAlong, endsMeet } from "./geometry.js";
-import { finishMarker } from "./map.js";
+import { finishMarker, frameOnMap } from "./map.js";
 import { goBack } from "./modes.js";
 import { heightsAt, renderProfile, sharedScale } from "./profile.js";
 import { $, toast } from "./ui.js";
@@ -593,6 +593,15 @@ export function createLoopMode(map, mapReady, opts) {
     }
   }
 
+  // Focus (js/modes.js): the route on screen, framed as when it's shown,
+  // or before there is one (planning) the start. Nothing before a start.
+  const canFocus = () => viewingRoutes() || !!state.start;
+  function focus() {
+    const r = viewingRoutes() && state.routes[state.index];
+    if (r) frameOnMap(map, r.raw, o.padding());
+    else if (state.start) frameOnMap(map, [state.start.toArray()], o.padding());
+  }
+
   // Opening it makes the panel taller, so frame the route again above it.
   function refit() {
     const r = state.routes[state.index];
@@ -765,6 +774,7 @@ export function createLoopMode(map, mapReady, opts) {
       shape: r.shape,
       distance: r.distance,
       points,
+      share: r, // for Copy link: the route as favourites keep it
       // heights for <ele> and Garmin courses, where the route has them
       ...(r.elevation && { heights: heightsAt(r, points), climb: r.climb }),
       gpxName: name,
@@ -779,5 +789,5 @@ export function createLoopMode(map, mapReady, opts) {
   const enter = () => {};
   const leave = () => {};
 
-  return { map, state, show, showRoutes, updateRoutes, exitFavourites, toggleList, toast, setStart, enter, leave, canGoBack, goBack: backToRoutes };
+  return { map, state, show, showRoutes, updateRoutes, exitFavourites, toggleList, toast, setStart, enter, leave, canGoBack, goBack: backToRoutes, canFocus, focus };
 }
