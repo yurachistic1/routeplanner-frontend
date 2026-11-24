@@ -187,6 +187,7 @@ dialog.account:not([data-view="account"]) #delete-account { display: none; }
 .garmin { display: grid; gap: 12px; }
 .garmin[hidden] { display: none; }
 .conn { display: grid; grid-template-columns: 32px 1fr; align-items: center; gap: 12px; padding: 14px; background: var(--card); border-radius: 18px; }
+.conn[hidden] { display: none; }
 .conn-logo { width: 32px; height: 32px; display: block; align-self: start; margin-top: 2px; }
 .conn-text { min-width: 0; }
 .conn-name { font-size: 16px; font-weight: 600; color: var(--text); }
