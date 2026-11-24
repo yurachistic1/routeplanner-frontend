@@ -23,13 +23,13 @@ export const LEGS_BASE = isLocal
     : "https://legs-1068090158958.europe-west2.run.app";
 
 // The share service: making, opening and deleting shared links (js/share.js),
-// and the links themselves (r.runthe.uk). It's in europe-west1, where Cloud
+// and the links themselves (r.rnthe.com). It's in europe-west1, where Cloud
 // Run maps custom domains. Locally the one backend serves it too.
 export const SHARE_BASE = isLocal
   ? `http://${host}:8080`
   : host === "staging.runthe.uk"
     ? "https://share-staging-1068090158958.europe-west1.run.app"
-    : "https://r.runthe.uk";
+    : "https://r.rnthe.com";
 
 // Wake the server while the user chooses their route. If this fails, the
 // route request will show the error.

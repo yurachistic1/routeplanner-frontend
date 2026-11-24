@@ -1,6 +1,6 @@
 // Sharing a route by link (ROADMAP §6, question 14; the backend's share.go).
 // Copy link in the Export dialog (js/export.js) keeps the route on the
-// server and gets back a short link, https://r.runthe.uk/<id>, which chat
+// server and gets back a short link, https://r.rnthe.com/<id>, which chat
 // apps show with a picture of the route. Opening it comes back to the app
 // as /#s=<id>, and openShared puts the route in loop mode's route viewer.
 // Signed in, the links are listed on the Shared links page (links/,

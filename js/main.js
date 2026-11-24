@@ -204,7 +204,7 @@ createModeBar("loop", map);
 // Focus, over the map: frames the current mode's route (js/modes.js)
 document.getElementById("focus").addEventListener("click", focusMode);
 
-// A shared link (https://r.runthe.uk/<id>) comes here as #s=<id>: its route
+// A shared link (https://r.rnthe.com/<id>) comes here as #s=<id>: its route
 // opens in loop mode's route viewer (js/share.js).
 const sharedId = share.linkInAddress();
 if (sharedId) share.openShared(sharedId, app);
