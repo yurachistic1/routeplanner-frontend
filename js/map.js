@@ -2,6 +2,8 @@
 // centring on your location, satellite view and Focus's move (frameOnMap). Modes draw on the map with
 // their own sources and layers; see js/modes.js.
 
+import { addIcons } from "./mapicons.js";
+import { staysOnSatellite } from "./mapstyle.js";
 import { $, toast } from "./ui.js";
 
 const REGENTS_PARK = [-0.157, 51.5313]; // [lon, lat]
@@ -22,9 +24,12 @@ export function createMap({ style, view = { center: REGENTS_PARK, zoom: 13.4 }, 
     pitchWithRotate: false,
     attributionControl: false, // replaced by our own ⓘ control (addCredits)
     // Phone screens are often 3x density; drawing the map at 2x is hard to
-    // tell apart and much lighter, so panning stays smooth.
-    pixelRatio: Math.min(devicePixelRatio, 2),
+    // tell apart and much lighter, so panning stays smooth. Laptops and
+    // desktops draw at 2x too, whatever their screen: scaled down by the
+    // browser, lines, text and icons are smoother (the user, 2026-11-25).
+    pixelRatio: matchMedia("(pointer: fine)").matches ? 2 : Math.min(devicePixelRatio, 2),
   });
+  addIcons(map);
   map.touchZoomRotate.disableRotation();
 
   // Hold the opening view for a moment, then glide to the normal one, unless
@@ -203,9 +208,9 @@ export function addSatellite(map, ready, credits, creditsHTML) {
   const btn = $("satellite");
   if (!btn) return;
   const saved = () => { try { return localStorage.getItem(SAT_KEY) === "1"; } catch { return false; } };
-  // Over the imagery go the base map's labels and paths and every layer the
-  // modes add; the rest of the drawn base map is hidden.
-  const hideOnSatellite = (l) => l.source === "omt" && l.type !== "symbol" && l.id !== "path";
+  // Over the imagery go the base map's labels, icons and paths and every
+  // layer the modes add; the rest of the drawn base map is hidden.
+  const hideOnSatellite = (l) => l.source === "omt" && !staysOnSatellite(l);
   function set(on) {
     for (const l of map.getStyle().layers) {
       if (hideOnSatellite(l)) map.setLayoutProperty(l.id, "visibility", on ? "none" : "visible");

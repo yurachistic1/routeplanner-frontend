@@ -6,22 +6,10 @@ import { createArtMode } from "./art.js";
 import { createExport } from "./export.js";
 import { createLoopMode } from "./loop.js";
 import { createMap, addCredits, addLocate, addSatellite, placeMapTools } from "./map.js";
-import { buildStyle, ATTRIBUTION } from "./mapstyle.js";
+import { ATTRIBUTION, buildStyle, FIRST_LABEL } from "./mapstyle.js";
 import { registerMode, createModeBar, setMode, currentMode, focusMode } from "./modes.js";
 import { createP2PMode } from "./p2p.js";
 import { createShare } from "./share.js";
-
-// "Dusk": a lighter dark map, so roads and parks are easy to read. Paths are
-// dashed, and turn sand-coloured close up so they stand out under the route
-// (chosen 2026-11-11). Roads and paths no one may walk (private, closed to
-// walkers) are a faint red, a little clearer close up (2026-11-21).
-const style = buildStyle({
-  land: "#151a22", park: "#173b2f", wood: "#153529", water: "#10304f", building: "#1c222c",
-  motorway: "#4a5878", major: "#3b4761", minor: "#283040", service: "#222937", path: "#2e4743", pathNear: "#d9b77a", rail: "#2c3342",
-  closed: "#4c2a31", closedNear: "#8a3d42",
-  label: "#8a96aa", labelHalo: "#151a22", roadLabel: "#c9d2df", waterLabel: "#5d86b0", parkLabel: "#5c947f",
-  cityLabel: "#e3e8f0", townLabel: "#b4bfcf",
-}, { labels: "normal", pathDash: [2, 1.5] });
 
 // Route: lime line on a soft lime-tinted band. Both are solid at normal
 // zooms, so overlapping bits can't stack into bright blobs.
@@ -45,7 +33,7 @@ const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 // ----- the map, shared by every mode -----
 const { map, ready } = createMap({
-  style,
+  style: buildStyle(),
   ...(desktop.matches ? {} : { view: PHONE_VIEW, openFrom: installed && !calm ? ICON_VIEW : null }),
 });
 
@@ -99,11 +87,10 @@ const app = createLoopMode(map, ready, {
   padding: routePadding({ list: true }),
   // Uncertain (countryside) paths, which route info warns about, are dashed (see
   // shapeRoute in loop.js).
-  // The route draws under the map's labels, so street names stay readable.
+  // The route draws under the map's labels and icons, so they stay readable.
   addRouteLayers(map) {
     const part = (p) => ["==", ["get", "part"], p];
-    const below = map.getStyle().layers.find((l) => l.type === "symbol")?.id;
-    const add = (layer) => map.addLayer(layer, below);
+    const add = (layer) => map.addLayer(layer, FIRST_LABEL);
     add({ id: "route-halo", type: "line", source: "route", layout, filter: part("all"),
       paint: { "line-color": "#4f6328", "line-width": W(6, 13), "line-blur": W(1.5, 4), "line-opacity": GLOW } });
     add({ id: "route", type: "line", source: "route", layout, filter: part("plain"),
@@ -150,8 +137,7 @@ registerMode("art", createArtMode(map, ready, {
   exportRoute: (r) => exporter.open(r),
   padding: routePadding(),
   addArtLayers(map) {
-    const below = map.getStyle().layers.find((l) => l.type === "symbol")?.id;
-    const add = (layer) => map.addLayer(layer, below);
+    const add = (layer) => map.addLayer(layer, FIRST_LABEL);
     add({ id: "art-halo", type: "line", source: "art", layout,
       paint: { "line-color": "#4f6328", "line-width": W(6, 13), "line-blur": W(1.5, 4), "line-opacity": GLOW } });
     add({ id: "art-route", type: "line", source: "art", layout,
@@ -171,8 +157,7 @@ registerMode("p2p", createP2PMode(map, ready, {
   exportRoute: (r) => exporter.open(r),
   padding: routePadding({ over: ".p2p-history" }),
   addP2PLayers(map) {
-    const below = map.getStyle().layers.find((l) => l.type === "symbol")?.id;
-    const add = (layer) => map.addLayer(layer, below);
+    const add = (layer) => map.addLayer(layer, FIRST_LABEL);
     // multi: the feature's own width at every zoom (it's redrawn when a zoom ends)
     const width = (k, lo, hi) => ["interpolate", ["linear"], ["zoom"],
       11, ["case", ["get", "multi"], ["get", k], lo], 16, ["case", ["get", "multi"], ["get", k], hi]];
