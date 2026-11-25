@@ -30,7 +30,7 @@
 <body>
   <a class="back" href="../">← Back to Runthe</a>
   <h1>Privacy</h1>
-  <p class="updated">Last updated 23 November 2026</p>
+  <p class="updated">Last updated 25 November 2026</p>
 
   <p>Runthe is a free personal project that generates running routes. There are no adverts, no analytics and no tracking cookies, and your data is never sold.</p>
 
@@ -100,7 +100,7 @@
   <p>Accounts are not intended for anyone under 13.</p>
 
   <h2 id="data">Map and height data</h2>
-  <p>Routes and maps use <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> data, © OpenStreetMap contributors, available under the Open Database Licence, with map tiles from <a href="https://openfreemap.org">OpenFreeMap</a>.</p>
+  <p>Routes and maps use <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> data, © OpenStreetMap contributors, available under the Open Database Licence, with map tiles from <a href="https://openfreemap.org">OpenFreeMap</a>, made with <a href="https://www.openmaptiles.org/">OpenMapTiles</a>. The map's design is adapted from <a href="https://github.com/openmaptiles/osm-bright-gl-style">OSM Bright</a> by Mapbox, MapTiler and OpenMapTiles contributors, used under <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>, with colours and icons changed.</p>
   <p>Heights come from the Copernicus DEM, produced using Copernicus WorldDEM-30 © DLR e.V. 2010-2014 and © Airbus Defence and Space GmbH 2014-2018, provided under COPERNICUS by the European Union and ESA; all rights reserved. Runthe takes out buildings and woods using OpenStreetMap.</p>
   <p>In and around London, heights come from the Environment Agency's LIDAR Composite DTM: © Environment Agency copyright and/or database right 2022. All rights reserved. Used under the <a href="https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/">Open Government Licence v3.0</a>.</p>
 
@@ -110,7 +110,7 @@
        local until Garmin's notice period ends): the same switch as the app.
        Keep the ?v= in step with index.html's garmin.js. -->
   <script type="module">
-    import { GARMIN_BASE } from "../js/garmin.js?v=114";
+    import { GARMIN_BASE } from "../js/garmin.js?v=118";
     if (GARMIN_BASE) {
       for (const el of document.querySelectorAll(".garmin")) el.hidden = false;
       for (const el of document.querySelectorAll(".no-garmin")) el.hidden = true;
