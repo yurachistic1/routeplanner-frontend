@@ -137,10 +137,16 @@ const heightsOf = (r) => Array.isArray(r.elevation) && r.elevation.length > 1 &&
 const packInfo = (i) => ({ countryPaths: i.countryPaths, countryPathSpans: flat(i.countryPathSpans) });
 const unpackInfo = (s) => s && { countryPaths: s.countryPaths ?? 0, countryPathSpans: pairs(s.countryPathSpans) };
 
+// Waypoints (2026-11-26), from A to B and Edit: wp, where each is along
+// the line (indices of its points, the encoding keeping every point), and
+// legs, each leg's routing (js/p2p.js legCode); both or neither.
+const waypointsOf = (r) => Array.isArray(r.wp) && Array.isArray(r.legs) && r.legs.length === r.wp.length - 1 && r.wp.length >= 2
+  ? { wp: [...r.wp], legs: [...r.legs] } : {};
+
 // What a favourite holds of route r (firestore.rules says what it may).
 const favouriteData = (r) => ({
   line: r.line, distance: r.distance, ...(r.info && { info: packInfo(r.info) }), ...(r.shape && { shape: r.shape.slice(0, 60) }),
-  ...(r.kind && { kind: r.kind }), ...heightsOf(r),
+  ...(r.kind && { kind: r.kind }), ...heightsOf(r), ...waypointsOf(r),
 });
 
 // Route r ({ raw: [[lon, lat], ...], distance, ... }) as it's kept, for a
@@ -160,7 +166,7 @@ export function viewerRoute(f, id = lineId(f.line)) {
   const chartEnd = heights.elevation ? heights.elevationStep * (heights.elevation.length - 1) : f.distance;
   return {
     id, line: f.line, distance: f.distance, raw, start: raw[0], place: placeKey(raw[0]), info: unpackInfo(f.info),
-    ...(kind && { kind }), ...(f.shape && { shape: f.shape }), ...heights,
+    ...(kind && { kind }), ...(f.shape && { shape: f.shape }), ...heights, ...waypointsOf(f),
     ...((open || kind === "p2p") && { closed: false }),
     ...(open && { marks: [{ m: chartEnd, kind: "finish" }] }),
   };
@@ -456,7 +462,7 @@ export function createAccount({ openFavourites = () => {} } = {}) {
     }
   }
 
-  const OPTIONAL = ["info", "shape", "kind", "climb", "elevation", "elevationStep"];
+  const OPTIONAL = ["info", "shape", "kind", "climb", "elevation", "elevationStep", "wp", "legs"];
 
   // An A to B favourite follows its route as it changes (js/p2p.js): the
   // same favourite (r.id) overwritten, keeping when it was first saved, so

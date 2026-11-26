@@ -74,7 +74,7 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 .show-results .setup { display: none; }
 /* The route info tab sits on the panel's top edge: the panel leaves room
    under it, so it never touches Export GPX. */
-body:not([data-mode="art"]):not([data-mode="p2p"]).show-results.has-info .deck { padding-top: 26px; }
+body:not([data-mode="art"]):not(:is([data-mode="p2p"], [data-mode="edit"])).show-results.has-info .deck { padding-top: 26px; }
 /* minmax(0, …): the column is the panel's width, whatever is inside (the
    profile chart is drawn to it, so mustn't widen it, 2026-11-18) */
 .show-results .results { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
@@ -497,7 +497,9 @@ body:not(.show-results):not(.loading) .start-marker::before { animation: pulse 2
 .modebar {
   position: absolute; z-index: 4; left: 0; right: 0; bottom: 0;
   height: calc(var(--modebar-h) + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom);
-  display: grid; grid-auto-flow: column; grid-auto-columns: 1fr;
+  /* minmax(0, ...): five modes fit a 320px phone (2026-11-26: 1fr kept each
+     as wide as "Favourites", 8px too many, and the page scrolled sideways) */
+  display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr);
   background: #0b0e14; border-top: 1px solid var(--edge);
 }
 /* The favourites heart only shows while signed in. Every mode looks the
@@ -600,7 +602,7 @@ body:not(.signed-in) .modebar .signed-in-only { display: none; }
     position: absolute; z-index: 3; top: 12px; right: 12px; display: flex; flex-direction: column; align-items: flex-end; gap: 10px;
     transition: right .35s cubic-bezier(.2, .8, .2, 1);
   }
-  body.show-results:not([data-mode="art"]):not([data-mode="p2p"]) .map-tools { right: calc(12px + var(--list-w) + 12px); }
+  body.show-results:not([data-mode="art"]):not(:is([data-mode="p2p"], [data-mode="edit"])) .map-tools { right: calc(12px + var(--list-w) + 12px); }
   .map-tools .locate-btn { position: static; }
   .map-tools .credits { position: relative; flex-direction: row; align-items: center; }
   .map-tools .credits-btn { width: 46px; height: 32px; margin: 0; }
@@ -809,7 +811,7 @@ dialog.sheet::backdrop { background: rgba(7, 9, 13, .66); }
    routing and Export; js/panel.js). */
 @media (max-width: 899px) {
   body[data-mode="art"]:not(.art-results) .deck { padding-top: 28px; }
-  body[data-mode="art"]:not(.art-results) #art-grip, body[data-mode="p2p"].p2p-has-leg #p2p-grip {
+  body[data-mode="art"]:not(.art-results) #art-grip, body:is([data-mode="p2p"], [data-mode="edit"]).p2p-has-leg #p2p-grip {
     display: block; position: absolute; top: -14px; left: 0; right: 0; height: 44px; padding: 0;
     background: none; border: 0; cursor: grab; touch-action: none; -webkit-tap-highlight-color: transparent;
   }
@@ -900,22 +902,22 @@ dialog.sheet::backdrop { background: rgba(7, 9, 13, .66); }
    It shares the deck with the other modes: here loop's and GPS art's panels,
    loop's start marker, list and top-bar text are hidden, and A to B's own
    show. Its body classes (p2p-*) only count in this mode. */
-body:not([data-mode="p2p"]) :is(.p2p-hint, .p2p-info) { display: none !important; }
+body:not(:is([data-mode="p2p"], [data-mode="edit"])) :is(.p2p-hint, .p2p-info) { display: none !important; }
 .p2p { display: none; }
-[data-mode="p2p"] .setup, [data-mode="p2p"] .results, [data-mode="p2p"] .list, [data-mode="p2p"] .info-tab,
-[data-mode="p2p"] .route-info, [data-mode="p2p"] .hud-top .hint:not(.p2p-hint), [data-mode="p2p"] .hud-top .info:not(.p2p-info),
-[data-mode="p2p"] .start-marker { display: none !important; }
+:is([data-mode="p2p"], [data-mode="edit"]) .setup, :is([data-mode="p2p"], [data-mode="edit"]) .results, :is([data-mode="p2p"], [data-mode="edit"]) .list, :is([data-mode="p2p"], [data-mode="edit"]) .info-tab,
+:is([data-mode="p2p"], [data-mode="edit"]) .route-info, :is([data-mode="p2p"], [data-mode="edit"]) .hud-top .hint:not(.p2p-hint), :is([data-mode="p2p"], [data-mode="edit"]) .hud-top .info:not(.p2p-info),
+:is([data-mode="p2p"], [data-mode="edit"]) .start-marker { display: none !important; }
 /* A column, like GPS art's: the parts that grow in and shrink away take
    the gap above them with them (a negative margin, js/panel.js), which a
    grid's gaps won't do. */
-[data-mode="p2p"] .p2p { display: flex; flex-direction: column; gap: 10px; }
-[data-mode="p2p"] .p2p > * { min-width: 0; }
+:is([data-mode="p2p"], [data-mode="edit"]) .p2p { display: flex; flex-direction: column; gap: 10px; }
+:is([data-mode="p2p"], [data-mode="edit"]) .p2p > * { min-width: 0; }
 /* The top bar: loop's hint (what a tap does next) until there's a leg,
    then the distance, as in loop mode. */
-body[data-mode="p2p"] .hud-top .p2p-hint { display: block; }
-body[data-mode="p2p"] .hud-top .p2p-info { display: none; }
-body[data-mode="p2p"].p2p-has-leg .hud-top .p2p-hint { display: none; }
-body[data-mode="p2p"].p2p-has-leg .hud-top .p2p-info { display: block; }
+body:is([data-mode="p2p"], [data-mode="edit"]) .hud-top .p2p-hint { display: block; }
+body:is([data-mode="p2p"], [data-mode="edit"]) .hud-top .p2p-info { display: none; }
+body:is([data-mode="p2p"], [data-mode="edit"]).p2p-has-leg .hud-top .p2p-hint { display: none; }
+body:is([data-mode="p2p"], [data-mode="edit"]).p2p-has-leg .hud-top .p2p-info { display: block; }
 /* The heading heads all four controls (the chips and the switch) and says
    what they change: Next leg, or Last leg (a Scope heading). */
 .p2p-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
@@ -955,17 +957,48 @@ body[data-mode="p2p"].p2p-has-leg .hud-top .p2p-info { display: block; }
    comes off once they're gone); p2p-has-leg, for everything else that
    comes with a route, changes at once, so it all moves together. */
 .p2p-details, .p2p-actions { display: none; }
-[data-mode="p2p"].p2p-has-route .p2p-details {
+:is([data-mode="p2p"], [data-mode="edit"]).p2p-has-route .p2p-details {
   display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; padding-top: 10px; border-top: 1px solid var(--edge);
 }
-[data-mode="p2p"].p2p-has-route .p2p-actions { display: grid; grid-template-columns: minmax(0, 1fr) 52px; gap: 10px; }
-[data-mode="p2p"].p2p-no-details .p2p-details, .p2p-folded .p2p-fold { display: none !important; }
+:is([data-mode="p2p"], [data-mode="edit"]).p2p-has-route .p2p-actions { display: grid; grid-template-columns: minmax(0, 1fr) 52px; gap: 10px; }
+.p2p-folded .p2p-fold { display: none !important; }
 .p2p-details .profile { padding-top: 0; margin-bottom: 0; }
+/* Short screens (a landscape phone; 2026-11-26, the user: not designed
+   for, but presentable at a glance): A to B and Edit's chart goes (its
+   header line stays, with Reverse), and so does the grip; the panel never
+   reaches above the top bar, scrolling inside instead, with Undo, Redo
+   and Clear as its first row rather than floating above it (where its
+   scrolling would cut them off). */
+@media (max-width: 899px) and (max-height: 500px) {
+  body:is([data-mode="p2p"], [data-mode="edit"]) .deck {
+    max-height: calc(100dvh - var(--above-modebar) - max(12px, env(safe-area-inset-top)) - var(--hud-h) - 8px);
+    overflow-y: auto; overscroll-behavior: contain; padding-top: 16px !important;
+  }
+  body:is([data-mode="p2p"], [data-mode="edit"]) .p2p .profile-chart,
+  body:is([data-mode="p2p"], [data-mode="edit"]) .deck-grip { display: none !important; }
+  body:is([data-mode="p2p"], [data-mode="edit"]) .p2p-history { position: static; max-width: none; margin-bottom: 10px; }
+}
+/* No heights (GPS art, some GPX): no chart, its header line stays. */
+.profile.no-heights .profile-chart { display: none; }
+/* Edit with nothing in it (UI.md, 2026-11-26): the choice of a route to
+   edit in the panel, instead of A to B's controls (Undo stays, to bring
+   back a route cleared). */
+.edit-start { display: none; }
+body[data-mode="edit"].edit-empty .edit-start { display: flex; flex-direction: column; gap: 10px; }
+body[data-mode="edit"].edit-empty :is(.p2p-head, #p2p-routing, .p2p-details, .p2p-actions, .deck-grip) { display: none !important; }
+.edit-title { font-size: 18px; font-weight: 700; color: var(--text); }
+.edit-note { font-size: 15px; color: var(--dim); margin-bottom: 4px; }
+.edit-start .btn { width: 100%; }
+.edit-start .btn[hidden] { display: none; }
 /* Reverse route (UI.md, 2026-11-26): a small round icon button before
    "Elevation", 28px to see with a 44px target, its margins taken back so
    the header line doesn't grow (the map has little room on small phones). */
 .p2p-details .profile-head { align-items: center; }
 .profile-title { display: flex; align-items: center; gap: 8px; min-width: 0; }
+/* below the 360px phones are designed for, "Elevation" shortens with "…"
+   rather than run into the climb and descent */
+.profile-title .profile-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.p2p-details .profile-value { flex: none; }
 .icon-btn.reverse-btn { position: relative; width: 28px; height: 28px; margin: -4px 0; flex: none; }
 .icon-btn.reverse-btn svg { width: 16px; height: 16px; }
 .icon-btn.reverse-btn::after { content: ""; position: absolute; inset: -8px; border-radius: 50%; }
@@ -983,12 +1016,12 @@ body[data-mode="p2p"].p2p-has-leg .hud-top .p2p-info { display: block; }
 #p2p-undo { order: 2; }
 #p2p-clear { order: 3; }
 #p2p-lap { order: 4; }
-[data-mode="p2p"]:is(.p2p-has-point, .p2p-can-undo, .p2p-can-redo) .p2p-history { display: flex; }
+:is([data-mode="p2p"], [data-mode="edit"]):is(.p2p-has-point, .p2p-can-undo, .p2p-can-redo) .p2p-history { display: flex; }
 /* Folded with a warning hidden: the grip's pill turns amber, so it says
    there's something to see where you'd tap to see it (was a dot beside
    it, which floated on the panel's edge, 2026-11-21). */
-body[data-mode="p2p"].p2p-folded.p2p-warnings #p2p-grip i { background: var(--amber); }
-body[data-mode="p2p"].p2p-folded.p2p-warnings #p2p-grip:active i { background: var(--text); }
+body:is([data-mode="p2p"], [data-mode="edit"]).p2p-folded.p2p-warnings #p2p-grip i { background: var(--amber); }
+body:is([data-mode="p2p"], [data-mode="edit"]).p2p-folded.p2p-warnings #p2p-grip:active i { background: var(--text); }
 /* Waypoints (UI.md): the start keeps loop's pink, vias are dark beads,
    the finish is chequered. Small, and they take no taps: a tap near one
    lands on it. */
@@ -1042,7 +1075,7 @@ body.point-dragging, body.point-dragging * { cursor: grabbing !important; }
 /* The same finish on routes that end away from their start in the route
    viewer (favourites) and GPS art (2026-11-21). The viewer's goes with
    its routes, and out of sight in other modes, as loop's start does. */
-body:not(.show-results) .loop-finish, :is([data-mode="art"], [data-mode="p2p"]) .loop-finish { display: none !important; }
+body:not(.show-results) .loop-finish, :is([data-mode="art"], :is([data-mode="p2p"], [data-mode="edit"])) .loop-finish { display: none !important; }
 /* It comes when the line has drawn in to it, fading in (opacity only: the
    map positions markers with transform). */
 .loop-finish, .art-finish { animation: finish-in .25s ease-out; }
@@ -1052,10 +1085,10 @@ body:not(.show-results) .loop-finish, :is([data-mode="art"], [data-mode="p2p"]) 
   /* the panel is always open, so a shorter chart leaves more map */
   .p2p .profile-chart { height: 84px; }
   /* room for the grip: the panel, and everything floating above it, moves up */
-  body[data-mode="p2p"].p2p-has-leg .deck { padding-top: 28px; }
-  body[data-mode="p2p"].p2p-has-leg .locate-btn { bottom: calc(100% + 72px); }
-  body[data-mode="p2p"].p2p-has-leg :is(.p2p-history, .focus-btn) { bottom: calc(100% + 18px); }
-  body[data-mode="p2p"].p2p-has-leg .sat-btn { bottom: calc(100% + 126px); }
+  body:is([data-mode="p2p"], [data-mode="edit"]).p2p-has-leg .deck { padding-top: 28px; }
+  body:is([data-mode="p2p"], [data-mode="edit"]).p2p-has-leg .locate-btn { bottom: calc(100% + 72px); }
+  body:is([data-mode="p2p"], [data-mode="edit"]).p2p-has-leg :is(.p2p-history, .focus-btn) { bottom: calc(100% + 18px); }
+  body:is([data-mode="p2p"], [data-mode="edit"]).p2p-has-leg .sat-btn { bottom: calc(100% + 126px); }
   /* clear of Focus, at the panel's left end */
   .p2p-history { max-width: calc(100% - 54px); }
 }
@@ -1063,9 +1096,9 @@ body:not(.show-results) .loop-finish, :is([data-mode="art"], [data-mode="p2p"]) 
    createSmoother); the grip's room and the buttons over the map glide
    with it rather than jump. */
 @media (max-width: 899px) and (prefers-reduced-motion: no-preference) {
-  body[data-mode="p2p"] .deck { transition: padding-top .28s cubic-bezier(.2, .8, .2, 1); }
-  body[data-mode="p2p"] .p2p-history { transition: bottom .28s cubic-bezier(.2, .8, .2, 1); }
-  body[data-mode="p2p"] .locate-btn {
+  body:is([data-mode="p2p"], [data-mode="edit"]) .deck { transition: padding-top .28s cubic-bezier(.2, .8, .2, 1); }
+  body:is([data-mode="p2p"], [data-mode="edit"]) .p2p-history { transition: bottom .28s cubic-bezier(.2, .8, .2, 1); }
+  body:is([data-mode="p2p"], [data-mode="edit"]) .locate-btn {
     transition: bottom .28s cubic-bezier(.2, .8, .2, 1), transform .12s, background-color .15s, color .15s, box-shadow .15s, opacity .18s, visibility .18s;
   }
 }

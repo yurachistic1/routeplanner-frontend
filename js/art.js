@@ -600,5 +600,10 @@ export function createArtMode(map, mapReady, opts) {
     ready.then(() => map.getSource("art").setData(EMPTY));
   }
 
-  return { enter, leave, canGoBack, goBack: backToResults, canFocus, focus };
+  // The route on screen, for Edit (with its shape's name, as a favourite keeps it); null while planning.
+  const currentRoute = () => {
+    const r = current();
+    return r && { ...r, kind: "art", shape: r.shape ?? state.shape?.name };
+  };
+  return { enter, leave, canGoBack, goBack: backToResults, canFocus, focus, currentRoute };
 }

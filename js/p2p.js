@@ -35,10 +35,12 @@
 // deck (#p2p-*) and #p2p-hint, #p2p-distance in the top bar. Body classes
 // (CSS reads them in this mode only): p2p-has-point, p2p-has-leg,
 // p2p-has-route (the route's part of the panel, as it grows and shrinks),
-// p2p-can-undo, p2p-folded, p2p-warnings, p2p-no-details.
+// p2p-can-undo, p2p-can-redo, p2p-folded, p2p-warnings; edit-empty (Edit
+// with nothing in it). The Edit mode is a second copy, sharing all of
+// these (see "Edit").
 
 import { LEGS_BASE } from "./api.js";
-import { lineLength, M_LAT, metresPerPixel, mLon, pointAlong, segLength } from "./geometry.js";
+import { keptIndices, lineLength, M_LAT, metresPerPixel, mLon, pointAlong, segLength } from "./geometry.js";
 import { routeFeatures, routePieces, samePoint } from "./lanes.js";
 import { frameOnMap, setSourceVisible } from "./map.js";
 import { attachGrip, createSmoother } from "./panel.js";
@@ -87,6 +89,12 @@ const MAX_LEG_M = 20000;
  *   room(): {left, top, right, bottom}, px in the map: the part of it not
  *     under the top bar, the panel or the buttons over it (a dragged point
  *     stays in it, js/pointdrag.js)
+ *   mode: "p2p" (A to B, the default) or "edit" (2026-11-26): the Edit
+ *     mode is a second copy of this one, with its own route, Undo and map
+ *     layers (source: their source's name), sharing the panel, so only the
+ *     copy on screen acts on it (see "Edit")
+ *   routeOnScreen(from): Edit: { route, kind, favourite } for the route on
+ *     screen in mode from (loop, favourites, art), or null
  */
 export function createP2PMode(map, mapReady, opts) {
   // points: the waypoints, [lon, lat]. Leg i runs from points[i] to
@@ -134,10 +142,15 @@ export function createP2PMode(map, mapReady, opts) {
   let heldRuns = []; // the route without the legs being moved, as runs of pieces, drawn meanwhile
   let shownKey = null; // the half zoom the line on screen was smoothed for
 
-  const mine = () => body.dataset.mode === "p2p";
+  const MODE = opts.mode ?? "p2p", EDIT = MODE === "edit";
+  const SRC = opts.source ?? "p2p", DRAG = `${SRC}-drag`; // its map sources
+  const mine = () => body.dataset.mode === MODE;
+  // The panel's controls are shared with the other copy (A to B and Edit),
+  // so only the one on screen acts on them.
+  const own = (fn) => (...a) => (mine() ? fn(...a) : undefined);
   const ready = mapReady.then(() => {
-    map.addSource("p2p", { type: "geojson", data: EMPTY });
-    map.addSource("p2p-drag", { type: "geojson", data: EMPTY }); // the dashed line to a dragged point
+    map.addSource(SRC, { type: "geojson", data: EMPTY });
+    map.addSource(DRAG, { type: "geojson", data: EMPTY }); // the dashed line to a dragged point
     opts.addP2PLayers(map);
   });
 
@@ -754,7 +767,7 @@ export function createP2PMode(map, mapReady, opts) {
   function drawHeld() {
     if (!mine()) return;
     ready.then(() => {
-      map.getSource("p2p-drag").setData(!held ? EMPTY : {
+      map.getSource(DRAG).setData(!held ? EMPTY : {
         type: "FeatureCollection",
         features: held.ends.map((e) => ({
           type: "Feature", properties: { over: segLength(e.at, held.spot) > MAX_LEG_M },
@@ -1060,7 +1073,7 @@ export function createP2PMode(map, mapReady, opts) {
     if (!mine()) return;
     ready.then(() => {
       shownKey = half(map.getZoom());
-      const src = map.getSource("p2p");
+      const src = map.getSource(SRC);
       // while a point is moved, without its legs: the runs between them
       if (held) return src.setData({ type: "FeatureCollection", features: heldRuns.flatMap((run) => routeFeatures(run, shownKey).features) });
       if (!pieces.length) return src.setData(EMPTY);
@@ -1133,7 +1146,7 @@ export function createP2PMode(map, mapReady, opts) {
     const moved = smooth([...document.querySelectorAll(".p2p-fold")], !on, () => { body.classList.toggle("p2p-folded", on); labelGrip(); });
     if (!on && keep) moved.then(keepInView, () => {}); // opened: it may cover the route now
   }
-  attachGrip(grip, { isFolded: () => body.classList.contains("p2p-folded"), setFolded });
+  attachGrip(grip, { isFolded: () => body.classList.contains("p2p-folded"), setFolded: own(setFolded) });
 
   // ----- the routing -----
   // The routing and Minimise climb sit under a heading that says what they
@@ -1185,11 +1198,11 @@ export function createP2PMode(map, mapReady, opts) {
     btn.title = what;
     $("p2p-routing").setAttribute("aria-label", `Routing for the ${SCOPE_NAMES[s].split(" ")[0].toLowerCase()} leg`);
   }
-  $("p2p-scope").addEventListener("click", () => {
+  $("p2p-scope").addEventListener("click", own(() => {
     const on = scopes();
     if (on.length < 2) return;
     toScope(on[(on.indexOf(state.scope) + 1) % on.length]);
-  });
+  }));
   // Changes the scope (picked: a leg has just been selected, state.pick).
   // Leaving Selected leg ends the selection and brings back the next leg's
   // routing.
@@ -1319,12 +1332,12 @@ export function createP2PMode(map, mapReady, opts) {
   // A joined leg's line isn't routed end to end, so its own chip, lit
   // already, routes it end to end too.
   const inScope = () => (state.scope === "last" ? state.legs.at(-1) : state.scope === "leg" ? state.legs[state.pick] : null);
-  $("p2p-routing").addEventListener("click", (e) => {
+  $("p2p-routing").addEventListener("click", own((e) => {
     const b = e.target.closest("[data-routing]");
     if (!b || (b.dataset.routing === state.routing && !inScope()?.joined)) return;
     choose({ routing: b.dataset.routing });
-  });
-  $("p2p-climb").addEventListener("click", () => choose({ minimiseClimb: !state.minimiseClimb }));
+  }));
+  $("p2p-climb").addEventListener("click", own(() => choose({ minimiseClimb: !state.minimiseClimb })));
 
   function render() {
     closeMenu();
@@ -1337,11 +1350,16 @@ export function createP2PMode(map, mapReady, opts) {
     }
     route = whole();
     pieces = routePieces(state.legs);
+    scheduleSave(); // a hearted route's favourite follows it
+    if (!mine()) return; // the panel and map are the other copy's
     const n = state.points.length;
     body.classList.toggle("p2p-has-point", n > 0);
     body.classList.toggle("p2p-has-leg", !!route);
+    // Edit with nothing in it: the choice of a route to edit
+    body.classList.toggle("edit-empty", EDIT && !n);
+    if (EDIT) renderOffer();
     // the top bar: what a tap does next, then (with a route) the distance
-    $("p2p-hint").textContent = n ? "Tap to add a point" : "Tap to set start";
+    $("p2p-hint").textContent = n ? "Tap to add a point" : EDIT ? "Choose a route to edit" : "Tap to set start";
     // Undo and Clear: Clear only with something to clear, Undo whenever
     // there's something to take back (a Clear too)
     body.classList.toggle("p2p-can-undo", undos.length > 0);
@@ -1362,7 +1380,6 @@ export function createP2PMode(map, mapReady, opts) {
       $("p2p-lap").setAttribute("aria-label", `Lap, ${km(lapLength)} km${count ? `, ${count} laps so far` : ""}`);
     }
     syncHeart();
-    scheduleSave(); // a hearted route's favourite follows it
     renderScope(); // Last leg only while a tap placed the last leg (before drawLine: it lights it up)
     placeMarkers();
     drawLine();
@@ -1381,7 +1398,14 @@ export function createP2PMode(map, mapReady, opts) {
     if (route) $("p2p-distance").textContent = (route.distance / 1000).toFixed(2);
     renderWarning();
     drawProfile();
-    body.classList.toggle("p2p-no-details", !!route && !route.elevation && !body.classList.contains("p2p-warnings"));
+    // No heights (GPS art, some GPX; 2026-11-26): no chart, but its header
+    // line stays, saying so, with Reverse.
+    const el = $("p2p-profile"), none = !!route && !route.elevation;
+    el.classList.toggle("no-heights", none);
+    if (none) {
+      el.hidden = false;
+      el.querySelector(".profile-value").textContent = "No heights for this route";
+    }
   }
   function showRoute() {
     if (!!route === routeShown) {
@@ -1390,11 +1414,24 @@ export function createP2PMode(map, mapReady, opts) {
     }
     routeShown = !!route;
     if (route) {
-      smooth(routeParts(), true, () => { body.classList.add("p2p-has-route"); fillRoute(); }).then(keepInView, () => {});
+      // Where that would leave hardly any map (a small phone, 320×568: ~36 px;
+      // 2026-11-26, the user), the panel folds instead; the grip opens it.
+      smooth(routeParts(), true, () => { body.classList.add("p2p-has-route"); fillRoute(); })
+        .then(() => {
+          if (!tooLittleMap()) return keepInView();
+          setFolded(true);
+          setTimeout(keepInView, 320); // once folded (280 ms), the route clear of what's left
+        }, () => {});
     } else {
       smooth(routeParts(), false, () => { body.classList.remove("p2p-has-route"); fillRoute(); });
     }
   }
+  const MIN_MAP_PX = 100; // less map than this between the top bar and the open panel: it folds
+  const tooLittleMap = () => {
+    if (!mine() || body.classList.contains("p2p-folded") || getComputedStyle(grip).display === "none") return false;
+    const r = opts.room();
+    return r.bottom - r.top < MIN_MAP_PX;
+  };
   // Moves the map as little as it can so the whole route is clear of the
   // panel, the top bar and the buttons over the map: a pan if it fits at
   // this zoom, else zoomed out to fit. Never zooms in.
@@ -1467,7 +1504,7 @@ export function createP2PMode(map, mapReady, opts) {
     $("p2p-warn").setAttribute("aria-expanded", on);
     $("p2p-warn-text").hidden = !on;
   }
-  $("p2p-warn").addEventListener("click", () => showWhy($("p2p-warn-text").hidden));
+  $("p2p-warn").addEventListener("click", own(() => showWhy($("p2p-warn-text").hidden)));
 
   // The elevation profile, drawn to the panel's width (so again when that
   // changes), with a dot on the route where you're reading it.
@@ -1492,6 +1529,7 @@ export function createP2PMode(map, mapReady, opts) {
   let chartSize = "";
   if ("ResizeObserver" in window) {
     new ResizeObserver(([e]) => {
+      if (!mine()) return;
       const size = `${Math.round(e.contentRect.width)}x${Math.round(e.contentRect.height)}`;
       if (e.contentRect.width === 0) chartSize = "";
       else if (size !== chartSize && route?.elevation) {
@@ -1502,11 +1540,11 @@ export function createP2PMode(map, mapReady, opts) {
   }
 
   // ----- Undo, Clear, Export, favourite -----
-  $("p2p-undo").addEventListener("click", undo);
-  $("p2p-reverse").addEventListener("click", reverseRoute);
-  $("p2p-redo").addEventListener("click", redo);
-  $("p2p-lap").addEventListener("click", addLap);
-  $("p2p-clear").addEventListener("click", clear);
+  $("p2p-undo").addEventListener("click", own(undo));
+  $("p2p-reverse").addEventListener("click", own(reverseRoute));
+  $("p2p-redo").addEventListener("click", own(redo));
+  $("p2p-lap").addEventListener("click", own(addLap));
+  $("p2p-clear").addEventListener("click", own(clear));
   const mac = /Mac|iPhone|iPad/.test(navigator.platform);
   // icons only, so laptops say what they are, and their keys, on hover
   $("p2p-undo").title = `Undo (${mac ? "⌘Z" : "Ctrl+Z"})`;
@@ -1534,22 +1572,45 @@ export function createP2PMode(map, mapReady, opts) {
   // filled (the user, 2026-11-21). Unhearting removes it; Clear starts a
   // new route, not saved until hearted. Its id is its own, not its line's,
   // as the line changes.
+  // It keeps its waypoints (as places along its line) and each leg's
+  // routing, so it can be edited again as it was (2026-11-26). Edit keeps
+  // the kind of the route it was given (a loop that no longer closes is A
+  // to B now), and GPS art its shape's name.
   const favouriteOf = (r) => ({
-    kind: "p2p", raw: r.raw, distance: r.distance, info: r.info,
+    ...(kindNow() !== "unknown" && { kind: kindNow() }), raw: r.raw, distance: r.distance, info: r.info,
     ...(r.elevation && { ...shrinkProfile(r.elevation, r.elevationStep), climb: r.climb }),
+    ...(session.shape && { shape: session.shape }),
     ...(session.link && { id: session.link }),
+    ...waypointsOf(),
   });
+  // "unknown": a favourite saved before kinds were (it stays without one)
+  const kindNow = () => (session.kind === "loop" && route && !route.loopClosed ? "p2p" : session.kind ?? "p2p");
+  function waypointsOf() {
+    let at = 0;
+    const wp = [0];
+    for (const leg of state.legs) wp.push((at += leg.points.length - 1));
+    return { wp, legs: state.legs.map(legCode) };
+  }
+  // A leg's routing as kept: "pleasant", "shortest" or "freehand", "+climb"
+  // with Minimise climb, "~" when its line isn't routed end to end (a
+  // joined or edited one), "!" when its parts were routed different ways.
+  const legCode = (l) => `${l.routing}${l.minimiseClimb && l.routing !== "freehand" ? "+climb" : ""}${l.joined ? "~" : ""}${l.mixed ? "!" : ""}`;
+  function legOf(code) {
+    const m = /^(pleasant|shortest|freehand)(\+climb)?(~)?(!)?$/.exec(code ?? "");
+    return m ? { routing: m[1], minimiseClimb: !!m[2], joined: !!m[3], mixed: !!m[4] } : null;
+  }
   const newId = () => [...crypto.getRandomValues(new Uint8Array(8))].map((b) => b.toString(16).padStart(2, "0")).join("");
   // Saved: hearted, and still in favourites (it may have been removed in
   // the favourites list since; then it isn't brought back).
   const isSaved = () => !!route && !!session.link && opts.favourites.has(favouriteOf(route));
   function syncHeart() {
+    if (!mine()) return;
     const on = isSaved();
     $("p2p-fav").classList.toggle("on", on);
     $("p2p-fav").setAttribute("aria-pressed", on);
   }
   opts.favourites.onChange(syncHeart);
-  $("p2p-fav").addEventListener("click", () => {
+  $("p2p-fav").addEventListener("click", own(() => {
     if (!route) return;
     if (isSaved()) {
       clearTimeout(saveTimer);
@@ -1563,7 +1624,7 @@ export function createP2PMode(map, mapReady, opts) {
     session.link = newId();
     tooLongSaid = false;
     opts.favourites.toggle(favouriteOf(route));
-  });
+  }));
   const TOO_LONG = `Favourites hold routes up to ${MAX_SAVED_M / 1000} km for now. Export it as a GPX instead?`;
 
   // Changes reach the favourite SAVE_AFTER_MS after the last, so quick taps
@@ -1594,26 +1655,201 @@ export function createP2PMode(map, mapReady, opts) {
     if (document.visibilityState === "hidden") flushSave();
   });
 
-  $("p2p-export").addEventListener("click", () => {
+  const KIND_NAMES = { loop: "Loop", art: "GPS art", p2p: "A to B", unknown: "Route" };
+  $("p2p-export").addEventListener("click", own(() => {
     if (!route) return;
-    const name = `A to B ${km(route.distance)} km`;
+    const kind = kindNow();
+    const name = `${(kind === "art" && session.shape) || KIND_NAMES[kind]} ${km(route.distance)} km`;
     const points = route.raw.map(([lon, lat]) => [lat, lon]);
     opts.exportRoute?.({
-      kind: "p2p",
+      kind,
       distance: route.distance,
       points,
-      share: { kind: "p2p", raw: route.raw, distance: route.distance, info: route.info, ...(route.elevation && { ...shrinkProfile(route.elevation, route.elevationStep), climb: route.climb }) }, // for Copy link, as favourites keep it
+      ...(session.shape && { shape: session.shape }),
+      share: { kind, ...(session.shape && { shape: session.shape }), raw: route.raw, distance: route.distance, info: route.info, ...(route.elevation && { ...shrinkProfile(route.elevation, route.elevationStep), climb: route.climb }) }, // for Copy link, as favourites keep it
       ...(route.elevation && { heights: heightsAt(route, points), climb: route.climb }),
       gpxName: name,
       fileName: `${name.replaceAll(" ", "-")}.gpx`,
     });
-  });
+  }));
+
+  // ----- Edit -----
+  // The Edit mode's own (the user, 2026-11-26; ROADMAP "Edit mode"): it's
+  // A to B for a route it's given. Coming in with a route on screen (a
+  // loop, a favourite, GPS art), it offers that or a GPX file; with none,
+  // a GPX file. It resumes what it was editing; Clear empties it and the
+  // choice comes back. A favourite is edited in place (saved as it
+  // changes); a loop, GPS art or a GPX file is a copy held here until
+  // hearted, gone on reload, and never changes what Loop or GPS art show.
+  let offer = null; // { route, kind: "loop" | "art" | "favourite" }
+  const ROUTINGS = { loop: "pleasant", art: "shortest", p2p: "shortest" }; // presumed: loops are Pleasant's; art hugs its shape
+  const MAX_GPX_M = 100000; // the longest GPX taken, for now (the user)
+  const MIN_GPX_M = 50; // and the shortest
+  function renderOffer() {
+    const has = !!offer;
+    $("edit-this").hidden = !has;
+    $("edit-upload").classList.toggle("btn-primary", !has); // one primary on the panel
+    $("edit-upload").classList.toggle("btn-secondary", has);
+    const what = { loop: "the loop", art: "the GPS art", favourite: "the favourite" }[offer?.kind];
+    $("edit-note").textContent = has
+      ? `Edit ${what} you were looking at, or a GPX file of your own (up to ${MAX_GPX_M / 1000} km).`
+      : `Upload a GPX file (up to ${MAX_GPX_M / 1000} km), or come here from a loop, a favourite or GPS art to edit it.`;
+  }
+  if (EDIT) {
+    $("edit-this").addEventListener("click", own(() => offer && editRoute(offer)));
+    $("edit-upload").addEventListener("click", own(() => $("edit-file").click()));
+    $("edit-file").addEventListener("change", own(async (e) => {
+      const file = e.target.files?.[0];
+      e.target.value = ""; // the same file can be chosen again
+      if (file) await openGpx(file);
+    }));
+  }
+  function editRoute({ route: r, kind }) {
+    const fav = kind === "favourite";
+    // a favourite keeps its own kind; one saved before kinds were has none, and keeps none
+    const k = fav ? r.kind ?? "unknown" : kind;
+    const routing = ROUTINGS[k] ?? (segLength(r.raw[0], r.raw.at(-1)) < 5 ? "pleasant" : "shortest");
+    load(r, { routing, kind: k, link: fav ? r.id : null, shape: r.shape ?? null });
+  }
+  // A GPX file's track (or its route points), segments end to end, with
+  // heights where every point has one; up to MAX_GPX_M. Read here, sent
+  // nowhere.
+  async function openGpx(file) {
+    if (file.size > 20e6) return toast("That file's too big for a GPX route.");
+    let text;
+    try {
+      text = await file.text();
+    } catch {
+      return toast("Couldn't read that file.");
+    }
+    const doc = new DOMParser().parseFromString(text, "application/xml");
+    let found = [...doc.getElementsByTagNameNS("*", "trkpt")];
+    if (!found.length) found = [...doc.getElementsByTagNameNS("*", "rtept")];
+    const raw = [], ele = [];
+    for (const p of found) {
+      const lat = parseFloat(p.getAttribute("lat")), lon = parseFloat(p.getAttribute("lon"));
+      if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) continue;
+      const e = p.getElementsByTagNameNS("*", "ele")[0];
+      raw.push([lon, lat]);
+      ele.push(e ? parseFloat(e.textContent) : NaN);
+    }
+    if (doc.getElementsByTagName("parsererror").length || raw.length < 2) return toast("No route in that file: it needs a GPX track or route.");
+    const length = lineLength(raw);
+    if (length > MAX_GPX_M) return toast(`That route is ${Math.round(length / 1000)} km, and Edit takes routes up to ${MAX_GPX_M / 1000} km for now.`, 6000);
+    // a few points on one spot isn't a route (2026-11-26: it came in as 0.00 km)
+    if (length < MIN_GPX_M) return toast(`That route is only ${Math.round(length)} m long, too short to edit.`);
+    // a watch's track has a point every second or so: kept to those that shape it (within 2 m)
+    const kept = keptIndices(raw, 2);
+    // heights only where every point has one that could be on Earth (a 99,999 m spike would flatten the chart)
+    const heights = ele.every((h) => Number.isFinite(h) && h > -450 && h < 9000) ? kept.map((i) => ele[i]) : null;
+    load({ raw: kept.map((i) => raw[i]), ele: heights },
+      { routing: "shortest", kind: "p2p", gpx: true });
+  }
+  // Route r ({ raw, and maybe elevation and elevationStep, or ele, a
+  // height for each point; info's uncertain stretches; wp and legs, the
+  // waypoints and leg routings a favourite kept}) as points and legs. The
+  // line stays exactly as it was: its legs are cut from it (as joined
+  // legs: a leg's lit chip, or moving one of its points, routes it), with
+  // a few waypoints evenly along it, unless it kept its own. routing: the
+  // legs'. gpx: the line may be off the paths. An Undo step (back to the
+  // choice).
+  function load(r, { routing, kind, link = null, shape = null, gpx = false }) {
+    const raw = r.raw.map(([lon, lat]) => [lon, lat]);
+    if (raw.length < 2) return toast("That route has no line to edit.");
+    const cum = [0];
+    for (let i = 1; i < raw.length; i++) cum.push(cum[i - 1] + segLength(raw[i - 1], raw[i]));
+    const closed = segLength(raw[0], raw.at(-1)) < 5;
+    const kept = keptWaypoints(r, raw.length);
+    const idx = kept?.wp ?? spread(cum, closed);
+    const heightAt = heightsFrom(r, cum);
+    const spans = r.info?.countryPathSpans ?? [];
+    const points = idx.map((i) => raw[i]);
+    if (closed) points[points.length - 1] = points[0]; // it ends at its start: the same point
+    const legs = idx.slice(1).map((b, k) => {
+      const a = idx[k], code = kept ? legOf(kept.legs[k]) : null;
+      const length = cum[b] - cum[a], n = Math.max(2, Math.round(length / HEIGHT_STEP_M) + 1);
+      const leg = {
+        routing: code?.routing ?? routing, minimiseClimb: code?.minimiseClimb ?? false,
+        points: raw.slice(a, b + 1),
+        elevation: heightAt && Array.from({ length: n }, (_, j) => heightAt(cum[a] + (j / (n - 1)) * length)),
+        country: spans.filter(([sp, e]) => e > a && sp < b).map(([sp, e]) => [Math.max(sp, a) - a, Math.min(e, b) - a]),
+        joined: code ? code.joined : true, mixed: code?.mixed ?? false,
+      };
+      if (leg.joined) Object.assign(leg, { startFree: gpx, freeEnd: gpx });
+      return leg;
+    });
+    // a re-route as Last leg goes as a tap's would
+    legs.forEach((l, k) => {
+      l.tap = { from: points[k], to: points[k + 1], join: k === 0 ? gpx || l.routing === "freehand" : endFree(legs[k - 1]), reach: reachAt(points[k + 1]) };
+    });
+    if (gpx) placedFree.add(points[0]);
+    commit(points, legs, { link, kind, shape });
+    // a favourite opened isn't saved again until it's changed
+    clearTimeout(saveTimer);
+    saveTimer = 0;
+    frameOnMap(map, raw, opts.padding());
+  }
+  // The waypoints a favourite kept (places along its line, wp, and its legs'
+  // routings, legs), if they fit its line of n points; else null.
+  function keptWaypoints(r, n) {
+    const { wp, legs } = r;
+    if (!Array.isArray(wp) || !Array.isArray(legs) || wp.length < 2 || legs.length !== wp.length - 1) return null;
+    if (wp[0] !== 0 || wp.at(-1) !== n - 1 || wp.some((i, k) => !Number.isInteger(i) || (k && i <= wp[k - 1]))) return null;
+    return legs.every((c) => legOf(c)) ? { wp, legs } : null;
+  }
+  // A few waypoints evenly along a line (cum: metres to each point): about
+  // one every 2 km, at least 3 legs round a loop (2 otherwise), at most 10
+  // (the user: it's the user's job to add the precise ones they want).
+  function spread(cum, closed) {
+    const total = cum.at(-1), n = cum.length;
+    const count = Math.max(closed ? 3 : 2, Math.min(10, Math.round(total / 2000)));
+    const idx = [0];
+    let i = 0;
+    for (let k = 1; k < count; k++) {
+      const want = (k * total) / count;
+      while (i < n - 2 && cum[i + 1] <= want) i++;
+      const j = want - cum[i] > cum[i + 1] - want ? i + 1 : i;
+      if (j > idx.at(-1) && j < n - 1) idx.push(j);
+    }
+    idx.push(n - 1);
+    return idx;
+  }
+  // The route's height d metres along it (cum: metres to each point), from
+  // its profile (evenly spaced over it) or a height for each point; null
+  // without heights.
+  function heightsFrom(r, cum) {
+    const total = cum.at(-1) || 1;
+    const lerp = (hs, f) => {
+      const i = Math.max(0, Math.min(Math.floor(f), hs.length - 2)), t = Math.max(0, Math.min(1, f - i));
+      return hs[i] + t * (hs[i + 1] - hs[i]);
+    };
+    if (Array.isArray(r.elevation) && r.elevation.length > 1) return (d) => lerp(r.elevation, (d / total) * (r.elevation.length - 1));
+    if (Array.isArray(r.ele) && r.ele.length === cum.length) {
+      return (d) => {
+        let lo = 0, hi = cum.length - 1;
+        while (hi - lo > 1) {
+          const mid = (lo + hi) >> 1;
+          if (cum[mid] <= d) lo = mid;
+          else hi = mid;
+        }
+        return lerp(r.ele, lo + (cum[hi] > cum[lo] ? (d - cum[lo]) / (cum[hi] - cum[lo]) : 0));
+      };
+    }
+    return null;
+  }
 
   // ----- switching modes -----
   // Loop mode's route stays as it was, out of sight while this one shows.
+  // Edit: what was on screen in the mode it's coming from, taken before
+  // that mode leaves (js/modes.js prepare)
+  function prepare(from) {
+    if (EDIT) offer = opts.routeOnScreen?.(from) ?? null;
+  }
   function enter() {
     warm();
     ready.then(() => setSourceVisible(map, "route", false));
+    routeShown = body.classList.contains("p2p-has-route"); // the panel as the other copy left it
+    renderChoices();
     render();
   }
   function leave() {
@@ -1621,8 +1857,8 @@ export function createP2PMode(map, mapReady, opts) {
     drag.cancel();
     ready.then(() => {
       setSourceVisible(map, "route", true);
-      map.getSource("p2p").setData(EMPTY);
-      map.getSource("p2p-drag").setData(EMPTY);
+      map.getSource(SRC).setData(EMPTY);
+      map.getSource(DRAG).setData(EMPTY);
     });
     for (const m of markers) m.remove();
     markers = [];
@@ -1633,5 +1869,5 @@ export function createP2PMode(map, mapReady, opts) {
   renderChoices();
   render();
 
-  return { enter, leave, canFocus, focus };
+  return { enter, leave, prepare, canFocus, focus };
 }

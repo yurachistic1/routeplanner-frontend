@@ -34,7 +34,7 @@ service cloud.firestore {
       }
       function isValid() {
         let d = request.resource.data;
-        return d.keys().hasOnly(['line', 'distance', 'savedAt', 'info', 'shape', 'kind', 'climb', 'elevation', 'elevationStep'])
+        return d.keys().hasOnly(['line', 'distance', 'savedAt', 'info', 'shape', 'kind', 'climb', 'elevation', 'elevationStep', 'wp', 'legs'])
           && d.keys().hasAll(['line', 'distance', 'savedAt'])
           && d.line is string && d.line.size() > 0 && d.line.size() <= 200000
           && d.distance is number && d.distance > 0 && d.distance <= 250000
@@ -45,7 +45,16 @@ service cloud.firestore {
           // The mode that made it (2026-11-21), optional: favourites saved
           // before don't have it.
           && (!('kind' in d) || d.kind in ['loop', 'art', 'p2p'])
-          && isValidHeights(d);
+          && isValidHeights(d)
+          && isValidWaypoints(d);
+      }
+      // Waypoints (2026-11-26), optional, from A to B and Edit: wp, where
+      // each is along the line (point indices), and legs, each leg's routing
+      // ("pleasant+climb~", say); both or neither, one more waypoint than legs.
+      function isValidWaypoints(d) {
+        return (('wp' in d) == ('legs' in d))
+          && (!('wp' in d) || (d.wp is list && d.wp.size() >= 2 && d.wp.size() <= 2000
+            && d.legs is list && d.legs.size() == d.wp.size() - 1));
       }
       allow read, delete: if isOwner();
       allow create: if isOwner() && isValid();

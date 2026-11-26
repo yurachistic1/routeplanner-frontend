@@ -21,7 +21,7 @@
   <link href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css" rel="stylesheet" />
   <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
   <link href="./css/tonal.css?v=93" rel="stylesheet" />
-  <link href="./css/styles.css?v=102" rel="stylesheet" />
+  <link href="./css/styles.css?v=106" rel="stylesheet" />
 </head>
 <body>
   <div id="map"></div>
@@ -154,6 +154,15 @@
          above the panel; on phones the grip folds it to the routing and
          Export. -->
     <div class="p2p">
+      <!-- Edit (js/p2p.js, its second copy): with nothing in it, the choice
+           of a route to edit (2026-11-26). The GPX file is read here, never sent. -->
+      <div class="edit-start">
+        <h3 class="edit-title">Edit a route</h3>
+        <p class="edit-note" id="edit-note"></p>
+        <button class="btn btn-primary" id="edit-this" hidden>Edit this route</button>
+        <button class="btn btn-secondary" id="edit-upload">Upload a GPX file</button>
+        <input type="file" id="edit-file" accept=".gpx,application/gpx+xml" hidden>
+      </div>
       <div class="p2p-history">
         <!-- Lap: while the route ends on a spot it came through before -->
         <button class="map-pill" id="p2p-lap" hidden>
@@ -393,32 +402,32 @@
   <script type="importmap">
   {
     "imports": {
-      "./js/account.js": "./js/account.js?v=139",
-      "./js/api.js": "./js/api.js?v=139",
-      "./js/art.js": "./js/art.js?v=139",
-      "./js/export.js": "./js/export.js?v=139",
-      "./js/firebase.js": "./js/firebase.js?v=139",
-      "./js/garmin.js": "./js/garmin.js?v=139",
-      "./js/geometry.js": "./js/geometry.js?v=139",
-      "./js/lanes.js": "./js/lanes.js?v=139",
-      "./js/loop.js": "./js/loop.js?v=139",
-      "./js/main.js": "./js/main.js?v=139",
-      "./js/map.js": "./js/map.js?v=139",
-      "./js/mapicons.js": "./js/mapicons.js?v=139",
-      "./js/mapstyle.js": "./js/mapstyle.js?v=139",
-      "./js/modes.js": "./js/modes.js?v=139",
-      "./js/p2p.js": "./js/p2p.js?v=139",
-      "./js/panel.js": "./js/panel.js?v=139",
-      "./js/pointdrag.js": "./js/pointdrag.js?v=139",
-      "./js/polyline.js": "./js/polyline.js?v=139",
-      "./js/profile.js": "./js/profile.js?v=139",
-      "./js/share.js": "./js/share.js?v=139",
-      "./js/shapes.js": "./js/shapes.js?v=139",
-      "./js/spot.js": "./js/spot.js?v=139",
-      "./js/ui.js": "./js/ui.js?v=139"
+      "./js/account.js": "./js/account.js?v=144",
+      "./js/api.js": "./js/api.js?v=144",
+      "./js/art.js": "./js/art.js?v=144",
+      "./js/export.js": "./js/export.js?v=144",
+      "./js/firebase.js": "./js/firebase.js?v=144",
+      "./js/garmin.js": "./js/garmin.js?v=144",
+      "./js/geometry.js": "./js/geometry.js?v=144",
+      "./js/lanes.js": "./js/lanes.js?v=144",
+      "./js/loop.js": "./js/loop.js?v=144",
+      "./js/main.js": "./js/main.js?v=144",
+      "./js/map.js": "./js/map.js?v=144",
+      "./js/mapicons.js": "./js/mapicons.js?v=144",
+      "./js/mapstyle.js": "./js/mapstyle.js?v=144",
+      "./js/modes.js": "./js/modes.js?v=144",
+      "./js/p2p.js": "./js/p2p.js?v=144",
+      "./js/panel.js": "./js/panel.js?v=144",
+      "./js/pointdrag.js": "./js/pointdrag.js?v=144",
+      "./js/polyline.js": "./js/polyline.js?v=144",
+      "./js/profile.js": "./js/profile.js?v=144",
+      "./js/share.js": "./js/share.js?v=144",
+      "./js/shapes.js": "./js/shapes.js?v=144",
+      "./js/spot.js": "./js/spot.js?v=144",
+      "./js/ui.js": "./js/ui.js?v=144"
     }
   }
   </script>
-  <script type="module" src="./js/main.js?v=139"></script>
+  <script type="module" src="./js/main.js?v=144"></script>
 </body>
 </html>

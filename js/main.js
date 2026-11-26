@@ -163,7 +163,7 @@ const favourites = {
 
 // ----- GPS art mode -----
 // The route in lime like a loop. Its heart saves to the same favourites.
-registerMode("art", createArtMode(map, ready, {
+const artMode = createArtMode(map, ready, {
   favourites,
   exportRoute: (r) => exporter.open(r),
   padding: routePadding(),
@@ -174,7 +174,8 @@ registerMode("art", createArtMode(map, ready, {
     add({ id: "art-route", type: "line", source: "art", layout,
       paint: { "line-color": "#c8ff2e", "line-width": W(2.2, 4.5), "line-opacity": FADE } });
   },
-}));
+});
+registerMode("art", artMode);
 
 // ----- A to B mode -----
 // The route drawn like a loop's, from js/lanes.js: one line, moved sideways
@@ -183,45 +184,67 @@ registerMode("art", createArtMode(map, ready, {
 // Features with more than one pass ("multi") carry their widths (w, and h
 // for the halo) for the zoom they were drawn at; uncertain paths are
 // dashed, as in loops.
-registerMode("p2p", createP2PMode(map, ready, {
+// src: the copy's own map sources (A to B's "p2p", Edit's "edit"), and
+// its layers' names start with it.
+const p2pLayers = (src) => (map) => {
+  const add = (layer) => map.addLayer(layer, FIRST_LABEL);
+  // multi: the feature's own width at every zoom (it's redrawn when a zoom ends)
+  const width = (k, lo, hi) => ["interpolate", ["linear"], ["zoom"],
+    11, ["case", ["get", "multi"], ["get", k], lo], 16, ["case", ["get", "multi"], ["get", k], hi]];
+  const kind = (k) => ["==", ["get", "kind"], k];
+  // Zoomed right in, counted-out lanes stay nearly solid: they're thin, so
+  // the street shows between them, and faded they'd be hard to count.
+  // dim: the legs that aren't the last one, while Last leg lights it up
+  // (2026-11-22), at about a third of their usual strength.
+  const dimmed = (on, off) => ["case", ["get", "dim"], off, on];
+  const fade = ["interpolate", ["linear"], ["zoom"], 15, dimmed(1, 0.35),
+    16.3, ["case", ["get", "lanes"], dimmed(0.85, 0.3), dimmed(0.35, 0.15)]];
+  const glow = ["interpolate", ["linear"], ["zoom"], 15, dimmed(1, 0.25), 16, 0];
+  add({ id: `${src}-halo`, type: "line", source: src, layout,
+    paint: { "line-color": "#4f6328", "line-width": width("h", 6, 13), "line-blur": W(1.5, 4), "line-opacity": glow } });
+  add({ id: `${src}-route`, type: "line", source: src, layout, filter: kind("plain"),
+    paint: { "line-color": "#c8ff2e", "line-width": width("w", 2.2, 4.5), "line-opacity": fade } });
+  add({ id: `${src}-country-gaps`, type: "line", source: src, layout, filter: kind("country"),
+    paint: { "line-color": "#151a22", "line-width": width("w", 2.2, 4.5), "line-opacity": glow } });
+  add({ id: `${src}-country`, type: "line", source: src, filter: kind("country"),
+    layout: { "line-cap": "butt", "line-join": "round" },
+    paint: { "line-color": "#c8ff2e", "line-width": width("w", 2.2, 4.5), "line-dasharray": [2.6, 1.8], "line-opacity": fade } });
+  // While the last point is dragged, a faint dashed straight line from the
+  // point before stands in for its leg; amber past the 20 km a leg can be
+  // (2026-11-26, the user).
+  add({ id: `${src}-drag`, type: "line", source: `${src}-drag`, layout: { "line-cap": "butt" },
+    paint: { "line-color": ["case", ["get", "over"], "#ffb547", "#c8ff2e"], "line-width": 2.5,
+      "line-dasharray": [2, 2], "line-opacity": ["case", ["get", "over"], 0.95, 0.6] } });
+};
+const p2pOptions = {
   favourites,
   exportRoute: (r) => exporter.open(r),
   padding: routePadding({ over: ".p2p-history" }),
   room: mapRoom({ over: ".p2p-history" }),
-  addP2PLayers(map) {
-    const add = (layer) => map.addLayer(layer, FIRST_LABEL);
-    // multi: the feature's own width at every zoom (it's redrawn when a zoom ends)
-    const width = (k, lo, hi) => ["interpolate", ["linear"], ["zoom"],
-      11, ["case", ["get", "multi"], ["get", k], lo], 16, ["case", ["get", "multi"], ["get", k], hi]];
-    const kind = (k) => ["==", ["get", "kind"], k];
-    // Zoomed right in, counted-out lanes stay nearly solid: they're thin, so
-    // the street shows between them, and faded they'd be hard to count.
-    // dim: the legs that aren't the last one, while Last leg lights it up
-    // (2026-11-22), at about a third of their usual strength.
-    const dimmed = (on, off) => ["case", ["get", "dim"], off, on];
-    const fade = ["interpolate", ["linear"], ["zoom"], 15, dimmed(1, 0.35),
-      16.3, ["case", ["get", "lanes"], dimmed(0.85, 0.3), dimmed(0.35, 0.15)]];
-    const glow = ["interpolate", ["linear"], ["zoom"], 15, dimmed(1, 0.25), 16, 0];
-    add({ id: "p2p-halo", type: "line", source: "p2p", layout,
-      paint: { "line-color": "#4f6328", "line-width": width("h", 6, 13), "line-blur": W(1.5, 4), "line-opacity": glow } });
-    add({ id: "p2p-route", type: "line", source: "p2p", layout, filter: kind("plain"),
-      paint: { "line-color": "#c8ff2e", "line-width": width("w", 2.2, 4.5), "line-opacity": fade } });
-    add({ id: "p2p-country-gaps", type: "line", source: "p2p", layout, filter: kind("country"),
-      paint: { "line-color": "#151a22", "line-width": width("w", 2.2, 4.5), "line-opacity": glow } });
-    add({ id: "p2p-country", type: "line", source: "p2p", filter: kind("country"),
-      layout: { "line-cap": "butt", "line-join": "round" },
-      paint: { "line-color": "#c8ff2e", "line-width": width("w", 2.2, 4.5), "line-dasharray": [2.6, 1.8], "line-opacity": fade } });
-    // While the last point is dragged, a faint dashed straight line from the
-    // point before stands in for its leg; amber past the 20 km a leg can be
-    // (2026-11-26, the user).
-    add({ id: "p2p-drag", type: "line", source: "p2p-drag", layout: { "line-cap": "butt" },
-      paint: { "line-color": ["case", ["get", "over"], "#ffb547", "#c8ff2e"], "line-width": 2.5,
-        "line-dasharray": [2, 2], "line-opacity": ["case", ["get", "over"], 0.95, 0.6] } });
+};
+registerMode("p2p", createP2PMode(map, ready, { ...p2pOptions, addP2PLayers: p2pLayers("p2p") }));
+
+// ----- Edit mode -----
+// A second copy of A to B (2026-11-26, the user: Edit mirrors it), with its
+// own route, Undo and map layers, for a route it's given: the one on
+// screen in the mode it came from (a found loop, a favourite, GPS art), or
+// a GPX file.
+registerMode("edit", createP2PMode(map, ready, {
+  ...p2pOptions, mode: "edit", source: "edit", addP2PLayers: p2pLayers("edit"),
+  routeOnScreen(from) {
+    if (from === "loop" || from === "favourites") {
+      const route = app.currentRoute();
+      return route && { route, kind: from === "favourites" ? "favourite" : "loop" };
+    }
+    if (from === "art") {
+      const route = artMode.currentRoute();
+      return route && { route, kind: "art" };
+    }
+    return null;
   },
 }));
 
 // ----- the shelf of modes along the bottom -----
-// Edit is a placeholder for now (see modes.js).
 // The favourites heart sits in the middle.
 createModeBar("loop", map);
 // Focus, over the map: frames the current mode's route (js/modes.js)

@@ -65,11 +65,14 @@ let map = null;
 // there isn't. It's asked whenever the mode or <body>'s classes change
 // (syncFocus, below), so a mode keeps a class on <body> in step with it,
 // as each does already (has-start, p2p-has-point, art-results).
+// prepare(from) runs before the mode it's coming from leaves, while that
+// one's route is still on screen (Edit takes it then: leaving favourites
+// puts loop's routes back, and passes through Loop).
 export function registerMode(id, {
-  canEnter = () => true, enter = () => {}, leave = () => {}, reselect = () => {},
+  canEnter = () => true, enter = () => {}, leave = () => {}, reselect = () => {}, prepare = () => {},
   canGoBack = () => false, goBack = () => {}, canFocus = () => false, focus = () => {}, keepsView = true, restores = null,
 } = {}) {
-  handlers.set(id, { canEnter, enter, leave, reselect, canGoBack, goBack, canFocus, focus, keepsView, restores });
+  handlers.set(id, { canEnter, enter, leave, reselect, prepare, canGoBack, goBack, canFocus, focus, keepsView, restores });
 }
 
 export const currentMode = () => current;
@@ -86,6 +89,8 @@ export function setMode(id) {
   if (!handlers.has(id)) return toast(`${mode.label} is coming soon`);
   if (!handlers.get(id).canEnter()) return;
   const from = current && handlers.get(current);
+  const was = current; // where it came from (before leaving favourites passes through Loop)
+  handlers.get(id).prepare(was);
   if (from?.keepsView && map) views.set(current, { center: map.getCenter(), zoom: map.getZoom() });
   from?.leave();
   current = id;
@@ -99,7 +104,7 @@ export function setMode(id) {
   // starts where the map is.
   const view = views.get(id);
   if (view && handlers.get(id).keepsView && from?.restores !== id) map.jumpTo(view);
-  handlers.get(id).enter();
+  handlers.get(id).enter(was);
 }
 
 // ----- the phone's back button -----

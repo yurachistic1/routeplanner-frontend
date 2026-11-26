@@ -797,5 +797,7 @@ export function createLoopMode(map, mapReady, opts) {
   const enter = () => {};
   const leave = () => {};
 
-  return { map, state, show, showRoutes, updateRoutes, exitFavourites, toggleList, toast, setStart, enter, leave, canGoBack, goBack: backToRoutes, canFocus, focus };
+  // The route on screen (found routes, or favourites), for Edit; null while planning.
+  const currentRoute = () => (viewingRoutes() ? state.routes[state.index] ?? null : null);
+  return { map, state, show, showRoutes, updateRoutes, exitFavourites, toggleList, toast, setStart, enter, leave, canGoBack, goBack: backToRoutes, canFocus, focus, currentRoute };
 }
