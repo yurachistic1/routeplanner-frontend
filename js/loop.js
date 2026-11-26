@@ -432,6 +432,9 @@ export function createLoopMode(map, mapReady, opts) {
       });
     }
     if ($("route-count")) $("route-count").textContent = state.routes.length;
+    // One route (a shared link, or the last favourite) has nothing to step
+    // to, so previous and next are disabled (2026-11-26, the user).
+    for (const id of ["prev", "next"]) if ($(id)) $(id).disabled = state.routes.length < 2;
     renderSort();
     const name = state.favourites ? "favourites" : "routes";
     if ($("list-title")) $("list-title").textContent = state.favourites ? `${state.routes.length} saved` : "Routes";
@@ -471,8 +474,12 @@ export function createLoopMode(map, mapReady, opts) {
     const btn = $("list-sort");
     if (!btn) return;
     const can = !state.favourites && state.routes.some((r) => r.climb != null);
+    // and one route has nothing to sort: shown but disabled, like previous
+    // and next, in the usual order
+    const one = state.routes.length < 2;
     btn.hidden = !can;
-    if (!can) state.sort = 0;
+    btn.disabled = one;
+    if (!can || one) state.sort = 0;
     btn.dataset.sort = state.sort === 1 ? "asc" : state.sort === -1 ? "desc" : "none";
     // the bars beside the hill: equal unsorted, growing for lowest first,
     // shrinking for highest first (set here, as Safari can't style a path)
@@ -481,7 +488,7 @@ export function createLoopMode(map, mapReady, opts) {
     btn.setAttribute("aria-pressed", String(!!state.sort));
     btn.setAttribute("aria-label", SORTS[state.sort].label);
     btn.title = SORTS[state.sort].label;
-    if ($("list-sort-note")) $("list-sort-note").textContent = can ? SORTS[state.sort].note : "";
+    if ($("list-sort-note")) $("list-sort-note").textContent = can && !one ? SORTS[state.sort].note : "";
   }
   // Each tap selects the list's new first route (the flattest, the
   // hilliest, or the router's first), 2026-11-18, the user.
@@ -494,6 +501,7 @@ export function createLoopMode(map, mapReady, opts) {
   // The next or previous route in the list's order.
   function step(by) {
     const o = order();
+    if (o.length < 2) return; // the arrow keys too
     const at = o.indexOf(state.index);
     show(o[(at + by + o.length) % o.length]);
   }
