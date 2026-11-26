@@ -65,7 +65,18 @@ function routePadding({ list = false, over = null } = {}) {
       const r = el.getBoundingClientRect();
       if (r.height) floor = Math.min(floor, r.top);
     }
-    return { top: top.bottom + 30, left: 30, right: 30, bottom: innerHeight - floor + 30 };
+    // Clear of the round buttons standing above the panel on the left
+    // (Satellite, My location, Focus), so a start there isn't hidden under
+    // them (2026-11-26, the user); 16px leaves room for the start's dot.
+    // Ones hidden for want of room on a short screen (js/map.js
+    // placeMapTools) don't count. Ones hidden under the open route list
+    // do: picking a route frames it before the list closes and they return.
+    const NO_ROOM = { satellite: "no-sat-btn", locate: "no-locate-btn", focus: "no-focus-btn" };
+    let left = 30;
+    for (const b of document.querySelectorAll(".deck .locate-btn")) {
+      if (!document.body.classList.contains(NO_ROOM[b.id])) left = Math.max(left, b.getBoundingClientRect().right + 16);
+    }
+    return { top: top.bottom + 30, left, right: 30, bottom: innerHeight - floor + 30 };
   };
 }
 
