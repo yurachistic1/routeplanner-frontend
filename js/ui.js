@@ -21,6 +21,12 @@ export function toast(msg, ms = 3800) {
   toastTimer = setTimeout(hide, ms);
 }
 
+// Takes the toast away now (a dragged point back under the leg limit).
+export function hideToast() {
+  clearTimeout(toastTimer);
+  $("toast")?.classList.remove("show");
+}
+
 // Lets a message (the toast, the Undo bar) be swiped away on touch screens
 // (the user, 2026-11-21): sideways, or towards the edge it sits at (edge:
 // "top" or "bottom"). It follows the finger; past a third of its width, or

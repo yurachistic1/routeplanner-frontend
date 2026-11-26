@@ -171,8 +171,9 @@ function crossAt(a, b, c, d) {
 // moved sideways into its lane, easing between lanes, then cut where the
 // width or the kind of path changes. Properties: kind, multi (more than one
 // pass), lanes (counted out one by one), w and h (line and halo width, px,
-// for multi), dim (focus is a leg's index and this isn't part of it: A to
-// B's Last leg lights up the last leg and dims the rest, 2026-11-22).
+// for multi), dim (focus is a leg's index, or a Set of them, and this
+// isn't part of it: A to B's Last leg lights up the last leg and dims the
+// rest, 2026-11-22; a selected leg lights up with its Lap copies, 2026-11-26).
 //
 // Turns (the user, 2026-11-23: lanes broke up at turns, junctions and
 // waypoints, with hooks, arrowheads and lanes crossing): every lane turns
@@ -491,8 +492,10 @@ export function routeFeatures(pieces, z, focus = -1) {
   // way in and out of it. The focus leg draws its own over a dimmed one,
   // so it stays lit there too.
   const features = [];
-  const dim = (k) => focus >= 0 && pieces[k].leg !== focus;
-  const repeat = (j) => styles[outK[j]].mode === "band" && pieces[outK[j]].lane > 0 && outD[j] === 0 && outD[j + 1] === 0 && pieces[outK[j]].leg !== focus;
+  const lit = focus instanceof Set ? (l) => focus.has(l) : (l) => l === focus;
+  const focused = focus instanceof Set ? focus.size > 0 : focus >= 0;
+  const dim = (k) => focused && !lit(pieces[k].leg);
+  const repeat = (j) => styles[outK[j]].mode === "band" && pieces[outK[j]].lane > 0 && outD[j] === 0 && outD[j + 1] === 0 && !lit(pieces[outK[j]].leg);
   const styleKey = (j) => {
     const s = styles[outK[j]];
     return `${pieces[outK[j]].kind}|${s.mode}|${s.mode === "band" ? s.w.toFixed(2) : ""}|${repeat(j)}|${dim(outK[j])}`;

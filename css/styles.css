@@ -860,8 +860,8 @@ dialog.sheet::backdrop { background: rgba(7, 9, 13, .66); }
 @media (hover: hover) { .map-pill:hover:not(:disabled) { background: var(--tone-2); } }
 .map-pill:active:not(:disabled) { transform: scale(.94); background: var(--tone-press); }
 .map-pill:disabled { background: #1a2029; color: #566070; box-shadow: none; cursor: not-allowed; }
-.map-pill kbd { font: 500 11px "JetBrains Mono", monospace; color: var(--dim); border: 1px solid var(--edge); border-radius: 6px; padding: 2px 6px; }
-.map-pill kbd:empty { display: none; }
+/* Icons only (Undo, Redo): a round map button. */
+.map-pill.map-pill-icon { width: 46px; padding: 0; justify-content: center; }
 /* Lap's count, inside its arrow once the route runs a lap more than once
    (2026-11-23): bold, in the icon's colour, smaller for two digits */
 .lap-icon { position: relative; display: inline-flex; flex: none; }
@@ -870,7 +870,6 @@ dialog.sheet::backdrop { background: rgba(7, 9, 13, .66); }
 .lap-count:empty { display: none; }
 /* a detail after the words, as Lap's length: quieter, numbers in mono */
 .map-pill-note { margin-left: -2px; color: var(--dim); font: 500 14px "JetBrains Mono", monospace; }
-@media (hover: none) { .map-pill kbd { display: none; } }
 
 /* ----- Warning line (UI.md; 2026-11-20, A to B's route info) -----
    Route info's warning card made small: an amber mark, what it is in one
@@ -962,20 +961,29 @@ body[data-mode="p2p"].p2p-has-leg .hud-top .p2p-info { display: block; }
 [data-mode="p2p"].p2p-has-route .p2p-actions { display: grid; grid-template-columns: minmax(0, 1fr) 52px; gap: 10px; }
 [data-mode="p2p"].p2p-no-details .p2p-details, .p2p-folded .p2p-fold { display: none !important; }
 .p2p-details .profile { padding-top: 0; margin-bottom: 0; }
+/* Reverse route (UI.md, 2026-11-26): a small round icon button before
+   "Elevation", 28px to see with a 44px target, its margins taken back so
+   the header line doesn't grow (the map has little room on small phones). */
+.p2p-details .profile-head { align-items: center; }
+.profile-title { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.icon-btn.reverse-btn { position: relative; width: 28px; height: 28px; margin: -4px 0; flex: none; }
+.icon-btn.reverse-btn svg { width: 16px; height: 16px; }
+.icon-btn.reverse-btn::after { content: ""; position: absolute; inset: -8px; border-radius: 50%; }
 .p2p-actions .fav { height: 52px; }
-/* Undo and Clear float above the panel's right end, from the first point
-   (Undo also after a Clear, to bring the route back), and Lap left of
-   them while there is one. Laid out from the right (Undo, Clear, Lap) so
-   that where the row has no room, Lap goes up a row, still on the right,
-   and Undo and Clear stay put. */
+/* Undo, Redo and Clear float above the panel's right end, from the first
+   point (Undo also after a Clear, to bring the route back; Redo once
+   something's undone), and Lap left of them while there is one. Laid out
+   from the right (Redo, Undo, Clear, Lap) so that where the row has no
+   room, Lap goes up a row, still on the right, and the rest stay put. */
 .p2p-history {
   position: absolute; right: 0; bottom: calc(100% + 10px); display: none; gap: 8px;
   flex-direction: row-reverse; flex-wrap: wrap-reverse; max-width: 100%;
 }
-#p2p-undo { order: 1; }
-#p2p-clear { order: 2; }
-#p2p-lap { order: 3; }
-[data-mode="p2p"]:is(.p2p-has-point, .p2p-can-undo) .p2p-history { display: flex; }
+#p2p-redo { order: 1; }
+#p2p-undo { order: 2; }
+#p2p-clear { order: 3; }
+#p2p-lap { order: 4; }
+[data-mode="p2p"]:is(.p2p-has-point, .p2p-can-undo, .p2p-can-redo) .p2p-history { display: flex; }
 /* Folded with a warning hidden: the grip's pill turns amber, so it says
    there's something to see where you'd tap to see it (was a dot beside
    it, which floated on the panel's edge, 2026-11-21). */
@@ -983,8 +991,25 @@ body[data-mode="p2p"].p2p-folded.p2p-warnings #p2p-grip i { background: var(--am
 body[data-mode="p2p"].p2p-folded.p2p-warnings #p2p-grip:active i { background: var(--text); }
 /* Waypoints (UI.md): the start keeps loop's pink, vias are dark beads,
    the finish is chequered. Small, and they take no taps: a tap near one
-   lands on it (moving them is the Edit mode's job). */
+   lands on it. */
 .wp { border-radius: 50%; pointer-events: none; }
+/* Except in A to B, where every point can be dragged (UI.md "Moving a
+   point", 2026-11-26): a 44px target round it, no browser menu or selection on a
+   long press, and held it grows by about a third (its size: the map
+   positions markers with transform, which scale would multiply, sending it
+   off). Taps on it still go to the map (js/pointdrag.js). */
+.wp.wp-drag {
+  pointer-events: auto; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+  transition: width .12s ease-out, height .12s ease-out;
+}
+.wp.wp-drag::after { content: ""; position: absolute; inset: -16px; border-radius: 50%; }
+.wp-via.wp-drag::after { inset: -18px; }
+.wp-start.wp-held { width: 24px; height: 24px; }
+.wp-via.wp-held { width: 17px; height: 17px; }
+.wp-fin.wp-held { width: 25px; height: 25px; }
+@media (hover: hover) { .wp.wp-drag { cursor: grab; } }
+body.point-dragging, body.point-dragging * { cursor: grabbing !important; }
+@media (prefers-reduced-motion: reduce) { .wp.wp-drag { transition: none; } }
 .wp-start {
   width: 18px; height: 18px; background: var(--pink); border: 3px solid #fff;
   box-shadow: 0 0 0 3px rgba(255, 61, 139, .35), 0 0 14px rgba(255, 61, 139, .8);
@@ -992,8 +1017,28 @@ body[data-mode="p2p"].p2p-folded.p2p-warnings #p2p-grip:active i { background: v
 .wp-via { width: 13px; height: 13px; background: #0b1004; border: 2.5px solid #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, .7); }
 .wp-fin {
   width: 19px; height: 19px; border: 2.5px solid #fff;
-  background: repeating-conic-gradient(#0b1004 0 25%, #fff 0 50%) 0 0 / 7px 7px; box-shadow: 0 1px 6px rgba(0, 0, 0, .8);
+  background: repeating-conic-gradient(#0b1004 0 25%, #fff 0 50%) 0 0 / 50% 50%; box-shadow: 0 1px 6px rgba(0, 0, 0, .8);
 }
+/* Map menu (UI.md, 2026-11-26): a small card over the map where a leg or
+   a point was long-pressed (right-clicked on laptops); on a leg, the
+   profile's lime dot marks the spot. A map button's fill and shadow; rows are 48px, the icon dim.
+   It fades in (opacity only: the map positions markers with transform). */
+.map-menu {
+  display: flex; flex-direction: column; padding: 6px; border-radius: 18px; min-width: 196px;
+  background: var(--float); border: 1px solid var(--edge); box-shadow: 0 10px 28px rgba(0, 0, 0, .55);
+  animation: map-menu-in .12s ease-out;
+}
+.map-menu button {
+  display: flex; align-items: center; gap: 12px; height: 48px; padding: 0 14px 0 12px; border-radius: 12px;
+  font-size: 15px; font-weight: 600; color: var(--text); text-align: left; white-space: nowrap;
+  transition: transform .12s, background-color .15s; -webkit-tap-highlight-color: transparent;
+}
+.map-menu svg { width: 20px; height: 20px; flex: none; color: var(--dim); }
+@media (hover: hover) { .map-menu button:hover { background: var(--tone-2); } }
+.map-menu button:active { transform: scale(.97); background: var(--tone-press); }
+.map-menu button:focus-visible { outline: 3px solid var(--neon); outline-offset: -3px; }
+@keyframes map-menu-in { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .map-menu { animation: none; } .map-menu button { transition: none; } }
 /* The same finish on routes that end away from their start in the route
    viewer (favourites) and GPS art (2026-11-21). The viewer's goes with
    its routes, and out of sight in other modes, as loop's start does. */

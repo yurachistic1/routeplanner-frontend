@@ -60,11 +60,7 @@ function routePadding({ list = false, over = null } = {}) {
       const out = list && document.body.classList.contains("show-results");
       return { top: 60, bottom: 60, left: deck.right + 40, right: out ? document.querySelector(".list").offsetWidth + 40 : 60 };
     }
-    let floor = deck.top;
-    for (const el of over ? document.querySelectorAll(over) : []) {
-      const r = el.getBoundingClientRect();
-      if (r.height) floor = Math.min(floor, r.top);
-    }
+    const floor = floorOf(deck, over);
     // Clear of the round buttons standing above the panel on the left
     // (Satellite, My location, Focus), so a start there isn't hidden under
     // them (2026-11-26, the user); 16px leaves room for the start's dot.
@@ -77,6 +73,30 @@ function routePadding({ list = false, over = null } = {}) {
       if (!document.body.classList.contains(NO_ROOM[b.id])) left = Math.max(left, b.getBoundingClientRect().right + 16);
     }
     return { top: top.bottom + 30, left, right: 30, bottom: innerHeight - floor + 30 };
+  };
+}
+
+// On phones, the top of the panel, or of whatever floats above it (over).
+function floorOf(deck, over) {
+  let floor = deck.top;
+  for (const el of over ? document.querySelectorAll(over) : []) {
+    const r = el.getBoundingClientRect();
+    if (r.height) floor = Math.min(floor, r.top);
+  }
+  return floor;
+}
+
+// The part of the map that can be seen, in its own px: not under the top
+// bar or the panel (on laptops, beside it), nor on phones under over, the
+// things floating above the panel. A point being dragged stays in it, and
+// the map moves along near its edges (js/pointdrag.js).
+function mapRoom({ over = null } = {}) {
+  return () => {
+    const box = map.getContainer().getBoundingClientRect();
+    const deck = document.querySelector(".deck").getBoundingClientRect();
+    if (desktop.matches) return { left: deck.right - box.left, top: 0, right: box.width, bottom: box.height };
+    const top = document.querySelector(".hud-top").getBoundingClientRect();
+    return { left: 0, top: top.bottom - box.top, right: box.width, bottom: floorOf(deck, over) - box.top };
   };
 }
 
@@ -167,6 +187,7 @@ registerMode("p2p", createP2PMode(map, ready, {
   favourites,
   exportRoute: (r) => exporter.open(r),
   padding: routePadding({ over: ".p2p-history" }),
+  room: mapRoom({ over: ".p2p-history" }),
   addP2PLayers(map) {
     const add = (layer) => map.addLayer(layer, FIRST_LABEL);
     // multi: the feature's own width at every zoom (it's redrawn when a zoom ends)
@@ -190,6 +211,12 @@ registerMode("p2p", createP2PMode(map, ready, {
     add({ id: "p2p-country", type: "line", source: "p2p", filter: kind("country"),
       layout: { "line-cap": "butt", "line-join": "round" },
       paint: { "line-color": "#c8ff2e", "line-width": width("w", 2.2, 4.5), "line-dasharray": [2.6, 1.8], "line-opacity": fade } });
+    // While the last point is dragged, a faint dashed straight line from the
+    // point before stands in for its leg; amber past the 20 km a leg can be
+    // (2026-11-26, the user).
+    add({ id: "p2p-drag", type: "line", source: "p2p-drag", layout: { "line-cap": "butt" },
+      paint: { "line-color": ["case", ["get", "over"], "#ffb547", "#c8ff2e"], "line-width": 2.5,
+        "line-dasharray": [2, 2], "line-opacity": ["case", ["get", "over"], 0.95, 0.6] } });
   },
 }));
 

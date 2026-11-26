@@ -21,7 +21,7 @@
   <link href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css" rel="stylesheet" />
   <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
   <link href="./css/tonal.css?v=93" rel="stylesheet" />
-  <link href="./css/styles.css?v=95" rel="stylesheet" />
+  <link href="./css/styles.css?v=102" rel="stylesheet" />
 </head>
 <body>
   <div id="map"></div>
@@ -160,15 +160,19 @@
           <span class="lap-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg><span class="lap-count" id="p2p-lap-count" aria-hidden="true"></span></span>Lap<span class="map-pill-note" id="p2p-lap-km"></span>
         </button>
         <button class="map-pill" id="p2p-clear">Clear</button>
-        <button class="map-pill" id="p2p-undo" aria-keyshortcuts="Control+Z Meta+Z">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>Undo<kbd></kbd>
+        <!-- Undo and Redo: round, icons only (2026-11-26) -->
+        <button class="map-pill map-pill-icon" id="p2p-undo" aria-label="Undo" aria-keyshortcuts="Control+Z Meta+Z" disabled>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>
+        </button>
+        <button class="map-pill map-pill-icon" id="p2p-redo" aria-label="Redo" aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z Control+Y" disabled>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg>
         </button>
       </div>
       <button class="deck-grip" id="p2p-grip" aria-label="Hide route details" aria-expanded="true" aria-controls="p2p-details"><i aria-hidden="true"></i></button>
       <div class="p2p-head">
         <!-- What the routing changes (js/p2p.js): Next leg; tap it for Last leg (UI.md "Scope heading"). -->
         <h3 class="p2p-title"><button class="scope" id="p2p-scope" type="button" disabled>
-          <span id="p2p-title">Next leg</span><span class="scope-dots" id="p2p-scope-dots" aria-hidden="true"><i></i><i></i></span>
+          <span id="p2p-title">Next leg</span><span class="scope-dots" id="p2p-scope-dots" aria-hidden="true"><i></i><i></i><i hidden></i></span>
         </button></h3>
         <button class="switch-row" id="p2p-climb" role="switch" aria-checked="false">Minimise climb<span class="switch" aria-hidden="true"></span></button>
       </div>
@@ -179,7 +183,10 @@
       </div>
       <div class="p2p-details p2p-fold" id="p2p-details">
         <div class="profile" id="p2p-profile" hidden>
-          <div class="profile-head"><span class="profile-label">Elevation</span><span class="profile-value" aria-live="polite"></span></div>
+          <!-- Reverse route (2026-11-26): beside the climb and descent it swaps -->
+          <div class="profile-head"><span class="profile-title"><button class="icon-btn reverse-btn" id="p2p-reverse" type="button" aria-label="Reverse route" title="Reverse route">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="m21 8-4-4-4 4"/><path d="M17 4v16"/></svg>
+          </button><span class="profile-label">Elevation</span></span><span class="profile-value" aria-live="polite"></span></div>
           <div class="profile-chart" tabindex="0" role="slider"></div>
         </div>
         <button class="warn-line" id="p2p-warn" aria-expanded="false" aria-controls="p2p-warn-text" hidden>
@@ -386,31 +393,32 @@
   <script type="importmap">
   {
     "imports": {
-      "./js/account.js": "./js/account.js?v=122",
-      "./js/api.js": "./js/api.js?v=122",
-      "./js/art.js": "./js/art.js?v=122",
-      "./js/export.js": "./js/export.js?v=122",
-      "./js/firebase.js": "./js/firebase.js?v=122",
-      "./js/garmin.js": "./js/garmin.js?v=122",
-      "./js/geometry.js": "./js/geometry.js?v=122",
-      "./js/lanes.js": "./js/lanes.js?v=122",
-      "./js/loop.js": "./js/loop.js?v=122",
-      "./js/main.js": "./js/main.js?v=122",
-      "./js/map.js": "./js/map.js?v=122",
-      "./js/mapicons.js": "./js/mapicons.js?v=122",
-      "./js/mapstyle.js": "./js/mapstyle.js?v=122",
-      "./js/modes.js": "./js/modes.js?v=122",
-      "./js/p2p.js": "./js/p2p.js?v=122",
-      "./js/panel.js": "./js/panel.js?v=122",
-      "./js/polyline.js": "./js/polyline.js?v=122",
-      "./js/profile.js": "./js/profile.js?v=122",
-      "./js/share.js": "./js/share.js?v=122",
-      "./js/shapes.js": "./js/shapes.js?v=122",
-      "./js/spot.js": "./js/spot.js?v=122",
-      "./js/ui.js": "./js/ui.js?v=122"
+      "./js/account.js": "./js/account.js?v=139",
+      "./js/api.js": "./js/api.js?v=139",
+      "./js/art.js": "./js/art.js?v=139",
+      "./js/export.js": "./js/export.js?v=139",
+      "./js/firebase.js": "./js/firebase.js?v=139",
+      "./js/garmin.js": "./js/garmin.js?v=139",
+      "./js/geometry.js": "./js/geometry.js?v=139",
+      "./js/lanes.js": "./js/lanes.js?v=139",
+      "./js/loop.js": "./js/loop.js?v=139",
+      "./js/main.js": "./js/main.js?v=139",
+      "./js/map.js": "./js/map.js?v=139",
+      "./js/mapicons.js": "./js/mapicons.js?v=139",
+      "./js/mapstyle.js": "./js/mapstyle.js?v=139",
+      "./js/modes.js": "./js/modes.js?v=139",
+      "./js/p2p.js": "./js/p2p.js?v=139",
+      "./js/panel.js": "./js/panel.js?v=139",
+      "./js/pointdrag.js": "./js/pointdrag.js?v=139",
+      "./js/polyline.js": "./js/polyline.js?v=139",
+      "./js/profile.js": "./js/profile.js?v=139",
+      "./js/share.js": "./js/share.js?v=139",
+      "./js/shapes.js": "./js/shapes.js?v=139",
+      "./js/spot.js": "./js/spot.js?v=139",
+      "./js/ui.js": "./js/ui.js?v=139"
     }
   }
   </script>
-  <script type="module" src="./js/main.js?v=122"></script>
+  <script type="module" src="./js/main.js?v=139"></script>
 </body>
 </html>
